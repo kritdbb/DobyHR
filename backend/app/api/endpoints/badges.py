@@ -91,7 +91,11 @@ def get_town_people(
                 badge_list.append({
                     "id": badge.id,
                     "name": badge.name,
+                    "description": badge.description or "",
                     "image": badge.image,
+                    "bonus_str": badge.stat_str or 0,
+                    "bonus_def": badge.stat_def or 0,
+                    "bonus_luk": badge.stat_luk or 0,
                 })
         base_s = u.base_str if hasattr(u, 'base_str') and u.base_str else 10
         base_d = u.base_def if hasattr(u, 'base_def') and u.base_def else 10

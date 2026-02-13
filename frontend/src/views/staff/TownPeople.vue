@@ -51,57 +51,103 @@
       </div>
     </div>
 
-    <!-- Staff Detail Modal -->
+    <!-- ═══════ RPG Character Sheet Modal ═══════ -->
     <div v-if="selectedPerson" class="modal-overlay" @click.self="selectedPerson = null">
-      <div class="modal-content">
-        <button class="modal-close" @click="selectedPerson = null">✕</button>
+      <div class="char-sheet">
+        <button class="sheet-close" @click="selectedPerson = null">✕</button>
+
+        <!-- Decorative corners -->
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
 
         <!-- Portrait -->
-        <div class="modal-portrait">
-          <img v-if="selectedPerson.image" :src="selectedPerson.image" class="modal-avatar" />
-          <div v-else class="modal-avatar-ph">{{ (selectedPerson.name || '?').charAt(0) }}</div>
-          <span class="modal-role" :class="selectedPerson.role">{{ selectedPerson.role }}</span>
+        <div class="portrait-frame">
+          <div class="portrait-glow"></div>
+          <div class="portrait-ring">
+            <img v-if="selectedPerson.image" :src="selectedPerson.image" class="portrait-img" />
+            <div v-else class="portrait-ph">{{ (selectedPerson.name || '?').charAt(0) }}</div>
+          </div>
+          <div class="rank-plate" :class="selectedPerson.role">{{ selectedPerson.role }}</div>
         </div>
 
-        <div class="modal-name">{{ selectedPerson.name }}</div>
-        <div class="modal-surname">{{ selectedPerson.surname }}</div>
-        <div class="modal-position">{{ selectedPerson.position }}</div>
-        <div v-if="selectedPerson.status_text" class="modal-status">"{{ selectedPerson.status_text }}"</div>
-
-        <!-- Stats -->
-        <div class="modal-section-title">⚔️ Stats</div>
-        <div class="modal-stats">
-          <div class="ms-item str"><span class="ms-label">STR</span><span class="ms-val">{{ selectedPerson.stats.total_str }}</span></div>
-          <div class="ms-item def"><span class="ms-label">DEF</span><span class="ms-val">{{ selectedPerson.stats.total_def }}</span></div>
-          <div class="ms-item luk"><span class="ms-label">LUK</span><span class="ms-val">{{ selectedPerson.stats.total_luk }}</span></div>
+        <!-- Identity -->
+        <div class="char-identity">
+          <div class="char-name">{{ selectedPerson.name }} {{ selectedPerson.surname }}</div>
+          <div class="char-title">〈 {{ selectedPerson.position }} 〉</div>
+          <div v-if="selectedPerson.status_text" class="char-quote">「{{ selectedPerson.status_text }}」</div>
         </div>
+
+        <div class="sheet-divider"></div>
+
+        <!-- Stat Bars -->
+        <div class="stat-panel">
+          <div class="stat-row">
+            <span class="stat-icon">⚔️</span>
+            <span class="stat-label str">STR</span>
+            <div class="stat-bar-track">
+              <div class="stat-bar-fill str" :style="{ width: Math.min(selectedPerson.stats.total_str, 100) + '%' }"></div>
+            </div>
+            <span class="stat-num str">{{ selectedPerson.stats.total_str }}</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">🛡️</span>
+            <span class="stat-label def">DEF</span>
+            <div class="stat-bar-track">
+              <div class="stat-bar-fill def" :style="{ width: Math.min(selectedPerson.stats.total_def, 100) + '%' }"></div>
+            </div>
+            <span class="stat-num def">{{ selectedPerson.stats.total_def }}</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">🍀</span>
+            <span class="stat-label luk">LUK</span>
+            <div class="stat-bar-track">
+              <div class="stat-bar-fill luk" :style="{ width: Math.min(selectedPerson.stats.total_luk, 100) + '%' }"></div>
+            </div>
+            <span class="stat-num luk">{{ selectedPerson.stats.total_luk }}</span>
+          </div>
+        </div>
+
+        <div class="sheet-divider"></div>
 
         <!-- Currency -->
-        <div class="modal-section-title">💰 Currency</div>
-        <div class="modal-currency">
-          <span class="mc gold">💰 {{ selectedPerson.coins }} Gold</span>
-          <span class="mc mana">✨ {{ selectedPerson.angel_coins }} Mana</span>
+        <div class="currency-row">
+          <div class="cur-block gold">
+            <span class="cur-val">{{ selectedPerson.coins.toLocaleString() }}</span>
+            <span class="cur-lbl">💰 Gold</span>
+          </div>
+          <div class="cur-sep"></div>
+          <div class="cur-block mana">
+            <span class="cur-val">{{ selectedPerson.angel_coins.toLocaleString() }}</span>
+            <span class="cur-lbl">✨ Mana</span>
+          </div>
         </div>
 
-        <!-- Badges -->
-        <div class="modal-section-title">🏅 Badges ({{ selectedPerson.badges.length }})</div>
-        <div v-if="selectedPerson.badges.length" class="modal-badges">
-          <div v-for="b in selectedPerson.badges" :key="b.id" class="mb-item">
-            <div class="mb-icon">
-              <img v-if="b.image" :src="b.image" class="mb-img" />
+        <div class="sheet-divider"></div>
+
+        <!-- Equipment -->
+        <div class="equip-header">
+          <span>🏅 Equipment</span>
+          <span class="equip-count">{{ selectedPerson.badges.length }}</span>
+        </div>
+
+        <div v-if="selectedPerson.badges.length" class="equip-list">
+          <div v-for="b in selectedPerson.badges" :key="b.id" class="equip-card">
+            <div class="eq-icon">
+              <img v-if="b.image" :src="b.image" class="eq-icon-img" />
               <span v-else>🏅</span>
             </div>
-            <div class="mb-info">
-              <div class="mb-name">{{ b.name }}</div>
-              <div v-if="b.bonus_str || b.bonus_def || b.bonus_luk" class="mb-bonus">
-                <span v-if="b.bonus_str" class="bonus str">STR +{{ b.bonus_str }}</span>
-                <span v-if="b.bonus_def" class="bonus def">DEF +{{ b.bonus_def }}</span>
-                <span v-if="b.bonus_luk" class="bonus luk">LUK +{{ b.bonus_luk }}</span>
-              </div>
+            <div class="eq-body">
+              <div class="eq-name">{{ b.name }}</div>
+              <div v-if="b.description" class="eq-desc">{{ b.description }}</div>
+            </div>
+            <div v-if="b.bonus_str || b.bonus_def || b.bonus_luk" class="eq-bonuses">
+              <span v-if="b.bonus_str" class="eqb str">⚔️+{{ b.bonus_str }}</span>
+              <span v-if="b.bonus_def" class="eqb def">🛡️+{{ b.bonus_def }}</span>
+              <span v-if="b.bonus_luk" class="eqb luk">🍀+{{ b.bonus_luk }}</span>
             </div>
           </div>
         </div>
-        <div v-else class="modal-no-badges">No badges earned yet</div>
+        <div v-else class="equip-empty">— No equipment found —</div>
       </div>
     </div>
   </div>
@@ -284,138 +330,254 @@ export default {
   .people-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
-/* ── Staff Detail Modal ───────────────────────── */
+/* ═══════════════════════════════════════════════════
+   RPG CHARACTER SHEET MODAL
+   ═══════════════════════════════════════════════════ */
 .modal-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0,0,0,0.85);
   display: flex; align-items: center; justify-content: center;
   z-index: 9999; padding: 16px;
-  animation: fadeIn 0.2s ease;
+  animation: fadeIn 0.25s ease;
 }
-.modal-content {
-  background: linear-gradient(145deg, #1a0a2e, #2c1810);
-  border: 2px solid rgba(212,164,76,0.3);
-  border-radius: 18px;
-  padding: 28px 22px;
-  max-width: 360px; width: 100%;
-  max-height: 80vh; overflow-y: auto;
-  position: relative;
-  box-shadow: 0 0 40px rgba(212,164,76,0.15);
-}
-.modal-close {
-  position: absolute; top: 12px; right: 14px;
-  background: none; border: none; color: #8b7355;
-  font-size: 18px; cursor: pointer; padding: 4px;
-}
-.modal-close:hover { color: #e8d5b7; }
 
-.modal-portrait {
+.char-sheet {
+  position: relative;
+  background:
+    linear-gradient(170deg, #110a1e 0%, #1e0e0a 40%, #0f0f1e 100%);
+  border: 2px solid #d4a44c;
+  border-radius: 4px;
+  padding: 32px 24px 24px;
+  max-width: 380px; width: 100%;
+  max-height: 85vh; overflow-y: auto;
+  box-shadow:
+    0 0 0 1px rgba(212,164,76,0.15),
+    0 0 60px rgba(212,164,76,0.08),
+    inset 0 0 80px rgba(0,0,0,0.3);
+}
+
+/* Corner ornaments */
+.corner {
+  position: absolute; width: 16px; height: 16px;
+  border-color: #d4a44c; border-style: solid;
+}
+.corner.tl { top: -1px; left: -1px; border-width: 3px 0 0 3px; }
+.corner.tr { top: -1px; right: -1px; border-width: 3px 3px 0 0; }
+.corner.bl { bottom: -1px; left: -1px; border-width: 0 0 3px 3px; }
+.corner.br { bottom: -1px; right: -1px; border-width: 0 3px 3px 0; }
+
+.sheet-close {
+  position: absolute; top: 8px; right: 12px;
+  background: none; border: none; color: #6b5a3e;
+  font-size: 20px; cursor: pointer; z-index: 2;
+  transition: color 0.15s;
+}
+.sheet-close:hover { color: #e8d5b7; }
+
+/* ── Portrait ── */
+.portrait-frame {
   display: flex; flex-direction: column; align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 14px; position: relative;
 }
-.modal-avatar {
-  width: 80px; height: 80px; border-radius: 50%;
-  object-fit: cover; border: 3px solid rgba(212,164,76,0.4);
+.portrait-glow {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -55%);
+  width: 120px; height: 120px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(212,164,76,0.12) 0%, transparent 70%);
+  pointer-events: none;
 }
-.modal-avatar-ph {
-  width: 80px; height: 80px; border-radius: 50%;
+.portrait-ring {
+  width: 88px; height: 88px; border-radius: 50%;
+  border: 3px solid #d4a44c;
+  box-shadow: 0 0 20px rgba(212,164,76,0.25), inset 0 0 16px rgba(0,0,0,0.4);
+  overflow: hidden; position: relative; z-index: 1;
+}
+.portrait-img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.portrait-ph {
+  width: 100%; height: 100%;
   background: linear-gradient(135deg, #b8860b, #d4a44c);
   display: flex; align-items: center; justify-content: center;
-  font-size: 32px; font-weight: 800; color: #1c1208;
+  font-size: 36px; font-weight: 800; color: #1c1208;
 }
-.modal-role {
+.rank-plate {
   margin-top: 6px; font-size: 10px; font-weight: 800;
-  padding: 2px 10px; border-radius: 8px; text-transform: uppercase;
+  padding: 3px 14px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  border: 1px solid; position: relative; z-index: 1;
 }
-.modal-role.admin { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; }
-.modal-role.staff { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; }
-.modal-role.manager { background: linear-gradient(135deg, #2980b9, #3498db); color: #fff; }
+.rank-plate.admin {
+  background: linear-gradient(135deg, #8b1a1a, #c0392b);
+  border-color: #e74c3c; color: #ffd5d5;
+  box-shadow: 0 0 10px rgba(231,76,60,0.3);
+}
+.rank-plate.staff {
+  background: linear-gradient(135deg, #1a5c2e, #27ae60);
+  border-color: #2ecc71; color: #d5ffe0;
+  box-shadow: 0 0 10px rgba(46,204,113,0.3);
+}
+.rank-plate.manager {
+  background: linear-gradient(135deg, #1a3a5c, #2980b9);
+  border-color: #3498db; color: #d5e8ff;
+  box-shadow: 0 0 10px rgba(52,152,219,0.3);
+}
 
-.modal-name {
+/* ── Identity ── */
+.char-identity { text-align: center; margin-bottom: 4px; }
+.char-name {
   font-family: 'Cinzel', serif;
-  font-size: 18px; font-weight: 800; color: #e8d5b7;
-  text-align: center; line-height: 1.3;
+  font-size: 20px; font-weight: 800; color: #e8d5b7;
+  text-shadow: 0 2px 12px rgba(212,164,76,0.3);
+  line-height: 1.3;
 }
-.modal-surname {
-  font-family: 'Cinzel', serif;
-  font-size: 14px; font-weight: 600; color: #c4b08a;
-  text-align: center; margin-bottom: 2px;
+.char-title {
+  font-size: 12px; color: #b8860b; font-weight: 600;
+  letter-spacing: 0.5px; margin-top: 2px;
 }
-.modal-position {
-  font-size: 12px; color: #8b7355; font-weight: 600;
-  text-align: center; margin-bottom: 6px;
-}
-.modal-status {
-  font-size: 12px; color: #e74c3c; font-style: italic;
-  font-weight: 600; text-align: center; margin-bottom: 14px;
+.char-quote {
+  font-size: 11px; color: #e74c3c; font-style: italic;
+  font-weight: 600; margin-top: 4px;
   word-break: break-word;
 }
 
-.modal-section-title {
-  font-family: 'Cinzel', serif;
-  font-size: 12px; font-weight: 700; color: #d4a44c;
-  margin-bottom: 8px; padding-bottom: 4px;
-  border-bottom: 1px solid rgba(212,164,76,0.15);
+.sheet-divider {
+  height: 1px; margin: 14px 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(212,164,76,0.3) 50%, transparent 100%);
 }
 
-/* Stats */
-.modal-stats {
-  display: flex; gap: 8px; margin-bottom: 14px; justify-content: center;
+/* ── Stat Bars ── */
+.stat-panel { display: flex; flex-direction: column; gap: 8px; }
+.stat-row {
+  display: flex; align-items: center; gap: 8px;
 }
-.ms-item {
-  flex: 1; padding: 8px 0; border-radius: 10px;
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+.stat-icon { font-size: 14px; width: 18px; text-align: center; }
+.stat-label {
+  font-family: 'Cinzel', serif; font-size: 11px; font-weight: 800;
+  width: 30px; letter-spacing: 1px;
 }
-.ms-item.str { background: rgba(231,76,60,0.1); }
-.ms-item.def { background: rgba(52,152,219,0.1); }
-.ms-item.luk { background: rgba(46,204,113,0.1); }
-.ms-label { font-size: 10px; font-weight: 700; color: #8b7355; }
-.ms-item.str .ms-val { color: #e74c3c; }
-.ms-item.def .ms-val { color: #3498db; }
-.ms-item.luk .ms-val { color: #2ecc71; }
-.ms-val { font-size: 20px; font-weight: 800; }
+.stat-label.str { color: #e74c3c; }
+.stat-label.def { color: #3498db; }
+.stat-label.luk { color: #2ecc71; }
 
-/* Currency */
-.modal-currency {
-  display: flex; gap: 16px; margin-bottom: 14px; justify-content: center;
+.stat-bar-track {
+  flex: 1; height: 10px; border-radius: 5px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
 }
-.mc { font-size: 13px; font-weight: 700; }
-.mc.gold { color: #d4a44c; }
-.mc.mana { color: #9b59b6; }
+.stat-bar-fill {
+  height: 100%; border-radius: 4px;
+  transition: width 0.6s ease;
+}
+.stat-bar-fill.str {
+  background: linear-gradient(90deg, #8b1a1a, #e74c3c);
+  box-shadow: 0 0 6px rgba(231,76,60,0.4);
+}
+.stat-bar-fill.def {
+  background: linear-gradient(90deg, #1a3a5c, #3498db);
+  box-shadow: 0 0 6px rgba(52,152,219,0.4);
+}
+.stat-bar-fill.luk {
+  background: linear-gradient(90deg, #1a5c2e, #2ecc71);
+  box-shadow: 0 0 6px rgba(46,204,113,0.4);
+}
 
-/* Badges */
-.modal-badges {
-  display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;
+.stat-num {
+  font-family: 'Cinzel', serif; font-size: 16px; font-weight: 800;
+  width: 30px; text-align: right;
 }
-.mb-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 6px 10px; border-radius: 10px;
-  background: rgba(212,164,76,0.05);
-  border: 1px solid rgba(212,164,76,0.1);
-}
-.mb-icon {
-  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
-  background: rgba(212,164,76,0.1); border: 1px solid rgba(212,164,76,0.2);
+.stat-num.str { color: #e74c3c; }
+.stat-num.def { color: #3498db; }
+.stat-num.luk { color: #2ecc71; }
+
+/* ── Currency ── */
+.currency-row {
   display: flex; align-items: center; justify-content: center;
-  overflow: hidden; font-size: 16px;
+  gap: 0;
 }
-.mb-img { width: 100%; height: 100%; object-fit: cover; }
-.mb-name {
+.cur-block {
+  flex: 1; text-align: center;
+}
+.cur-val {
+  display: block;
+  font-family: 'Cinzel', serif; font-size: 26px; font-weight: 800;
+  line-height: 1.2;
+}
+.cur-lbl {
+  display: block; font-size: 11px; font-weight: 600; margin-top: 2px;
+}
+.cur-block.gold .cur-val { color: #d4a44c; }
+.cur-block.gold .cur-lbl { color: #8b7355; }
+.cur-block.mana .cur-val { color: #9b59b6; }
+.cur-block.mana .cur-lbl { color: #7d5a8e; }
+.cur-sep {
+  width: 1px; height: 36px;
+  background: linear-gradient(180deg, transparent, rgba(212,164,76,0.3), transparent);
+}
+
+/* ── Equipment ── */
+.equip-header {
+  font-family: 'Cinzel', serif;
+  font-size: 13px; font-weight: 700; color: #d4a44c;
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px;
+}
+.equip-count {
+  background: rgba(212,164,76,0.15); border: 1px solid rgba(212,164,76,0.25);
+  color: #d4a44c; font-size: 10px; font-weight: 800;
+  padding: 1px 7px; border-radius: 10px;
+}
+
+.equip-list { display: flex; flex-direction: column; gap: 6px; }
+
+.equip-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 6px;
+  background: linear-gradient(135deg, rgba(212,164,76,0.04), rgba(212,164,76,0.08));
+  border: 1px solid rgba(212,164,76,0.12);
+  position: relative;
+  transition: border-color 0.2s;
+}
+.equip-card:hover {
+  border-color: rgba(212,164,76,0.3);
+}
+
+.eq-icon {
+  width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(212,164,76,0.2);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; font-size: 18px;
+}
+.eq-icon-img { width: 100%; height: 100%; object-fit: cover; }
+
+.eq-body { flex: 1; min-width: 0; }
+.eq-name {
   font-size: 12px; font-weight: 700; color: #e8d5b7;
 }
-.mb-bonus {
-  display: flex; gap: 6px; margin-top: 2px;
+.eq-desc {
+  font-size: 10px; color: #8b7355; font-weight: 500;
+  margin-top: 1px; line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
-.bonus {
-  font-size: 9px; font-weight: 700; padding: 1px 5px;
-  border-radius: 4px;
+
+.eq-bonuses {
+  display: flex; flex-direction: column; gap: 2px;
+  flex-shrink: 0;
 }
-.bonus.str { background: rgba(231,76,60,0.15); color: #e74c3c; }
-.bonus.def { background: rgba(52,152,219,0.15); color: #3498db; }
-.bonus.luk { background: rgba(46,204,113,0.15); color: #2ecc71; }
-.modal-no-badges {
+.eqb {
+  font-size: 9px; font-weight: 800; padding: 1px 5px;
+  border-radius: 3px; text-align: center; white-space: nowrap;
+}
+.eqb.str { background: rgba(231,76,60,0.12); color: #e74c3c; }
+.eqb.def { background: rgba(52,152,219,0.12); color: #3498db; }
+.eqb.luk { background: rgba(46,204,113,0.12); color: #2ecc71; }
+
+.equip-empty {
   font-size: 12px; color: #6b5a3e; font-style: italic;
-  text-align: center; padding: 8px 0;
+  text-align: center; padding: 12px 0;
 }
 
 @keyframes fadeIn {

@@ -1,42 +1,72 @@
 <template>
   <div class="staff-page">
-    <!-- Character Card -->
-    <div class="character-card">
-      <div class="character-portrait">
-        <img v-if="userImage" :src="userImage" class="portrait-img" />
-        <div v-else class="portrait-placeholder">{{ userName.charAt(0) || '?' }}</div>
-        <div class="portrait-frame"></div>
+    <!-- ═══════ RPG Character Sheet ═══════ -->
+    <div class="char-sheet">
+      <!-- Decorative corners -->
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+
+      <!-- Profile Row: Portrait left, Info right -->
+      <div class="cs-profile-row">
+        <div class="cs-portrait">
+          <div class="cs-portrait-glow"></div>
+          <div class="cs-portrait-ring">
+            <img v-if="userImage" :src="userImage" class="cs-portrait-img" />
+            <div v-else class="cs-portrait-ph">{{ userName.charAt(0) || '?' }}</div>
+          </div>
+        </div>
+        <div class="cs-identity">
+          <div class="cs-name">{{ userName }}</div>
+          <div class="cs-title">〈 {{ userPosition || 'Adventurer' }} 〉</div>
+          <div v-if="userStatus" class="cs-quote">「{{ userStatus }}」</div>
+        </div>
       </div>
-      <h1 class="character-name">⚔️ {{ userName }}</h1>
-      <p class="character-class">{{ userPosition || 'Adventurer' }}</p>
-      <p v-if="userStatus" class="character-status">"{{ userStatus }}"</p>
-      
+
       <!-- Badges Row -->
-      <div class="badges-row" @click="showBadgeModal = true" v-if="myBadges.length > 0">
-        <div v-for="badge in myBadges.slice(0, 8)" :key="badge.id" class="badge-circle" :title="badge.badge_name">
-          <img v-if="badge.badge_image" :src="badge.badge_image" class="badge-circle-img" />
-          <span v-else class="badge-circle-fallback">🏅</span>
+      <div class="cs-badges" @click="showBadgeModal = true" v-if="myBadges.length > 0">
+        <div v-for="badge in myBadges.slice(0, 8)" :key="badge.id" class="cs-badge-circle" :title="badge.badge_name">
+          <img v-if="badge.badge_image" :src="badge.badge_image" class="cs-badge-img" />
+          <span v-else class="cs-badge-fb">🏅</span>
         </div>
-        <div v-if="myBadges.length > 8" class="badge-more">+{{ myBadges.length - 8 }}</div>
+        <div v-if="myBadges.length > 8" class="cs-badge-more">+{{ myBadges.length - 8 }}</div>
       </div>
 
-      <!-- Power Stats -->
-      <div class="power-row">
-        <div class="power-item str"><span class="power-icon">⚔️</span> STR <span class="power-val">{{ myStats.total_str }}</span></div>
-        <div class="power-item def"><span class="power-icon">🛡️</span> DEF <span class="power-val">{{ myStats.total_def }}</span></div>
-        <div class="power-item luk"><span class="power-icon">🍀</span> LUK <span class="power-val">{{ myStats.total_luk }}</span></div>
+      <div class="cs-divider"></div>
+
+      <!-- Stat Bars -->
+      <div class="cs-stats">
+        <div class="cs-stat-row">
+          <span class="cs-stat-icon">⚔️</span>
+          <span class="cs-stat-label str">STR</span>
+          <div class="cs-stat-track"><div class="cs-stat-fill str" :style="{ width: Math.min(myStats.total_str, 100) + '%' }"></div></div>
+          <span class="cs-stat-num str">{{ myStats.total_str }}</span>
+        </div>
+        <div class="cs-stat-row">
+          <span class="cs-stat-icon">🛡️</span>
+          <span class="cs-stat-label def">DEF</span>
+          <div class="cs-stat-track"><div class="cs-stat-fill def" :style="{ width: Math.min(myStats.total_def, 100) + '%' }"></div></div>
+          <span class="cs-stat-num def">{{ myStats.total_def }}</span>
+        </div>
+        <div class="cs-stat-row">
+          <span class="cs-stat-icon">🍀</span>
+          <span class="cs-stat-label luk">LUK</span>
+          <div class="cs-stat-track"><div class="cs-stat-fill luk" :style="{ width: Math.min(myStats.total_luk, 100) + '%' }"></div></div>
+          <span class="cs-stat-num luk">{{ myStats.total_luk }}</span>
+        </div>
       </div>
 
-      <!-- Stats Bar -->
-      <div class="stats-bar">
-        <div class="stat-item">
-          <span class="stat-value gold">{{ myCoins }}</span>
-          <span class="stat-label">💰 Gold</span>
+      <div class="cs-divider"></div>
+
+      <!-- Currency -->
+      <div class="cs-currency">
+        <div class="cs-cur-block gold">
+          <span class="cs-cur-val">{{ myCoins.toLocaleString() }}</span>
+          <span class="cs-cur-lbl">💰 Gold</span>
         </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-value mana">{{ myAngelCoins }}</span>
-          <span class="stat-label">✨ Mana</span>
+        <div class="cs-cur-sep"></div>
+        <div class="cs-cur-block mana">
+          <span class="cs-cur-val">{{ myAngelCoins.toLocaleString() }}</span>
+          <span class="cs-cur-lbl">✨ Mana</span>
         </div>
       </div>
     </div>
@@ -479,112 +509,172 @@ export default {
 <style scoped>
 .staff-page { padding: 28px 0 16px; }
 
-/* Character Card */
-.character-card {
-  text-align: center;
-  background: linear-gradient(145deg, rgba(44,24,16,0.9), rgba(26,26,46,0.95));
-  border: 2px solid rgba(212,164,76,0.4);
-  border-radius: 16px;
-  padding: 28px 20px;
-  margin-bottom: 28px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+/* ═══ RPG Character Sheet ═══ */
+.char-sheet {
   position: relative;
-  overflow: hidden;
-}
-.character-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; height: 3px;
-  background: linear-gradient(90deg, transparent, #d4a44c, transparent);
+  text-align: center;
+  background: linear-gradient(170deg, #110a1e 0%, #1e0e0a 40%, #0f0f1e 100%);
+  border: 2px solid #d4a44c;
+  border-radius: 4px;
+  padding: 28px 20px 20px;
+  margin-bottom: 28px;
+  box-shadow:
+    0 0 0 1px rgba(212,164,76,0.15),
+    0 0 40px rgba(212,164,76,0.06),
+    inset 0 0 60px rgba(0,0,0,0.3);
 }
 
-.character-portrait {
-  width: 100px; height: 100px;
-  margin: 0 auto 16px;
-  position: relative;
+/* Corner ornaments */
+.corner {
+  position: absolute; width: 14px; height: 14px;
+  border-color: #d4a44c; border-style: solid;
 }
-.portrait-img {
-  width: 100%; height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
+.corner.tl { top: -1px; left: -1px; border-width: 3px 0 0 3px; }
+.corner.tr { top: -1px; right: -1px; border-width: 3px 3px 0 0; }
+.corner.bl { bottom: -1px; left: -1px; border-width: 0 0 3px 3px; }
+.corner.br { bottom: -1px; right: -1px; border-width: 0 3px 3px 0; }
+
+/* Profile Row */
+.cs-profile-row {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 12px;
+}
+
+/* Portrait */
+.cs-portrait {
+  position: relative; flex-shrink: 0;
+}
+.cs-portrait-glow {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 110px; height: 110px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(212,164,76,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.cs-portrait-ring {
+  width: 80px; height: 80px; border-radius: 50%;
   border: 3px solid #d4a44c;
-  box-shadow: 0 0 20px rgba(212,164,76,0.3);
+  box-shadow: 0 0 20px rgba(212,164,76,0.25), inset 0 0 16px rgba(0,0,0,0.4);
+  overflow: hidden; position: relative; z-index: 1;
 }
-.portrait-placeholder {
+.cs-portrait-img { width: 100%; height: 100%; object-fit: cover; }
+.cs-portrait-ph {
   width: 100%; height: 100%;
-  border-radius: 50%;
   background: linear-gradient(135deg, #b8860b, #d4a44c);
   display: flex; align-items: center; justify-content: center;
-  color: #1c1208; font-size: 36px; font-weight: 800;
-  border: 3px solid #d4a44c;
-  box-shadow: 0 0 20px rgba(212,164,76,0.3);
+  font-size: 30px; font-weight: 800; color: #1c1208;
 }
 
-.character-name {
+/* Identity */
+.cs-identity { text-align: left; flex: 1; min-width: 0; }
+.cs-name {
   font-family: 'Cinzel', serif;
-  font-size: 22px; font-weight: 800;
-  color: #d4a44c;
-  text-shadow: 0 2px 8px rgba(212,164,76,0.2);
-  margin-bottom: 2px;
+  font-size: 20px; font-weight: 800; color: #e8d5b7;
+  text-shadow: 0 2px 12px rgba(212,164,76,0.3);
+  line-height: 1.3;
 }
-.character-class {
-  font-size: 13px; color: #b8860b;
-  font-weight: 600; font-style: italic;
-  margin-bottom: 8px;
+.cs-title {
+  font-size: 12px; color: #b8860b; font-weight: 600;
+  letter-spacing: 0.5px; margin-top: 2px;
 }
-.character-status {
-  font-size: 13px; color: #e74c3c;
-  font-weight: 700; font-style: italic;
-  margin-bottom: 16px;
+.cs-quote {
+  font-size: 12px; color: #e74c3c; font-style: italic;
+  font-weight: 600; margin-top: 4px;
   word-break: break-word;
 }
 
-/* Badge Row */
-.badges-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-bottom: 16px;
-  cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 10px;
+/* Badges */
+.cs-badges {
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; margin-bottom: 6px;
+  cursor: pointer; padding: 6px 12px; border-radius: 10px;
   transition: background .2s;
 }
-.badges-row:hover { background: rgba(212,164,76,0.08); }
-.badge-circle {
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 2px solid rgba(212,164,76,0.3);
+.cs-badges:hover { background: rgba(212,164,76,0.08); }
+.cs-badge-circle {
+  width: 36px; height: 36px; border-radius: 50%;
+  overflow: hidden; border: 2px solid rgba(212,164,76,0.3);
   transition: transform .2s;
 }
-.badge-circle:hover { transform: scale(1.15); }
-.badge-circle-img { width: 100%; height: 100%; object-fit: cover; }
-.badge-circle-fallback {
+.cs-badge-circle:hover { transform: scale(1.15); }
+.cs-badge-img { width: 100%; height: 100%; object-fit: cover; }
+.cs-badge-fb {
   width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
   background: linear-gradient(135deg, #b8860b, #d4a44c); font-size: 16px;
 }
-.badge-more {
+.cs-badge-more {
   font-size: 11px; color: #b8860b; font-weight: 700;
-  padding: 2px 8px; background: rgba(212,164,76,0.1);
-  border-radius: 8px;
+  padding: 2px 8px; background: rgba(212,164,76,0.1); border-radius: 8px;
 }
 
-/* Power Stats Row */
-.power-row {
-  display: flex; justify-content: center; gap: 12px;
-  margin-bottom: 14px;
+/* Divider */
+.cs-divider {
+  height: 1px; margin: 14px 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(212,164,76,0.3) 50%, transparent 100%);
 }
-.power-item {
-  font-size: 11px; font-weight: 700; padding: 3px 10px;
-  border-radius: 8px; display: flex; align-items: center; gap: 3px;
+
+/* Stat Bars */
+.cs-stats { display: flex; flex-direction: column; gap: 8px; }
+.cs-stat-row { display: flex; align-items: center; gap: 8px; }
+.cs-stat-icon { font-size: 14px; width: 18px; text-align: center; }
+.cs-stat-label {
+  font-family: 'Cinzel', serif; font-size: 11px; font-weight: 800;
+  width: 30px; letter-spacing: 1px;
 }
-.power-item.str { background: rgba(231,76,60,0.1); color: #e74c3c; }
-.power-item.def { background: rgba(52,152,219,0.1); color: #3498db; }
-.power-item.luk { background: rgba(46,204,113,0.1); color: #2ecc71; }
-.power-val { font-size: 14px; font-weight: 800; margin-left: 2px; }
-.power-icon { font-size: 12px; }
+.cs-stat-label.str { color: #e74c3c; }
+.cs-stat-label.def { color: #3498db; }
+.cs-stat-label.luk { color: #2ecc71; }
+.cs-stat-track {
+  flex: 1; height: 10px; border-radius: 5px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+.cs-stat-fill {
+  height: 100%; border-radius: 4px;
+  transition: width 0.6s ease;
+}
+.cs-stat-fill.str {
+  background: linear-gradient(90deg, #8b1a1a, #e74c3c);
+  box-shadow: 0 0 6px rgba(231,76,60,0.4);
+}
+.cs-stat-fill.def {
+  background: linear-gradient(90deg, #1a3a5c, #3498db);
+  box-shadow: 0 0 6px rgba(52,152,219,0.4);
+}
+.cs-stat-fill.luk {
+  background: linear-gradient(90deg, #1a5c2e, #2ecc71);
+  box-shadow: 0 0 6px rgba(46,204,113,0.4);
+}
+.cs-stat-num {
+  font-family: 'Cinzel', serif; font-size: 16px; font-weight: 800;
+  width: 30px; text-align: right;
+}
+.cs-stat-num.str { color: #e74c3c; }
+.cs-stat-num.def { color: #3498db; }
+.cs-stat-num.luk { color: #2ecc71; }
+
+/* Currency */
+.cs-currency {
+  display: flex; align-items: center; justify-content: center;
+}
+.cs-cur-block { flex: 1; text-align: center; }
+.cs-cur-val {
+  display: block;
+  font-family: 'Cinzel', serif; font-size: 28px; font-weight: 800;
+  line-height: 1.2;
+}
+.cs-cur-lbl {
+  display: block; font-size: 11px; font-weight: 600; margin-top: 2px;
+}
+.cs-cur-block.gold .cs-cur-val { color: #d4a44c; }
+.cs-cur-block.gold .cs-cur-lbl { color: #8b7355; }
+.cs-cur-block.mana .cs-cur-val { color: #9b59b6; }
+.cs-cur-block.mana .cs-cur-lbl { color: #7d5a8e; }
+.cs-cur-sep {
+  width: 1px; height: 36px;
+  background: linear-gradient(180deg, transparent, rgba(212,164,76,0.3), transparent);
+}
 
 /* Badge Modal */
 .badge-modal-overlay {
@@ -672,19 +762,6 @@ export default {
 .modal-coin-list { max-height: 60vh; overflow-y: auto; }
 .modal-award-list { max-height: 60vh; overflow-y: auto; }
 
-/* Stats */
-.stats-bar {
-  display: flex;
-  justify-content: center;
-  gap: 24px;
-  align-items: center;
-}
-.stat-item { text-align: center; }
-.stat-value { font-size: 28px; font-weight: 800; display: block; line-height: 1.1; }
-.stat-value.gold { color: #d4a44c; }
-.stat-value.mana { color: #9b59b6; }
-.stat-label { font-size: 11px; color: #8b7355; font-weight: 700; }
-.stat-divider { width: 2px; height: 36px; background: rgba(212,164,76,0.2); border-radius: 1px; }
 
 /* Sections */
 .section { margin-bottom: 28px; }

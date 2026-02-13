@@ -9,7 +9,8 @@
         <div class="coupon-stub">
           <div class="stub-notch stub-notch--top"></div>
           <div class="stub-notch stub-notch--bottom"></div>
-          <span class="stub-emoji">🎟️</span>
+          <img v-if="item.reward?.image" :src="item.reward.image" class="stub-item-img" />
+          <span v-else class="stub-emoji">🎟️</span>
         </div>
 
         <!-- Right Side -->
@@ -99,7 +100,7 @@ export default {
 
 /* Ticket Stub */
 .coupon-stub {
-  width: 72px;
+  width: 100px;
   flex-shrink: 0;
   background: rgba(26,26,46,0.5);
   border-right: 2px dashed rgba(212,164,76,0.2);
@@ -120,6 +121,12 @@ export default {
 .stub-notch--bottom { bottom: -7px; }
 .stub-emoji { font-size: 28px; filter: grayscale(0.3); transition: filter 0.3s; }
 .coupon-card:hover .stub-emoji { filter: grayscale(0); }
+.stub-item-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  position: absolute; top: 0; left: 0;
+}
+.coupon-card:hover .stub-item-img { opacity: 0.9; }
 
 /* Body */
 .coupon-body {
