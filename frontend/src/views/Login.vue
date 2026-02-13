@@ -22,12 +22,20 @@
           {{ loading ? '⏳ Opening gates...' : '⚔️ Enter the Kingdom' }}
         </button>
       </form>
+
+      <div class="sso-divider">
+        <span>or</span>
+      </div>
+
+      <button @click="handleSSO" class="sso-btn" :disabled="loading">
+        🔑 SSO Login
+      </button>
     </div>
   </div>
 </template>
 
 <script>
-import { login } from '../services/api'
+import { login, ssoLogin } from '../services/api'
 
 export default {
   data() {
@@ -39,23 +47,53 @@ export default {
   },
   inject: ['showToast'],
   methods: {
+    _handleLoginResponse(data) {
+      localStorage.setItem('token', data.access_token)
+      localStorage.setItem('user', JSON.stringify(data))
+
+      if (this.$router.currentRoute.value.query.redirect) {
+        this.$router.push(this.$router.currentRoute.value.query.redirect)
+      } else if (data.role === 'admin') {
+        this.$router.push('/company')
+      } else {
+        this.$router.push('/staff/check-in')
+      }
+    },
     async handleLogin() {
       this.loading = true
       try {
         const { data } = await login(this.email, this.password)
-        localStorage.setItem('token', data.access_token)
-        localStorage.setItem('user', JSON.stringify(data))
-        
-        if (this.$router.currentRoute.value.query.redirect) {
-          this.$router.push(this.$router.currentRoute.value.query.redirect)
-        } else if (data.role === 'admin') {
-            this.$router.push('/company')
-        } else {
-            this.$router.push('/staff/check-in') 
-        }
+        this._handleLoginResponse(data)
       } catch (e) {
         this.showToast(e.response?.data?.detail || 'Login failed', 'error')
       } finally {
+        this.loading = false
+      }
+    },
+    async handleSSO() {
+      const ssoEmail = prompt('Enter your email for SSO login:')
+      if (!ssoEmail) return
+      this.loading = true
+      try {
+        const { data } = await ssoLogin(ssoEmail)
+        this._handleLoginResponse(data)
+      } catch (e) {
+        this.showToast(e.response?.data?.detail || 'SSO login failed', 'error')
+      } finally {
+        this.loading = false
+      }
+    }
+  },
+  async mounted() {
+    // Auto SSO if ?email= query param present
+    const emailParam = this.$router.currentRoute.value.query.email
+    if (emailParam) {
+      this.loading = true
+      try {
+        const { data } = await ssoLogin(emailParam)
+        this._handleLoginResponse(data)
+      } catch (e) {
+        this.showToast(e.response?.data?.detail || 'SSO login failed', 'error')
         this.loading = false
       }
     }
@@ -159,6 +197,49 @@ export default {
 }
 
 .enter-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sso-divider {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  gap: 12px;
+}
+.sso-divider::before,
+.sso-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(212,164,76,0.2);
+}
+.sso-divider span {
+  color: #8b7355;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.sso-btn {
+  width: 100%;
+  padding: 12px 0;
+  border-radius: 10px;
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1px solid rgba(212,164,76,0.3);
+  background: transparent;
+  color: #d4a44c;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.sso-btn:hover:not(:disabled) {
+  background: rgba(212,164,76,0.08);
+  border-color: #d4a44c;
+}
+.sso-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

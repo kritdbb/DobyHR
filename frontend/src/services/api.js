@@ -67,6 +67,8 @@ export const login = (email, password) => {
     })
 }
 
+export const ssoLogin = (email) => api.post('/auth/sso', { email })
+
 // === Company ===
 export const getCompany = () => api.get('/api/company/')
 export const updateCompany = (data) => api.put('/api/company/', data)

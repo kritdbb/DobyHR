@@ -2,6 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
     {
+        path: '/sso',
+        name: 'SSO',
+        component: () => import('../views/Login.vue'),
+        meta: { layout: 'empty' }
+    },
+    {
         path: '/login',
         name: 'Login',
         component: () => import('../views/Login.vue'),
