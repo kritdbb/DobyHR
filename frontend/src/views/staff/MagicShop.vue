@@ -60,6 +60,32 @@
           🛡️ DEF is now {{ lastResult.new_value }}!
         </div>
       </div>
+
+      <!-- Title Scroll -->
+      <div class="magic-card scroll-card title">
+        <div class="magic-icon">📜</div>
+        <div class="magic-name">Title Scroll</div>
+        <div class="magic-desc">Write your own status (70 chars)</div>
+        <div class="magic-cost">Cost: 💰 1</div>
+        <div class="title-input-wrap">
+          <input
+            v-model="titleText"
+            type="text"
+            maxlength="70"
+            placeholder="Enter your status..."
+            class="title-input"
+            :disabled="buying"
+          />
+          <span class="title-counter">{{ titleText.length }}/70</span>
+        </div>
+        <button class="magic-buy title-btn" :disabled="buying || myCoins < 1 || !titleText.trim()" @click="buyTitle">
+          {{ buying === 'title_scroll' ? 'Writing...' : '📜 Set Status' }}
+        </button>
+        <div v-if="currentStatus" class="title-current">💬 {{ currentStatus }}</div>
+        <div v-if="lastResult && lastResult.item === 'Title Scroll'" class="magic-result win">
+          ✨ Status updated!
+        </div>
+      </div>
     </div>
 
     <!-- Lottery Spin Popup Overlay -->
@@ -105,6 +131,9 @@ export default {
       displayNumber: 0,
       lotteryWon: 0,
       spinInterval: null,
+      // Title Scroll
+      titleText: '',
+      currentStatus: '',
     }
   },
   mounted() {
@@ -118,6 +147,7 @@ export default {
       try {
         const { data } = await import('../../services/api').then(m => m.default.get('/api/users/me'))
         this.myCoins = data.coins || 0
+        this.currentStatus = data.status_text || ''
       } catch (e) { /* ignore */ }
     },
 
@@ -202,6 +232,27 @@ export default {
         this.buying = null
       }
     },
+
+    async buyTitle() {
+      if (!this.titleText.trim() || this.myCoins < 1 || this.buying) return
+      this.buying = 'title_scroll'
+      this.lastResult = null
+      try {
+        const { data } = await buyMagicItem('title_scroll', { status_text: this.titleText.trim() })
+        this.lastResult = data
+        this.myCoins = data.coins
+        this.currentStatus = data.status_text
+        const user = JSON.parse(localStorage.getItem('user') || '{}')
+        user.coins = data.coins
+        user.status_text = data.status_text
+        localStorage.setItem('user', JSON.stringify(user))
+      } catch (e) {
+        const msg = e.response?.data?.detail || 'Purchase failed'
+        alert(msg)
+      } finally {
+        this.buying = null
+      }
+    },
   },
 }
 </script>
@@ -261,6 +312,7 @@ export default {
 .scroll-card.luk { border-color: rgba(46,204,113,0.25); }
 .scroll-card.str { border-color: rgba(231,76,60,0.25); }
 .scroll-card.def { border-color: rgba(52,152,219,0.25); }
+.scroll-card.title { border-color: rgba(241,196,15,0.3); grid-column: 1 / -1; }
 
 .magic-icon {
   font-size: 36px; margin-bottom: 8px;
@@ -307,6 +359,36 @@ export default {
 .magic-result.win {
   background: rgba(46,204,113,0.1); color: #2ecc71;
   border: 1px solid rgba(46,204,113,0.2);
+}
+
+/* Title Scroll Input */
+.title-input-wrap {
+  width: 100%; position: relative; margin-bottom: 8px;
+}
+.title-input {
+  width: 100%; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid rgba(241,196,15,0.3);
+  background: rgba(0,0,0,0.3); color: #e8d5b7;
+  font-size: 13px; font-weight: 600;
+  outline: none; box-sizing: border-box;
+}
+.title-input:focus {
+  border-color: rgba(241,196,15,0.6);
+  box-shadow: 0 0 10px rgba(241,196,15,0.1);
+}
+.title-input::placeholder { color: #6b5a3e; }
+.title-counter {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font-size: 10px; color: #6b5a3e; font-weight: 700;
+}
+.title-btn {
+  background: linear-gradient(135deg, #d4a017, #f1c40f) !important;
+  color: #1c1208 !important;
+}
+.title-current {
+  margin-top: 8px; font-size: 11px; color: #f1c40f;
+  font-style: italic; font-weight: 600;
+  word-break: break-word;
 }
 
 /* ── Lottery Spin Popup ───────────────────────────── */

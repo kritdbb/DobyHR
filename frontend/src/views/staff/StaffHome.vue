@@ -9,6 +9,7 @@
       </div>
       <h1 class="character-name">⚔️ {{ userName }}</h1>
       <p class="character-class">{{ userPosition || 'Adventurer' }}</p>
+      <p v-if="userStatus" class="character-status">"{{ userStatus }}"</p>
       
       <!-- Badges Row -->
       <div class="badges-row" @click="showBadgeModal = true" v-if="myBadges.length > 0">
@@ -348,6 +349,7 @@ export default {
       userName: '',
       userImage: '',
       userPosition: '',
+      userStatus: '',
       pendingLeaves: [],
       pendingRedemptions: [],
       pendingWorkRequests: [],
@@ -370,6 +372,7 @@ export default {
       this.userName = [u.name, u.surname].filter(Boolean).join(' ') || 'Adventurer'
       this.userImage = u.image || ''
       this.userPosition = u.position || ''
+      this.userStatus = u.status_text || ''
     }
     await this.loadData()
   },
@@ -404,6 +407,7 @@ export default {
               this.userImage = userRes.data.image || this.userImage
               this.userPosition = userRes.data.position || this.userPosition
               this.userName = [userRes.data.name, userRes.data.surname].filter(Boolean).join(' ') || this.userName
+              this.userStatus = userRes.data.status_text || ''
               // Sync localStorage with latest data
               const stored = JSON.parse(localStorage.getItem('user') || '{}')
               stored.image = userRes.data.image
@@ -526,7 +530,13 @@ export default {
 .character-class {
   font-size: 13px; color: #b8860b;
   font-weight: 600; font-style: italic;
+  margin-bottom: 8px;
+}
+.character-status {
+  font-size: 13px; color: #e74c3c;
+  font-weight: 700; font-style: italic;
   margin-bottom: 16px;
+  word-break: break-word;
 }
 
 /* Badge Row */

@@ -35,6 +35,7 @@ class User(Base):
     base_def = Column(Integer, default=10)  # Base Defense
     base_luk = Column(Integer, default=10)  # Base Luck
     working_days = Column(String(50), default="mon,tue,wed,thu,fri")  # Comma-separated: mon,tue,wed,thu,fri,sat,sun
+    status_text = Column(String(70), nullable=True)  # Custom status from Title Scroll
 
     # Relationship to approval flow
     approval_flow = relationship(

@@ -112,6 +112,7 @@ def get_town_people(
                 "total_luk": base_l + badge_luk,
             },
             "badges": badge_list,
+            "status_text": u.status_text or "",
         })
     return results
 
@@ -123,11 +124,12 @@ import random as _random
 @router.post("/magic-shop/buy")
 def buy_magic_item(
     item_type: str,
+    status_text: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
     """Buy a magic item from the shop. All items cost 1 Gold."""
-    valid_items = ["magic_lottery", "scroll_of_luck", "scroll_of_strength", "scroll_of_defense"]
+    valid_items = ["magic_lottery", "scroll_of_luck", "scroll_of_strength", "scroll_of_defense", "title_scroll"]
     if item_type not in valid_items:
         raise HTTPException(status_code=400, detail=f"Invalid item. Must be one of: {valid_items}")
 
@@ -197,6 +199,20 @@ def buy_magic_item(
         )
         db.add(log)
         result = {"item": "Scroll of Defense", "stat": "DEF", "new_value": current_user.base_def, "coins": current_user.coins}
+
+    elif item_type == "title_scroll":
+        if not status_text or not status_text.strip():
+            raise HTTPException(status_code=400, detail="Please enter your status text!")
+        status_text = status_text.strip()[:70]
+        current_user.coins -= 1
+        current_user.status_text = status_text
+        log = CoinLog(
+            user_id=current_user.id, amount=-1,
+            reason=f"📜 Title Scroll — Status: \"{status_text}\"",
+            created_by="Magic Shop"
+        )
+        db.add(log)
+        result = {"item": "Title Scroll", "status_text": status_text, "coins": current_user.coins}
 
     db.commit()
     return result

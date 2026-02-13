@@ -24,6 +24,7 @@
         <div class="person-name">{{ p.name }}</div>
         <div class="person-surname">{{ p.surname }}</div>
         <div class="person-position">{{ p.position }}</div>
+        <div v-if="p.status_text" class="person-status">"{{ p.status_text }}"</div>
 
         <!-- Stats Row -->
         <div class="person-stats">
@@ -65,6 +66,7 @@
         <div class="modal-name">{{ selectedPerson.name }}</div>
         <div class="modal-surname">{{ selectedPerson.surname }}</div>
         <div class="modal-position">{{ selectedPerson.position }}</div>
+        <div v-if="selectedPerson.status_text" class="modal-status">"{{ selectedPerson.status_text }}"</div>
 
         <!-- Stats -->
         <div class="modal-section-title">⚔️ Stats</div>
@@ -230,7 +232,12 @@ export default {
 }
 .person-position {
   font-size: 11px; color: #8b7355; font-weight: 600;
-  margin-bottom: 8px; text-align: center;
+  margin-bottom: 4px; text-align: center;
+}
+.person-status {
+  font-size: 10px; color: #e74c3c; font-style: italic;
+  font-weight: 600; margin-bottom: 6px; text-align: center;
+  word-break: break-word; line-height: 1.3;
 }
 
 /* Stats */
@@ -336,7 +343,12 @@ export default {
 }
 .modal-position {
   font-size: 12px; color: #8b7355; font-weight: 600;
-  text-align: center; margin-bottom: 14px;
+  text-align: center; margin-bottom: 6px;
+}
+.modal-status {
+  font-size: 12px; color: #e74c3c; font-style: italic;
+  font-weight: 600; text-align: center; margin-bottom: 14px;
+  word-break: break-word;
 }
 
 .modal-section-title {

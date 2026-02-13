@@ -22,6 +22,7 @@ class UserBase(BaseModel):
     coins: int = 0
     angel_coins: int = 0
     working_days: Optional[str] = "mon,tue,wed,thu,fri"
+    status_text: Optional[str] = None
 
 
 class UserCreate(UserBase):

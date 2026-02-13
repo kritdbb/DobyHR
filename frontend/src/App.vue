@@ -49,9 +49,9 @@
             </div>
             
             <div class="p-4" style="border-top: 2px solid rgba(212,164,76,0.2); background: linear-gradient(135deg, rgba(44,24,16,0.6), rgba(26,26,46,0.4));">
-                <a href="http://localhost:3000/staff/home" target="_blank" class="flex items-center w-full p-2.5 text-sm rounded-xl mb-2 transition-all font-bold" style="text-decoration: none; color: #d4a44c;" onmouseover="this.style.background='rgba(212,164,76,0.1)'" onmouseout="this.style.background='transparent'">
+                <router-link to="/staff/home" class="flex items-center w-full p-2.5 text-sm rounded-xl mb-2 transition-all font-bold" style="text-decoration: none; color: #d4a44c;" onmouseover="this.style.background='rgba(212,164,76,0.1)'" onmouseout="this.style.background='transparent'">
                     <span class="mr-2">🗡️</span> Enter the Kingdom
-                </a>
+                </router-link>
                 <button @click="logout" class="flex items-center w-full p-2.5 text-sm rounded-xl transition-all font-semibold" style="color: #c0392b;" onmouseover="this.style.background='rgba(192,57,43,0.1)'" onmouseout="this.style.background='transparent'">
                     <span class="mr-2">🚪</span> Leave Guild
                 </button>

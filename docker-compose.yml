@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-hr_db}
     ports:
-      - "5433:5432"
+      - "18102:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -25,7 +25,7 @@ services:
       - ./backend:/app
       - uploads_data:/app/uploads
     ports:
-      - "8100:8000"
+      - "18100:8000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-hr_db}
     depends_on:
@@ -35,7 +35,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "3000:5173"
+      - "18101:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
