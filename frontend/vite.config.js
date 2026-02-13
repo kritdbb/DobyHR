@@ -9,6 +9,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    allowedHosts: ['hr2.doby.me'],
     proxy: {
       '/api': {
         target: apiTarget,
