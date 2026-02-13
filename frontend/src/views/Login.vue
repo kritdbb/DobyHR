@@ -154,6 +154,7 @@ export default {
   height: 200%;
   background: radial-gradient(ellipse at center, rgba(212,164,76,0.03) 0%, transparent 70%);
   animation: slowRotate 60s linear infinite;
+  pointer-events: none;
 }
 
 @keyframes slowRotate {
