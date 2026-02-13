@@ -28,6 +28,7 @@ services:
       - "18100:8000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-hr_db}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
     depends_on:
       db:
         condition: service_healthy
