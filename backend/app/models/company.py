@@ -1,0 +1,25 @@
+from sqlalchemy import Column, Integer, String, Float
+from app.core.database import Base
+
+
+class Company(Base):
+    __tablename__ = "companies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, default="")
+    tax_id = Column(String(13), nullable=True)
+    logo = Column(String(500), nullable=True)  # File path to uploaded logo
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    coin_on_time = Column(Integer, default=1) # Coins for on-time check-in
+    coin_late_penalty = Column(Integer, default=20) # Coins deducted for late check-in
+    coin_absent_penalty = Column(Integer, default=20) # Coins deducted for not checking in on a working day
+    # Auto Coin/Angel Giver
+    auto_coin_day = Column(String(50), nullable=True)   # e.g. "mon,fri"
+    auto_coin_amount = Column(Integer, default=0)
+    auto_angel_day = Column(String(50), nullable=True)   # e.g. "mon"
+    auto_angel_amount = Column(Integer, default=0)
+    # Lucky Draw (weighted random by LUK)
+    lucky_draw_day = Column(String(50), nullable=True)   # e.g. "mon,wed,fri"
+    lucky_draw_amount = Column(Integer, default=0)
+
