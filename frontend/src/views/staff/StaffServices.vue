@@ -70,15 +70,12 @@
         <span class="service-desc">Edit your info</span>
       </router-link>
 
-      <!-- Logout -->
-      <button @click="logout" class="service-card service-card--logout">
-        <div class="icon-wrap">
-          <div class="service-icon service-icon--danger">🚪</div>
-        </div>
-        <span class="service-label">Leave Guild</span>
-        <span class="service-desc">Sign out</span>
-      </button>
     </div>
+
+    <!-- Leave Guild bar -->
+    <button @click="logout" class="leave-bar">
+      🚪 Leave Guild
+    </button>
   </div>
 </template>
 
@@ -178,15 +175,24 @@ export default {
 .service-card:active {
   transform: scale(0.97);
 }
-.service-card--logout {
-  grid-column: span 2;
-  max-width: 50%;
-  justify-self: center;
-  border-color: rgba(192,57,43,0.2);
+.leave-bar {
+  display: block;
+  width: 100%;
+  margin-top: 28px;
+  padding: 12px 0;
+  border: none;
+  border-top: 1px solid rgba(192,57,43,0.25);
+  background: transparent;
+  color: #8b6355;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: color 0.2s ease;
 }
-.service-card--logout:hover {
-  border-color: #c0392b;
-  box-shadow: 0 8px 28px rgba(192,57,43,0.15);
+.leave-bar:hover {
+  color: #c0392b;
 }
 
 .icon-wrap {
