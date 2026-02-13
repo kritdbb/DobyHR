@@ -67,7 +67,8 @@ export const login = (email, password) => {
     })
 }
 
-export const ssoLogin = (email) => api.post('/auth/sso', { email })
+export const ssoLogin = (credential) => api.post('/auth/sso', { credential })
+export const getGoogleClientId = () => api.get('/auth/google-client-id')
 
 // === Company ===
 export const getCompany = () => api.get('/api/company/')

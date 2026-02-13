@@ -27,22 +27,24 @@
         <span>or</span>
       </div>
 
-      <button @click="handleSSO" class="sso-btn" :disabled="loading">
-        🔑 SSO Login
-      </button>
+      <div class="google-sso-wrap">
+        <div id="google-signin-btn"></div>
+        <p v-if="ssoError" class="sso-error">{{ ssoError }}</p>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { login, ssoLogin } from '../services/api'
+import { login, ssoLogin, getGoogleClientId } from '../services/api'
 
 export default {
   data() {
     return {
       email: '',
       password: '',
-      loading: false
+      loading: false,
+      ssoError: '',
     }
   },
   inject: ['showToast'],
@@ -70,33 +72,63 @@ export default {
         this.loading = false
       }
     },
-    async handleSSO() {
-      const ssoEmail = prompt('Enter your email for SSO login:')
-      if (!ssoEmail) return
+    async handleGoogleCallback(response) {
+      this.ssoError = ''
       this.loading = true
       try {
-        const { data } = await ssoLogin(ssoEmail)
+        const { data } = await ssoLogin(response.credential)
         this._handleLoginResponse(data)
       } catch (e) {
-        this.showToast(e.response?.data?.detail || 'SSO login failed', 'error')
+        this.ssoError = e.response?.data?.detail || 'Google SSO login failed'
+        this.showToast(this.ssoError, 'error')
       } finally {
         this.loading = false
+      }
+    },
+    async initGoogleSSO() {
+      try {
+        const { data } = await getGoogleClientId()
+        if (!data.client_id) return
+
+        // Wait for GSI script to load
+        const waitForGoogle = () => {
+          return new Promise((resolve) => {
+            if (window.google?.accounts) return resolve()
+            const interval = setInterval(() => {
+              if (window.google?.accounts) {
+                clearInterval(interval)
+                resolve()
+              }
+            }, 100)
+            // Timeout after 5s
+            setTimeout(() => { clearInterval(interval); resolve() }, 5000)
+          })
+        }
+
+        await waitForGoogle()
+        if (!window.google?.accounts) return
+
+        window.google.accounts.id.initialize({
+          client_id: data.client_id,
+          callback: this.handleGoogleCallback,
+        })
+        window.google.accounts.id.renderButton(
+          document.getElementById('google-signin-btn'),
+          {
+            theme: 'filled_black',
+            size: 'large',
+            width: '100%',
+            text: 'signin_with',
+            shape: 'rectangular',
+          }
+        )
+      } catch (e) {
+        console.error('Failed to init Google SSO', e)
       }
     }
   },
   async mounted() {
-    // Auto SSO if ?email= query param present
-    const emailParam = this.$router.currentRoute.value.query.email
-    if (emailParam) {
-      this.loading = true
-      try {
-        const { data } = await ssoLogin(emailParam)
-        this._handleLoginResponse(data)
-      } catch (e) {
-        this.showToast(e.response?.data?.detail || 'SSO login failed', 'error')
-        this.loading = false
-      }
-    }
+    this.initGoogleSSO()
   }
 }
 </script>
@@ -222,25 +254,17 @@ export default {
   letter-spacing: 1px;
 }
 
-.sso-btn {
-  width: 100%;
-  padding: 12px 0;
-  border-radius: 10px;
-  font-family: 'Cinzel', serif;
-  font-size: 14px;
-  font-weight: 700;
-  border: 1px solid rgba(212,164,76,0.3);
-  background: transparent;
-  color: #d4a44c;
-  cursor: pointer;
-  transition: all 0.25s;
+.google-sso-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
-.sso-btn:hover:not(:disabled) {
-  background: rgba(212,164,76,0.08);
-  border-color: #d4a44c;
-}
-.sso-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+
+.sso-error {
+  color: #c0392b;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
 }
 </style>

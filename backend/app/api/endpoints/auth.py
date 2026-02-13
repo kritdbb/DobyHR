@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import JWTError, jwt
 from datetime import timedelta
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from app.core.database import get_db
 from app.core import security, config
 from app.models.user import User
@@ -43,17 +45,43 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     return _build_token_response(user)
 
 
-class SSORequest(BaseModel):
-    email: str
+class GoogleSSORequest(BaseModel):
+    credential: str  # Google ID token from GSI
 
 
 @router.post("/sso")
-def sso_login(payload: SSORequest, db: Session = Depends(get_db)):
-    """SSO login — match email to an existing user and issue a JWT."""
-    user = db.query(User).filter(User.email == payload.email).first()
+def sso_login(payload: GoogleSSORequest, db: Session = Depends(get_db)):
+    """Google SSO login — verify Google ID token, match email to user, issue JWT."""
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            payload.credential,
+            google_requests.Request(),
+            config.settings.GOOGLE_CLIENT_ID,
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google token",
+        )
+
+    email = idinfo.get("email")
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google account has no email",
+        )
+
+    user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email not found in system",
+            detail=f"Email {email} not found in system",
         )
+
     return _build_token_response(user)
+
+
+@router.get("/google-client-id")
+def get_google_client_id():
+    """Return the Google Client ID for frontend GSI initialization."""
+    return {"client_id": config.settings.GOOGLE_CLIENT_ID}
