@@ -109,6 +109,7 @@
               <div class="tier-anchors">
                 <!-- Tier 1 reward (positioned at tier1 %) -->
                 <div class="tier-anchor" :style="{ left: hasTier2 ? tier1Pct + '%' : '50%' }">
+                  <div class="tier-anchor-label">{{ (stepGoals.daily_goal.target || 0).toLocaleString() }}</div>
                   <div class="tier-anchor-tags">
                     <span v-if="stepGoals.daily_goal.claimed" class="tier-check">✅</span>
                     <span v-else-if="stepGoals.daily_goal.reached" class="tier-check">⭐</span>
@@ -118,10 +119,10 @@
                     <span v-if="stepGoals.daily_goal.gold > 0" class="qr-tag qr-gold">💰+{{ stepGoals.daily_goal.gold }}</span>
                     <span v-if="stepGoals.daily_goal.mana > 0" class="qr-tag qr-mana">✨+{{ stepGoals.daily_goal.mana }}</span>
                   </div>
-                  <div class="tier-anchor-label">{{ (stepGoals.daily_goal.target || 0).toLocaleString() }}</div>
                 </div>
                 <!-- Tier 2 reward (positioned at right end) -->
                 <div v-if="hasTier2" class="tier-anchor" style="left: 100%;">
+                  <div class="tier-anchor-label">{{ (stepGoals.daily2_goal.target || 0).toLocaleString() }}</div>
                   <div class="tier-anchor-tags">
                     <span v-if="stepGoals.daily2_goal.claimed" class="tier-check">✅</span>
                     <span v-else-if="stepGoals.daily2_goal.reached" class="tier-check">⭐</span>
@@ -131,7 +132,6 @@
                     <span v-if="stepGoals.daily2_goal.gold > 0" class="qr-tag qr-gold">💰+{{ stepGoals.daily2_goal.gold }}</span>
                     <span v-if="stepGoals.daily2_goal.mana > 0" class="qr-tag qr-mana">✨+{{ stepGoals.daily2_goal.mana }}</span>
                   </div>
-                  <div class="tier-anchor-label">{{ (stepGoals.daily2_goal.target || 0).toLocaleString() }}</div>
                 </div>
               </div>
             </div>
