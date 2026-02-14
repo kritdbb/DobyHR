@@ -175,6 +175,40 @@
         </div>
       </div>
 
+      <!-- Step Goal: Daily Tier 2 -->
+      <div class="card-header" style="margin-top: 24px; border-top: 1px solid rgba(212,164,76,0.1); padding-top: 24px;">
+        <span class="card-title">🥾 Daily Step Goal — Tier 2</span>
+      </div>
+      <p class="section-desc">Second milestone on the same bar. Set target to 0 to disable.</p>
+      <div class="form-row">
+        <div class="form-group" style="flex: 1;">
+          <label>Target Steps</label>
+          <input v-model.number="form.step_daily2_target" class="form-input" type="number" placeholder="e.g. 10000" min="0" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex: 1;">
+          <label>STR</label>
+          <input v-model.number="form.step_daily2_str" class="form-input" type="number" min="0" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>DEF</label>
+          <input v-model.number="form.step_daily2_def" class="form-input" type="number" min="0" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>LUK</label>
+          <input v-model.number="form.step_daily2_luk" class="form-input" type="number" min="0" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Gold</label>
+          <input v-model.number="form.step_daily2_gold" class="form-input" type="number" min="0" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Mana</label>
+          <input v-model.number="form.step_daily2_mana" class="form-input" type="number" min="0" />
+        </div>
+      </div>
+
       <!-- Step Goal: Monthly -->
       <div class="card-header" style="margin-top: 24px; border-top: 1px solid rgba(212,164,76,0.1); padding-top: 24px;">
         <span class="card-title">🗓️ Monthly Step Goal</span>
@@ -236,6 +270,12 @@ export default {
         step_daily_luk: 0,
         step_daily_gold: 0,
         step_daily_mana: 0,
+        step_daily2_target: 0,
+        step_daily2_str: 0,
+        step_daily2_def: 0,
+        step_daily2_luk: 0,
+        step_daily2_gold: 0,
+        step_daily2_mana: 0,
         step_monthly_target: 75000,
         step_monthly_str: 0,
         step_monthly_def: 0,
@@ -292,6 +332,12 @@ export default {
           step_daily_luk: data.step_daily_luk ?? 0,
           step_daily_gold: data.step_daily_gold ?? 0,
           step_daily_mana: data.step_daily_mana ?? 0,
+          step_daily2_target: data.step_daily2_target ?? 0,
+          step_daily2_str: data.step_daily2_str ?? 0,
+          step_daily2_def: data.step_daily2_def ?? 0,
+          step_daily2_luk: data.step_daily2_luk ?? 0,
+          step_daily2_gold: data.step_daily2_gold ?? 0,
+          step_daily2_mana: data.step_daily2_mana ?? 0,
           step_monthly_target: data.step_monthly_target ?? 75000,
           step_monthly_str: data.step_monthly_str ?? 0,
           step_monthly_def: data.step_monthly_def ?? 0,
@@ -329,6 +375,12 @@ export default {
           step_daily_luk: this.form.step_daily_luk,
           step_daily_gold: this.form.step_daily_gold,
           step_daily_mana: this.form.step_daily_mana,
+          step_daily2_target: this.form.step_daily2_target,
+          step_daily2_str: this.form.step_daily2_str,
+          step_daily2_def: this.form.step_daily2_def,
+          step_daily2_luk: this.form.step_daily2_luk,
+          step_daily2_gold: this.form.step_daily2_gold,
+          step_daily2_mana: this.form.step_daily2_mana,
           step_monthly_target: this.form.step_monthly_target,
           step_monthly_str: this.form.step_monthly_str,
           step_monthly_def: this.form.step_monthly_def,
