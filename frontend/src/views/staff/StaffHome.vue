@@ -82,7 +82,7 @@
 
       <!-- Daily Quest Bar (unified multi-tier) -->
       <router-link to="/staff/fitbit" class="quest-bar-link">
-        <div class="quest-bar" :class="{ 'quest-bar--done': dailyAllClaimed, 'quest-bar--ready': dailyAnyReady }">
+        <div class="quest-bar quest-bar--multitier" :class="{ 'quest-bar--done': dailyAllClaimed, 'quest-bar--ready': dailyAnyReady }">
           <div class="quest-bar-icon">
             <span v-if="dailyAllClaimed">✅</span>
             <span v-else-if="dailyAnyReady">⭐</span>
@@ -93,44 +93,50 @@
               <span class="quest-bar-name">Daily Quest</span>
               <span class="quest-bar-pct">{{ dailyOverallPct }}%</span>
             </div>
-            <div class="quest-bar-track" style="position: relative;">
-              <div class="quest-bar-fill" :style="{ width: dailyOverallPct + '%' }"
-                   :class="{ 'quest-bar-fill--done': dailyAllClaimed }"></div>
-              <!-- Tier 1 milestone marker (only when Tier 2 is enabled and targets differ) -->
-              <template v-if="stepGoals.daily2_goal && stepGoals.daily2_goal.enabled && stepGoals.daily_goal.target < stepGoals.daily2_goal.target">
-                <div class="tier-marker" :style="{ left: tier1Pct + '%' }">
-                  <div class="tier-marker-line"></div>
+            <!-- Bar + milestones wrapper -->
+            <div class="multitier-wrap">
+              <div class="quest-bar-track" style="position: relative;">
+                <div class="quest-bar-fill" :style="{ width: dailyOverallPct + '%' }"
+                     :class="{ 'quest-bar-fill--done': dailyAllClaimed }"></div>
+                <!-- Tier 1 marker line -->
+                <template v-if="hasTier2">
+                  <div class="tier-marker" :style="{ left: tier1Pct + '%' }">
+                    <div class="tier-marker-line"></div>
+                  </div>
+                </template>
+              </div>
+              <!-- Reward anchors below the bar -->
+              <div class="tier-anchors">
+                <!-- Tier 1 reward (positioned at tier1 %) -->
+                <div class="tier-anchor" :style="{ left: hasTier2 ? tier1Pct + '%' : '50%' }">
+                  <div class="tier-anchor-tags">
+                    <span v-if="stepGoals.daily_goal.claimed" class="tier-check">✅</span>
+                    <span v-else-if="stepGoals.daily_goal.reached" class="tier-check">⭐</span>
+                    <span v-if="stepGoals.daily_goal.str > 0" class="qr-tag qr-str">STR+{{ stepGoals.daily_goal.str }}</span>
+                    <span v-if="stepGoals.daily_goal.def > 0" class="qr-tag qr-def">DEF+{{ stepGoals.daily_goal.def }}</span>
+                    <span v-if="stepGoals.daily_goal.luk > 0" class="qr-tag qr-luk">LUK+{{ stepGoals.daily_goal.luk }}</span>
+                    <span v-if="stepGoals.daily_goal.gold > 0" class="qr-tag qr-gold">💰+{{ stepGoals.daily_goal.gold }}</span>
+                    <span v-if="stepGoals.daily_goal.mana > 0" class="qr-tag qr-mana">✨+{{ stepGoals.daily_goal.mana }}</span>
+                  </div>
+                  <div class="tier-anchor-label">{{ (stepGoals.daily_goal.target || 0).toLocaleString() }}</div>
                 </div>
-              </template>
+                <!-- Tier 2 reward (positioned at right end) -->
+                <div v-if="hasTier2" class="tier-anchor" style="left: 100%;">
+                  <div class="tier-anchor-tags">
+                    <span v-if="stepGoals.daily2_goal.claimed" class="tier-check">✅</span>
+                    <span v-else-if="stepGoals.daily2_goal.reached" class="tier-check">⭐</span>
+                    <span v-if="stepGoals.daily2_goal.str > 0" class="qr-tag qr-str">STR+{{ stepGoals.daily2_goal.str }}</span>
+                    <span v-if="stepGoals.daily2_goal.def > 0" class="qr-tag qr-def">DEF+{{ stepGoals.daily2_goal.def }}</span>
+                    <span v-if="stepGoals.daily2_goal.luk > 0" class="qr-tag qr-luk">LUK+{{ stepGoals.daily2_goal.luk }}</span>
+                    <span v-if="stepGoals.daily2_goal.gold > 0" class="qr-tag qr-gold">💰+{{ stepGoals.daily2_goal.gold }}</span>
+                    <span v-if="stepGoals.daily2_goal.mana > 0" class="qr-tag qr-mana">✨+{{ stepGoals.daily2_goal.mana }}</span>
+                  </div>
+                  <div class="tier-anchor-label">{{ (stepGoals.daily2_goal.target || 0).toLocaleString() }}</div>
+                </div>
+              </div>
             </div>
             <div class="quest-bar-sub">
-              {{ (stepGoals.today_steps || 0).toLocaleString() }} / {{ dailyMaxTarget.toLocaleString() }} steps
-            </div>
-          </div>
-          <div class="quest-bar-rewards quest-bar-rewards--stacked">
-            <div class="tier-rewards">
-              <span class="tier-label" v-if="stepGoals.daily2_goal && stepGoals.daily2_goal.enabled">Tier 1</span>
-              <div class="tier-tags">
-                <span v-if="stepGoals.daily_goal.str > 0" class="qr-tag qr-str">STR+{{ stepGoals.daily_goal.str }}</span>
-                <span v-if="stepGoals.daily_goal.def > 0" class="qr-tag qr-def">DEF+{{ stepGoals.daily_goal.def }}</span>
-                <span v-if="stepGoals.daily_goal.luk > 0" class="qr-tag qr-luk">LUK+{{ stepGoals.daily_goal.luk }}</span>
-                <span v-if="stepGoals.daily_goal.gold > 0" class="qr-tag qr-gold">💰+{{ stepGoals.daily_goal.gold }}</span>
-                <span v-if="stepGoals.daily_goal.mana > 0" class="qr-tag qr-mana">✨+{{ stepGoals.daily_goal.mana }}</span>
-              </div>
-              <span v-if="stepGoals.daily_goal.claimed" class="tier-status tier-done">✅</span>
-              <span v-else-if="stepGoals.daily_goal.reached" class="tier-status tier-ready">⭐</span>
-            </div>
-            <div v-if="stepGoals.daily2_goal && stepGoals.daily2_goal.enabled" class="tier-rewards">
-              <span class="tier-label">Tier 2</span>
-              <div class="tier-tags">
-                <span v-if="stepGoals.daily2_goal.str > 0" class="qr-tag qr-str">STR+{{ stepGoals.daily2_goal.str }}</span>
-                <span v-if="stepGoals.daily2_goal.def > 0" class="qr-tag qr-def">DEF+{{ stepGoals.daily2_goal.def }}</span>
-                <span v-if="stepGoals.daily2_goal.luk > 0" class="qr-tag qr-luk">LUK+{{ stepGoals.daily2_goal.luk }}</span>
-                <span v-if="stepGoals.daily2_goal.gold > 0" class="qr-tag qr-gold">💰+{{ stepGoals.daily2_goal.gold }}</span>
-                <span v-if="stepGoals.daily2_goal.mana > 0" class="qr-tag qr-mana">✨+{{ stepGoals.daily2_goal.mana }}</span>
-              </div>
-              <span v-if="stepGoals.daily2_goal.claimed" class="tier-status tier-done">✅</span>
-              <span v-else-if="stepGoals.daily2_goal.reached" class="tier-status tier-ready">⭐</span>
+              {{ (stepGoals.today_steps || 0).toLocaleString() }} steps today
             </div>
           </div>
         </div>
@@ -794,6 +800,10 @@ export default {
       const r2 = d2?.enabled && d2?.reached && !d2?.claimed
       return r1 || r2
     },
+    hasTier2() {
+      const d2 = this.stepGoals.daily2_goal
+      return d2 && d2.enabled && d2.target > 0 && this.stepGoals.daily_goal.target < d2.target
+    },
     monthlyPct() {
       const t = this.stepGoals.monthly_goal?.target || 1
       return Math.min(100, Math.round(((this.stepGoals.monthly_steps || 0) / t) * 100))
@@ -1297,27 +1307,33 @@ export default {
 
 /* Tier milestone marker on progress bar */
 .tier-marker {
-  position: absolute; top: 0; bottom: 0; z-index: 2;
+  position: absolute; top: -2px; bottom: -2px; z-index: 2;
   transform: translateX(-50%);
 }
 .tier-marker-line {
-  width: 2px; height: 100%; background: rgba(255,255,255,0.7);
-  border-radius: 1px; box-shadow: 0 0 4px rgba(255,255,255,0.4);
+  width: 3px; height: 100%; background: rgba(255,255,255,0.8);
+  border-radius: 2px; box-shadow: 0 0 6px rgba(255,255,255,0.5);
 }
 
-/* Stacked tier rewards */
-.quest-bar-rewards--stacked {
-  gap: 5px;
+/* Multi-tier bar layout */
+.quest-bar--multitier .quest-bar-main { overflow: visible; }
+.multitier-wrap { position: relative; }
+
+/* Anchor rewards below the bar */
+.tier-anchors {
+  position: relative; height: 40px; margin-top: 4px;
 }
-.tier-rewards {
-  display: flex; align-items: center; gap: 4px;
+.tier-anchor {
+  position: absolute; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
 }
-.tier-label {
-  font-size: 9px; font-weight: 800; color: #8b7355;
-  min-width: 30px; text-align: right;
+.tier-anchor-tags {
+  display: flex; gap: 3px; flex-wrap: nowrap; white-space: nowrap;
 }
-.tier-tags { display: flex; gap: 3px; flex-wrap: wrap; }
-.tier-status { font-size: 12px; flex-shrink: 0; }
+.tier-anchor-label {
+  font-size: 9px; font-weight: 700; color: #8b7355;
+}
+.tier-check { font-size: 11px; }
 
 /* Town Crier step reward style */
 .step-icon-circle {
