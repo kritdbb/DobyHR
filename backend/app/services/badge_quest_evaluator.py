@@ -5,6 +5,8 @@ Supports SQL-like queries, e.g.:
     total_steps >= 50
     mana_sent > 3 AND mana_received > 5
     checkin_streak >= 10 OR total_steps > 1000
+    item_6 >= 3          (bought item #6 at least 3 times)
+    leave_sick >= 1       (took sick leave at least once)
 
 Each "field" maps to a resolver function that computes the user's value.
 """
@@ -17,7 +19,8 @@ from sqlalchemy import func
 from app.models.user import User
 from app.models.attendance import Attendance
 from app.models.fitbit import FitbitSteps
-from app.models.reward import CoinLog
+from app.models.reward import CoinLog, Redemption, Reward
+from app.models.leave import LeaveRequest
 
 logger = logging.getLogger("hr-api")
 
@@ -96,6 +99,52 @@ def _resolve_user_field(field_name: str):
     return resolver
 
 
+# ── Item purchase resolvers (dynamic: item_<id>) ─────
+
+def _resolve_item_purchased(reward_id: int):
+    """Factory: count how many times user redeemed a specific item (non-rejected)."""
+    def resolver(user_id: int, db: Session) -> int:
+        return (
+            db.query(func.count(Redemption.id))
+            .filter(
+                Redemption.user_id == user_id,
+                Redemption.reward_id == reward_id,
+                Redemption.status != "rejected",
+            )
+            .scalar()
+        )
+    return resolver
+
+
+def _resolve_total_redemptions(user_id: int, db: Session) -> int:
+    """Total items redeemed (non-rejected)."""
+    return (
+        db.query(func.count(Redemption.id))
+        .filter(
+            Redemption.user_id == user_id,
+            Redemption.status != "rejected",
+        )
+        .scalar()
+    )
+
+
+# ── Leave resolvers ──────────────────────────────────
+
+def _resolve_leave(leave_type: str):
+    """Factory: count approved leaves of a specific type."""
+    def resolver(user_id: int, db: Session) -> int:
+        return (
+            db.query(func.count(LeaveRequest.id))
+            .filter(
+                LeaveRequest.user_id == user_id,
+                LeaveRequest.leave_type == leave_type,
+                LeaveRequest.status == "approved",
+            )
+            .scalar()
+        )
+    return resolver
+
+
 # ── Registry ──────────────────────────────────────────
 
 FIELD_RESOLVERS = {
@@ -110,20 +159,55 @@ FIELD_RESOLVERS = {
     "base_str": _resolve_user_field("base_str"),
     "base_def": _resolve_user_field("base_def"),
     "base_luk": _resolve_user_field("base_luk"),
+    # Leave counts
+    "leave_sick": _resolve_leave("sick"),
+    "leave_vacation": _resolve_leave("vacation"),
+    "leave_business": _resolve_leave("business"),
+    # Total redemptions
+    "total_redemptions": _resolve_total_redemptions,
 }
 
+# item_<id> fields are registered dynamically — see _ensure_item_fields()
+
+_item_fields_loaded = False
+
+def _ensure_item_fields(db: Session):
+    """Lazily load item_<id> fields from the rewards table."""
+    global _item_fields_loaded
+    if _item_fields_loaded:
+        return
+    try:
+        rewards = db.query(Reward).filter(Reward.is_active == True).all()
+        for r in rewards:
+            key = f"item_{r.id}"
+            if key not in FIELD_RESOLVERS:
+                FIELD_RESOLVERS[key] = _resolve_item_purchased(r.id)
+                FIELD_DESCRIPTIONS[key] = {
+                    "label": f"🛒 {r.name}",
+                    "desc": f"Times redeemed \"{r.name}\" (id={r.id})",
+                    "example": f"{key} >= 1",
+                }
+        _item_fields_loaded = True
+    except Exception as e:
+        logger.error(f"Failed to load item fields: {e}")
+
+
 FIELD_DESCRIPTIONS = {
-    "checkin_streak":   {"label": "Check-in Streak",      "desc": "Consecutive on-time check-in days",        "example": "checkin_streak >= 5"},
-    "total_steps":      {"label": "Total Steps",          "desc": "All-time total steps walked (Fitbit)",     "example": "total_steps >= 10000"},
-    "mana_received":    {"label": "Mana Received",        "desc": "Times received Mana from others",          "example": "mana_received >= 3"},
-    "mana_sent":        {"label": "Mana Sent",            "desc": "Times sent Mana to others",                "example": "mana_sent >= 3"},
-    "lottery_played":   {"label": "Lottery Played",       "desc": "Times played Magic Lottery",               "example": "lottery_played >= 5"},
-    "scroll_purchased": {"label": "Scrolls Purchased",    "desc": "Times purchased any Scroll",               "example": "scroll_purchased >= 2"},
-    "coins":            {"label": "Gold (current)",       "desc": "Current Gold balance",                     "example": "coins >= 100"},
-    "angel_coins":      {"label": "Mana (current)",       "desc": "Current Mana balance",                     "example": "angel_coins >= 10"},
-    "base_str":         {"label": "Base STR",             "desc": "Base Strength stat",                       "example": "base_str >= 15"},
-    "base_def":         {"label": "Base DEF",             "desc": "Base Defense stat",                        "example": "base_def >= 15"},
-    "base_luk":         {"label": "Base LUK",             "desc": "Base Luck stat",                           "example": "base_luk >= 15"},
+    "checkin_streak":     {"label": "Check-in Streak",      "desc": "Consecutive on-time check-in days",        "example": "checkin_streak >= 5"},
+    "total_steps":        {"label": "Total Steps",          "desc": "All-time total steps walked (Fitbit)",     "example": "total_steps >= 10000"},
+    "mana_received":      {"label": "Mana Received",        "desc": "Times received Mana from others",          "example": "mana_received >= 3"},
+    "mana_sent":          {"label": "Mana Sent",            "desc": "Times sent Mana to others",                "example": "mana_sent >= 3"},
+    "lottery_played":     {"label": "Lottery Played",       "desc": "Times played Magic Lottery",               "example": "lottery_played >= 5"},
+    "scroll_purchased":   {"label": "Scrolls Purchased",    "desc": "Times purchased any Scroll",               "example": "scroll_purchased >= 2"},
+    "coins":              {"label": "Gold (current)",       "desc": "Current Gold balance",                     "example": "coins >= 100"},
+    "angel_coins":        {"label": "Mana (current)",       "desc": "Current Mana balance",                     "example": "angel_coins >= 10"},
+    "base_str":           {"label": "Base STR",             "desc": "Base Strength stat",                       "example": "base_str >= 15"},
+    "base_def":           {"label": "Base DEF",             "desc": "Base Defense stat",                        "example": "base_def >= 15"},
+    "base_luk":           {"label": "Base LUK",             "desc": "Base Luck stat",                           "example": "base_luk >= 15"},
+    "leave_sick":         {"label": "🏥 Sick Leave",        "desc": "Approved sick leave count",                 "example": "leave_sick >= 1"},
+    "leave_vacation":     {"label": "🏖 Vacation Leave",    "desc": "Approved vacation leave count",             "example": "leave_vacation >= 1"},
+    "leave_business":     {"label": "💼 Business Leave",    "desc": "Approved business leave count",             "example": "leave_business >= 1"},
+    "total_redemptions":  {"label": "🛍 Total Redemptions", "desc": "Total items redeemed from shop",            "example": "total_redemptions >= 5"},
 }
 
 # Legacy labels (kept for backward compat)
@@ -154,7 +238,7 @@ CONDITION_RE = re.compile(
 )
 
 
-def parse_query(query_str: str):
+def parse_query(query_str: str, db: Session = None):
     """
     Parse a query string into structured conditions.
     Returns: list of (conjunction, field, op_str, value) tuples
@@ -165,6 +249,10 @@ def parse_query(query_str: str):
     """
     if not query_str or not query_str.strip():
         raise ValueError("Query is empty")
+
+    # Load dynamic item fields if db available
+    if db:
+        _ensure_item_fields(db)
 
     # Normalize whitespace
     q = query_str.strip()
@@ -189,6 +277,14 @@ def parse_query(query_str: str):
         op_str = match.group(2)
         value = int(match.group(3))
 
+        # Support dynamic item_<id> fields even if not pre-loaded
+        if field not in FIELD_RESOLVERS and field.startswith("item_"):
+            try:
+                reward_id = int(field.split("_", 1)[1])
+                FIELD_RESOLVERS[field] = _resolve_item_purchased(reward_id)
+            except (ValueError, IndexError):
+                pass
+
         if field not in FIELD_RESOLVERS:
             raise ValueError(f"Unknown field: '{field}'. Available: {', '.join(sorted(FIELD_RESOLVERS.keys()))}")
 
@@ -201,10 +297,10 @@ def parse_query(query_str: str):
     return conditions
 
 
-def validate_query(query_str: str) -> dict:
+def validate_query(query_str: str, db: Session = None) -> dict:
     """Validate a query string. Returns {valid: bool, error: str|None, fields: list}."""
     try:
-        conditions = parse_query(query_str)
+        conditions = parse_query(query_str, db)
         fields = [c[1] for c in conditions]
         return {"valid": True, "error": None, "fields": fields, "condition_count": len(conditions)}
     except ValueError as e:
@@ -213,7 +309,7 @@ def validate_query(query_str: str) -> dict:
 
 def evaluate_query(user_id: int, query_str: str, db: Session) -> bool:
     """Evaluate a query string against a user. Returns True if all conditions are met."""
-    conditions = parse_query(query_str)
+    conditions = parse_query(query_str, db)
 
     # Evaluate with AND/OR logic
     result = None
@@ -235,7 +331,7 @@ def evaluate_query(user_id: int, query_str: str, db: Session) -> bool:
 
 def resolve_user_fields(user_id: int, query_str: str, db: Session) -> dict:
     """Resolve all field values mentioned in a query for a given user."""
-    conditions = parse_query(query_str)
+    conditions = parse_query(query_str, db)
     values = {}
     for _, field, _, _ in conditions:
         if field not in values:

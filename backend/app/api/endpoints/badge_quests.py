@@ -58,9 +58,12 @@ def get_condition_types(
 
 @router.get("/fields")
 def get_available_fields(
+    db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_active_admin),
 ):
     """Return all queryable fields with descriptions and examples."""
+    from app.services.badge_quest_evaluator import _ensure_item_fields
+    _ensure_item_fields(db)
     return [
         {"field": k, **v}
         for k, v in FIELD_DESCRIPTIONS.items()
@@ -108,7 +111,7 @@ def create_quest(
 
     # Validate: must have either condition_query or condition_type
     if body.condition_query:
-        v = validate_query(body.condition_query)
+        v = validate_query(body.condition_query, db)
         if not v["valid"]:
             raise HTTPException(status_code=400, detail=f"Invalid query: {v['error']}")
     elif body.condition_type:
@@ -153,7 +156,7 @@ def update_quest(
 
     if body.condition_query is not None:
         if body.condition_query:
-            v = validate_query(body.condition_query)
+            v = validate_query(body.condition_query, db)
             if not v["valid"]:
                 raise HTTPException(status_code=400, detail=f"Invalid query: {v['error']}")
             quest.condition_query = body.condition_query
@@ -205,7 +208,7 @@ def preview_query(
     current_user: User = Depends(deps.get_current_active_admin),
 ):
     """Dry-run a query: returns matching users without awarding anything."""
-    v = validate_query(body.query)
+    v = validate_query(body.query, db)
     if not v["valid"]:
         raise HTTPException(status_code=400, detail=f"Invalid query: {v['error']}")
 
