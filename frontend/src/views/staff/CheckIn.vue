@@ -6,7 +6,7 @@
     </div>
 
     <!-- Distance Display -->
-    <div class="distance-section">
+    <div v-if="!alreadyCheckedIn" class="distance-section">
       <div v-if="distLoading" class="distance-badge distance-badge--loading">
         <div class="spinner"></div>
         Scouting the area...
@@ -28,7 +28,7 @@
     <div v-if="alreadyCheckedIn" class="already-done-card">
       <div class="already-done-icon">⚔️</div>
       <div class="already-done-text">
-        Quest accepted at <strong>{{ checkedInTime }}</strong>
+        Check-In at <strong>{{ checkedInTime }}</strong>
       </div>
       <div class="already-done-status">
         Status: {{ checkedInStatus }}

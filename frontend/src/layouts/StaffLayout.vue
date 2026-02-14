@@ -18,7 +18,7 @@
         <div class="checkin-fab">
           <span style="font-size: 24px;">🗡️</span>
         </div>
-        <span class="nav-label" style="margin-top: 28px; color: #d4a44c;">Quest</span>
+        <span class="nav-label" style="margin-top: 28px; color: #d4a44c;">Daily Quest</span>
       </router-link>
 
       <router-link to="/staff/services" class="nav-tab" active-class="nav-tab--active">
