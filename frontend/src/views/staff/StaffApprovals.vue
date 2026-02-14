@@ -1,6 +1,6 @@
 <template>
   <div class="staff-page">
-    <h1 class="page-title">📜 Quest Board</h1>
+    <h1 class="page-title">📜 Approval Board</h1>
     <p class="page-sub">Review and manage pending quests</p>
 
     <!-- Tabs -->

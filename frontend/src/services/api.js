@@ -192,4 +192,15 @@ export const getRecentBadgeAwards = (limit = 50) => api.get(`/api/badges/awards/
 export const getTownPeople = () => api.get('/api/badges/town-people')
 export const buyMagicItem = (itemType, params = {}) => api.post(`/api/badges/magic-shop/buy?item_type=${itemType}${params.status_text ? '&status_text=' + encodeURIComponent(params.status_text) : ''}`)
 
+// --- Fitbit ---
+export const getFitbitAuthUrl = () => api.get('/api/fitbit/authorize')
+export const fitbitCallback = (code) => api.post(`/api/fitbit/callback?code=${encodeURIComponent(code)}`)
+export const getFitbitStatus = () => api.get('/api/fitbit/status')
+export const syncFitbitSteps = () => api.post('/api/fitbit/sync')
+export const getMyFitbitSteps = (days = 7) => api.get(`/api/fitbit/my-steps?days=${days}`)
+export const getFitbitLeaderboard = () => api.get('/api/fitbit/leaderboard')
+export const disconnectFitbit = () => api.post('/api/fitbit/disconnect')
+export const getStepGoals = () => api.get('/api/fitbit/goals')
+export const claimStepReward = (rewardType) => api.post(`/api/fitbit/claim-reward?reward_type=${rewardType}`)
+
 export default api

@@ -140,6 +140,74 @@
           <input v-model.number="form.lucky_draw_amount" class="form-input" type="number" placeholder="e.g. 10" min="0" />
         </div>
       </div>
+
+      <!-- Step Goal: Daily -->
+      <div class="card-header" style="margin-top: 24px; border-top: 1px solid rgba(212,164,76,0.1); padding-top: 24px;">
+        <span class="card-title">🥾 Daily Step Goal</span>
+      </div>
+      <p class="section-desc">Set a daily walking target and rewards for reaching it (resets daily at midnight)</p>
+      <div class="form-row">
+        <div class="form-group" style="flex: 1;">
+          <label>Target Steps</label>
+          <input v-model.number="form.step_daily_target" class="form-input" type="number" placeholder="e.g. 5000" min="0" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex: 1;">
+          <label>STR</label>
+          <input v-model.number="form.step_daily_str" class="form-input" type="number" min="0" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>DEF</label>
+          <input v-model.number="form.step_daily_def" class="form-input" type="number" min="0" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>LUK</label>
+          <input v-model.number="form.step_daily_luk" class="form-input" type="number" min="0" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Gold</label>
+          <input v-model.number="form.step_daily_gold" class="form-input" type="number" min="0" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Mana</label>
+          <input v-model.number="form.step_daily_mana" class="form-input" type="number" min="0" />
+        </div>
+      </div>
+
+      <!-- Step Goal: Monthly -->
+      <div class="card-header" style="margin-top: 24px; border-top: 1px solid rgba(212,164,76,0.1); padding-top: 24px;">
+        <span class="card-title">🗓️ Monthly Step Goal</span>
+      </div>
+      <p class="section-desc">Monthly walking target (set target to 0 to disable)</p>
+      <div class="form-row">
+        <div class="form-group" style="flex: 1;">
+          <label>Target Steps</label>
+          <input v-model.number="form.step_monthly_target" class="form-input" type="number" placeholder="e.g. 75000" min="0" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex: 1;">
+          <label>STR</label>
+          <input v-model.number="form.step_monthly_str" class="form-input" type="number" min="0" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>DEF</label>
+          <input v-model.number="form.step_monthly_def" class="form-input" type="number" min="0" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>LUK</label>
+          <input v-model.number="form.step_monthly_luk" class="form-input" type="number" min="0" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Gold</label>
+          <input v-model.number="form.step_monthly_gold" class="form-input" type="number" min="0" />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Mana</label>
+          <input v-model.number="form.step_monthly_mana" class="form-input" type="number" min="0" />
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -162,6 +230,18 @@ export default {
         coin_absent_penalty: 20,
         auto_coin_amount: 0,
         auto_angel_amount: 0,
+        step_daily_target: 5000,
+        step_daily_str: 0,
+        step_daily_def: 0,
+        step_daily_luk: 0,
+        step_daily_gold: 0,
+        step_daily_mana: 0,
+        step_monthly_target: 75000,
+        step_monthly_str: 0,
+        step_monthly_def: 0,
+        step_monthly_luk: 0,
+        step_monthly_gold: 1,
+        step_monthly_mana: 0,
       },
       autoCoinDays: [],
       autoAngelDays: [],
@@ -206,6 +286,18 @@ export default {
           auto_coin_amount: data.auto_coin_amount || 0,
           auto_angel_amount: data.auto_angel_amount || 0,
           lucky_draw_amount: data.lucky_draw_amount || 0,
+          step_daily_target: data.step_daily_target ?? 5000,
+          step_daily_str: data.step_daily_str ?? 0,
+          step_daily_def: data.step_daily_def ?? 0,
+          step_daily_luk: data.step_daily_luk ?? 0,
+          step_daily_gold: data.step_daily_gold ?? 0,
+          step_daily_mana: data.step_daily_mana ?? 0,
+          step_monthly_target: data.step_monthly_target ?? 75000,
+          step_monthly_str: data.step_monthly_str ?? 0,
+          step_monthly_def: data.step_monthly_def ?? 0,
+          step_monthly_luk: data.step_monthly_luk ?? 0,
+          step_monthly_gold: data.step_monthly_gold ?? 1,
+          step_monthly_mana: data.step_monthly_mana ?? 0,
         }
         this.autoCoinDays = data.auto_coin_day ? data.auto_coin_day.split(',').map(d => d.trim().toLowerCase()) : []
         this.autoAngelDays = data.auto_angel_day ? data.auto_angel_day.split(',').map(d => d.trim().toLowerCase()) : []
@@ -231,6 +323,18 @@ export default {
           auto_angel_amount: this.form.auto_angel_amount,
           lucky_draw_day: this.luckyDrawDays.join(','),
           lucky_draw_amount: this.form.lucky_draw_amount,
+          step_daily_target: this.form.step_daily_target,
+          step_daily_str: this.form.step_daily_str,
+          step_daily_def: this.form.step_daily_def,
+          step_daily_luk: this.form.step_daily_luk,
+          step_daily_gold: this.form.step_daily_gold,
+          step_daily_mana: this.form.step_daily_mana,
+          step_monthly_target: this.form.step_monthly_target,
+          step_monthly_str: this.form.step_monthly_str,
+          step_monthly_def: this.form.step_monthly_def,
+          step_monthly_luk: this.form.step_monthly_luk,
+          step_monthly_gold: this.form.step_monthly_gold,
+          step_monthly_mana: this.form.step_monthly_mana,
         })
         this.showToast('Kingdom settings updated!')
       } catch (e) {

@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "/app/uploads")
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    FITBIT_CLIENT_ID: str = os.getenv("FITBIT_CLIENT_ID", "")
+    FITBIT_CLIENT_SECRET: str = os.getenv("FITBIT_CLIENT_SECRET", "")
+    FITBIT_REDIRECT_URI: str = os.getenv("FITBIT_REDIRECT_URI", "https://hr.doby.me/oauth/callback")
 
     class Config:
         env_file = ".env"

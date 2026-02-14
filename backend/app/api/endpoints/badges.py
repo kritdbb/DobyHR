@@ -456,6 +456,34 @@ def get_recent_awards(
                 "detail": "Magic Shop",
             })
 
+    # Step Reward claims
+    from app.models.step_rewards import StepReward
+    step_rewards = (
+        db.query(StepReward)
+        .order_by(StepReward.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    for sr in step_rewards:
+        user = db.query(User).filter(User.id == sr.user_id).first()
+        if user:
+            reward_parts = []
+            if sr.str_granted and sr.str_granted > 0:
+                reward_parts.append(f"STR +{sr.str_granted}")
+            if sr.coins_granted and sr.coins_granted > 0:
+                reward_parts.append(f"Gold +{sr.coins_granted}")
+            reward_label = ", ".join(reward_parts) if reward_parts else "Reward"
+            goal_label = "Daily" if sr.reward_type == "daily" else "Monthly"
+            events.append({
+                "id": f"step-{sr.id}",
+                "type": "step_reward",
+                "user_name": f"{user.name} {user.surname or ''}".strip(),
+                "user_image": user.image,
+                "goal_type": goal_label,
+                "reward_label": reward_label,
+                "timestamp": sr.created_at.isoformat() if sr.created_at else None,
+            })
+
     # Sort combined by timestamp desc and return top N
     events.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
     return events[:limit]

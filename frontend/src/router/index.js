@@ -2,6 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
     {
+        path: '/oauth/callback',
+        name: 'OAuthCallback',
+        component: () => import('../views/OAuthCallback.vue'),
+        meta: { requiresAuth: true }
+    },
+    {
         path: '/sso',
         name: 'SSO',
         component: () => import('../views/Login.vue'),
@@ -80,6 +86,12 @@ const routes = [
         component: () => import('../views/admin/BadgeManagement.vue'),
         meta: { requiresAuth: true, role: 'admin' }
     },
+    {
+        path: '/badge-quests',
+        name: 'BadgeQuests',
+        component: () => import('../views/admin/BadgeQuests.vue'),
+        meta: { requiresAuth: true, role: 'admin' }
+    },
     // Staff Routes
     {
         path: '/staff',
@@ -125,6 +137,10 @@ const routes = [
             {
                 path: 'magic-shop',
                 component: () => import('../views/staff/MagicShop.vue')
+            },
+            {
+                path: 'fitbit',
+                component: () => import('../views/staff/FitbitSteps.vue')
             },
         ]
     }

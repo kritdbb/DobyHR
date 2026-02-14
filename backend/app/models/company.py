@@ -22,4 +22,18 @@ class Company(Base):
     # Lucky Draw (weighted random by LUK)
     lucky_draw_day = Column(String(50), nullable=True)   # e.g. "mon,wed,fri"
     lucky_draw_amount = Column(Integer, default=0)
+    # Step Goal: Daily
+    step_daily_target = Column(Integer, default=5000)
+    step_daily_str = Column(Integer, default=0)
+    step_daily_def = Column(Integer, default=0)
+    step_daily_luk = Column(Integer, default=0)
+    step_daily_gold = Column(Integer, default=0)
+    step_daily_mana = Column(Integer, default=0)
+    # Step Goal: Monthly (set target to 0 to disable)
+    step_monthly_target = Column(Integer, default=75000)
+    step_monthly_str = Column(Integer, default=0)
+    step_monthly_def = Column(Integer, default=0)
+    step_monthly_luk = Column(Integer, default=0)
+    step_monthly_gold = Column(Integer, default=1)
+    step_monthly_mana = Column(Integer, default=0)
 

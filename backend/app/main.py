@@ -9,8 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.database import engine, Base
 from app.core.config import settings
-from app.api.endpoints import company, users, approval, auth, attendance, leaves, rewards, reports, absent_check, approval_pattern, work_requests, badges
-from app.models import user as user_model, company as company_model, approval as approval_model, attendance as attendance_model, leave as leave_model, reward as reward_model, approval_pattern as approval_pattern_model, work_request as work_request_model, badge as badge_model
+from app.api.endpoints import company, users, approval, auth, attendance, leaves, rewards, reports, absent_check, approval_pattern, work_requests, badges, fitbit, badge_quests
+from app.models import user as user_model, company as company_model, approval as approval_model, attendance as attendance_model, leave as leave_model, reward as reward_model, approval_pattern as approval_pattern_model, work_request as work_request_model, badge as badge_model, fitbit as fitbit_model, step_rewards as step_rewards_model, badge_quest as badge_quest_model
 from app.core.database import SessionLocal
 from app.core.security import get_password_hash
 from app.scheduler import start_scheduler
@@ -91,6 +91,8 @@ app.include_router(absent_check.router)
 app.include_router(approval_pattern.router)
 app.include_router(work_requests.router)
 app.include_router(badges.router)
+app.include_router(fitbit.router)
+app.include_router(badge_quests.router)
 
 
 @app.on_event("startup")

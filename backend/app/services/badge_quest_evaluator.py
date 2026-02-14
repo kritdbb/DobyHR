@@ -1,0 +1,277 @@
+"""
+Badge Quest condition evaluators — query-based system.
+
+Supports SQL-like queries, e.g.:
+    total_steps >= 50
+    mana_sent > 3 AND mana_received > 5
+    checkin_streak >= 10 OR total_steps > 1000
+
+Each "field" maps to a resolver function that computes the user's value.
+"""
+import re
+import logging
+from datetime import datetime, timedelta, timezone
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from app.models.user import User
+from app.models.attendance import Attendance
+from app.models.fitbit import FitbitSteps
+from app.models.reward import CoinLog
+
+logger = logging.getLogger("hr-api")
+
+BKK = timezone(timedelta(hours=7))
+
+# ── Field Resolvers ───────────────────────────────────
+# Each takes (user_id, db) → int
+
+
+def _resolve_checkin_streak(user_id: int, db: Session) -> int:
+    records = (
+        db.query(Attendance)
+        .filter(Attendance.user_id == user_id, Attendance.status == "present")
+        .order_by(Attendance.timestamp.desc())
+        .all()
+    )
+    seen_dates = set()
+    for r in records:
+        local_dt = r.timestamp + timedelta(hours=7) if r.timestamp else None
+        if local_dt:
+            seen_dates.add(local_dt.date())
+    today = (datetime.utcnow() + timedelta(hours=7)).date()
+    streak = 0
+    d = today
+    while d in seen_dates:
+        streak += 1
+        d -= timedelta(days=1)
+    return streak
+
+
+def _resolve_total_steps(user_id: int, db: Session) -> int:
+    return (
+        db.query(func.coalesce(func.sum(FitbitSteps.steps), 0))
+        .filter(FitbitSteps.user_id == user_id)
+        .scalar()
+    )
+
+
+def _resolve_mana_received(user_id: int, db: Session) -> int:
+    return (
+        db.query(func.count(CoinLog.id))
+        .filter(CoinLog.user_id == user_id, CoinLog.reason.ilike("%Received Angel Coins%"))
+        .scalar()
+    )
+
+
+def _resolve_mana_sent(user_id: int, db: Session) -> int:
+    return (
+        db.query(func.count(CoinLog.id))
+        .filter(CoinLog.user_id == user_id, CoinLog.reason.ilike("%Sent Angel Coins%"))
+        .scalar()
+    )
+
+
+def _resolve_lottery_played(user_id: int, db: Session) -> int:
+    return (
+        db.query(func.count(CoinLog.id))
+        .filter(CoinLog.user_id == user_id, CoinLog.reason.ilike("%Magic Lottery%"))
+        .scalar()
+    )
+
+
+def _resolve_scroll_purchased(user_id: int, db: Session) -> int:
+    return (
+        db.query(func.count(CoinLog.id))
+        .filter(CoinLog.user_id == user_id, CoinLog.reason.ilike("%Scroll of%"))
+        .scalar()
+    )
+
+
+def _resolve_user_field(field_name: str):
+    """Factory for simple User column resolvers."""
+    def resolver(user_id: int, db: Session) -> int:
+        user = db.query(User).filter(User.id == user_id).first()
+        return getattr(user, field_name, 0) or 0 if user else 0
+    return resolver
+
+
+# ── Registry ──────────────────────────────────────────
+
+FIELD_RESOLVERS = {
+    "checkin_streak": _resolve_checkin_streak,
+    "total_steps": _resolve_total_steps,
+    "mana_received": _resolve_mana_received,
+    "mana_sent": _resolve_mana_sent,
+    "lottery_played": _resolve_lottery_played,
+    "scroll_purchased": _resolve_scroll_purchased,
+    "coins": _resolve_user_field("coins"),
+    "angel_coins": _resolve_user_field("angel_coins"),
+    "base_str": _resolve_user_field("base_str"),
+    "base_def": _resolve_user_field("base_def"),
+    "base_luk": _resolve_user_field("base_luk"),
+}
+
+FIELD_DESCRIPTIONS = {
+    "checkin_streak":   {"label": "Check-in Streak",      "desc": "Consecutive on-time check-in days",        "example": "checkin_streak >= 5"},
+    "total_steps":      {"label": "Total Steps",          "desc": "All-time total steps walked (Fitbit)",     "example": "total_steps >= 10000"},
+    "mana_received":    {"label": "Mana Received",        "desc": "Times received Mana from others",          "example": "mana_received >= 3"},
+    "mana_sent":        {"label": "Mana Sent",            "desc": "Times sent Mana to others",                "example": "mana_sent >= 3"},
+    "lottery_played":   {"label": "Lottery Played",       "desc": "Times played Magic Lottery",               "example": "lottery_played >= 5"},
+    "scroll_purchased": {"label": "Scrolls Purchased",    "desc": "Times purchased any Scroll",               "example": "scroll_purchased >= 2"},
+    "coins":            {"label": "Gold (current)",       "desc": "Current Gold balance",                     "example": "coins >= 100"},
+    "angel_coins":      {"label": "Mana (current)",       "desc": "Current Mana balance",                     "example": "angel_coins >= 10"},
+    "base_str":         {"label": "Base STR",             "desc": "Base Strength stat",                       "example": "base_str >= 15"},
+    "base_def":         {"label": "Base DEF",             "desc": "Base Defense stat",                        "example": "base_def >= 15"},
+    "base_luk":         {"label": "Base LUK",             "desc": "Base Luck stat",                           "example": "base_luk >= 15"},
+}
+
+# Legacy labels (kept for backward compat)
+CONDITION_LABELS = {
+    "checkin_streak": "Check-in on time X consecutive days",
+    "total_steps": "Walk X total steps",
+    "mana_received": "Receive Mana X times",
+    "mana_sent": "Send Mana X times",
+    "lottery_played": "Play Magic Lottery X times",
+    "scroll_purchased": "Purchase Scrolls X times",
+}
+
+
+# ── Query Parser ──────────────────────────────────────
+
+OPERATORS = {
+    ">=": lambda a, b: a >= b,
+    "<=": lambda a, b: a <= b,
+    "!=": lambda a, b: a != b,
+    "==": lambda a, b: a == b,
+    ">":  lambda a, b: a > b,
+    "<":  lambda a, b: a < b,
+}
+
+# Pattern: field_name  operator  number
+CONDITION_RE = re.compile(
+    r"(\w+)\s*(>=|<=|!=|==|>|<)\s*(\d+)"
+)
+
+
+def parse_query(query_str: str):
+    """
+    Parse a query string into structured conditions.
+    Returns: list of (conjunction, field, op_str, value) tuples
+    conjunction is 'AND' | 'OR' | None (first condition)
+
+    Example: "total_steps >= 50 AND mana_sent > 3"
+    → [(None, 'total_steps', '>=', 50), ('AND', 'mana_sent', '>', 3)]
+    """
+    if not query_str or not query_str.strip():
+        raise ValueError("Query is empty")
+
+    # Normalize whitespace
+    q = query_str.strip()
+
+    # Split by AND/OR (case insensitive), keeping the conjunction
+    parts = re.split(r"\s+(AND|OR)\s+", q, flags=re.IGNORECASE)
+
+    conditions = []
+    conjunction = None
+
+    for part in parts:
+        upper = part.strip().upper()
+        if upper in ("AND", "OR"):
+            conjunction = upper
+            continue
+
+        match = CONDITION_RE.fullmatch(part.strip())
+        if not match:
+            raise ValueError(f"Invalid condition: '{part.strip()}'. Expected format: field >= value")
+
+        field = match.group(1)
+        op_str = match.group(2)
+        value = int(match.group(3))
+
+        if field not in FIELD_RESOLVERS:
+            raise ValueError(f"Unknown field: '{field}'. Available: {', '.join(sorted(FIELD_RESOLVERS.keys()))}")
+
+        conditions.append((conjunction, field, op_str, value))
+        conjunction = None  # reset after consuming
+
+    if not conditions:
+        raise ValueError("No valid conditions found")
+
+    return conditions
+
+
+def validate_query(query_str: str) -> dict:
+    """Validate a query string. Returns {valid: bool, error: str|None, fields: list}."""
+    try:
+        conditions = parse_query(query_str)
+        fields = [c[1] for c in conditions]
+        return {"valid": True, "error": None, "fields": fields, "condition_count": len(conditions)}
+    except ValueError as e:
+        return {"valid": False, "error": str(e), "fields": [], "condition_count": 0}
+
+
+def evaluate_query(user_id: int, query_str: str, db: Session) -> bool:
+    """Evaluate a query string against a user. Returns True if all conditions are met."""
+    conditions = parse_query(query_str)
+
+    # Evaluate with AND/OR logic
+    result = None
+    for conjunction, field, op_str, value in conditions:
+        resolver = FIELD_RESOLVERS[field]
+        actual = resolver(user_id, db)
+        op_fn = OPERATORS[op_str]
+        cond_result = op_fn(actual, value)
+
+        if result is None:
+            result = cond_result
+        elif conjunction == "OR":
+            result = result or cond_result
+        else:  # AND (default)
+            result = result and cond_result
+
+    return bool(result)
+
+
+def resolve_user_fields(user_id: int, query_str: str, db: Session) -> dict:
+    """Resolve all field values mentioned in a query for a given user."""
+    conditions = parse_query(query_str)
+    values = {}
+    for _, field, _, _ in conditions:
+        if field not in values:
+            resolver = FIELD_RESOLVERS[field]
+            values[field] = resolver(user_id, db)
+    return values
+
+
+# ── Legacy support ────────────────────────────────────
+
+EVALUATORS = {
+    "checkin_streak": lambda uid, th, db: _resolve_checkin_streak(uid, db) >= th,
+    "total_steps": lambda uid, th, db: _resolve_total_steps(uid, db) >= th,
+    "mana_received": lambda uid, th, db: _resolve_mana_received(uid, db) >= th,
+    "mana_sent": lambda uid, th, db: _resolve_mana_sent(uid, db) >= th,
+    "lottery_played": lambda uid, th, db: _resolve_lottery_played(uid, db) >= th,
+    "scroll_purchased": lambda uid, th, db: _resolve_scroll_purchased(uid, db) >= th,
+}
+
+
+def evaluate_user(user_id: int, condition_type: str, threshold: int, db: Session) -> bool:
+    """Legacy: evaluate single condition type. Used by old-style quests."""
+    evaluator = EVALUATORS.get(condition_type)
+    if not evaluator:
+        logger.warning(f"Unknown condition type: {condition_type}")
+        return False
+    try:
+        return evaluator(user_id, threshold, db)
+    except Exception as e:
+        logger.error(f"Evaluator error for {condition_type} user={user_id}: {e}")
+        return False
+
+
+def get_user_progress(user_id: int, condition_type: str, db: Session) -> int:
+    """Legacy: get progress value for old-style condition type."""
+    resolver = FIELD_RESOLVERS.get(condition_type)
+    if resolver:
+        return resolver(user_id, db)
+    return 0

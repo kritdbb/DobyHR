@@ -71,9 +71,91 @@
       </div>
     </div>
 
-    <!-- Quest Board: Pending Approvals -->
+    <!-- ═══════ Step Quests ═══════ -->
+    <div v-if="fitbitConnected" class="section steps-section">
+      <div class="steps-header">
+        <h2 class="section-title">🥾 Step Quests</h2>
+        <button @click="syncSteps" class="steps-sync-btn" :disabled="stepsSyncing">
+          {{ stepsSyncing ? '⏳' : '🔄' }}
+        </button>
+      </div>
+
+      <!-- Daily Quest Bar -->
+      <router-link to="/staff/fitbit" class="quest-bar-link">
+        <div class="quest-bar" :class="{ 'quest-bar--done': stepGoals.daily_goal.claimed, 'quest-bar--ready': stepGoals.daily_goal.reached && !stepGoals.daily_goal.claimed }">
+          <div class="quest-bar-icon">
+            <span v-if="stepGoals.daily_goal.claimed">✅</span>
+            <span v-else-if="stepGoals.daily_goal.reached">⭐</span>
+            <span v-else>⚔️</span>
+          </div>
+          <div class="quest-bar-main">
+            <div class="quest-bar-label">
+              <span class="quest-bar-name">Daily Quest</span>
+              <span class="quest-bar-pct">{{ dailyPct }}%</span>
+            </div>
+            <div class="quest-bar-track">
+              <div class="quest-bar-fill" :style="{ width: dailyPct + '%' }"
+                   :class="{ 'quest-bar-fill--done': stepGoals.daily_goal.claimed }"></div>
+            </div>
+            <div class="quest-bar-sub">
+              {{ (stepGoals.today_steps || 0).toLocaleString() }} / {{ (stepGoals.daily_goal.target || 0).toLocaleString() }} steps
+            </div>
+          </div>
+          <div class="quest-bar-rewards">
+            <span v-if="stepGoals.daily_goal.str > 0" class="qr-tag qr-str">STR+{{ stepGoals.daily_goal.str }}</span>
+            <span v-if="stepGoals.daily_goal.def > 0" class="qr-tag qr-def">DEF+{{ stepGoals.daily_goal.def }}</span>
+            <span v-if="stepGoals.daily_goal.luk > 0" class="qr-tag qr-luk">LUK+{{ stepGoals.daily_goal.luk }}</span>
+            <span v-if="stepGoals.daily_goal.gold > 0" class="qr-tag qr-gold">💰+{{ stepGoals.daily_goal.gold }}</span>
+            <span v-if="stepGoals.daily_goal.mana > 0" class="qr-tag qr-mana">✨+{{ stepGoals.daily_goal.mana }}</span>
+          </div>
+        </div>
+      </router-link>
+
+      <!-- Monthly Quest Bar -->
+      <router-link v-if="stepGoals.monthly_goal && stepGoals.monthly_goal.enabled" to="/staff/fitbit" class="quest-bar-link">
+        <div class="quest-bar quest-bar--monthly" :class="{ 'quest-bar--done': stepGoals.monthly_goal.claimed, 'quest-bar--ready': stepGoals.monthly_goal.reached && !stepGoals.monthly_goal.claimed }">
+          <div class="quest-bar-icon">
+            <span v-if="stepGoals.monthly_goal.claimed">✅</span>
+            <span v-else-if="stepGoals.monthly_goal.reached">⭐</span>
+            <span v-else>🗓️</span>
+          </div>
+          <div class="quest-bar-main">
+            <div class="quest-bar-label">
+              <span class="quest-bar-name">Monthly Quest</span>
+              <span class="quest-bar-pct">{{ monthlyPct }}%</span>
+            </div>
+            <div class="quest-bar-track quest-bar-track--monthly">
+              <div class="quest-bar-fill quest-bar-fill--monthly" :style="{ width: monthlyPct + '%' }"
+                   :class="{ 'quest-bar-fill--done': stepGoals.monthly_goal.claimed }"></div>
+            </div>
+            <div class="quest-bar-sub">
+              {{ (stepGoals.monthly_steps || 0).toLocaleString() }} / {{ (stepGoals.monthly_goal.target || 0).toLocaleString() }} steps
+            </div>
+          </div>
+          <div class="quest-bar-rewards">
+            <span v-if="stepGoals.monthly_goal.str > 0" class="qr-tag qr-str">STR+{{ stepGoals.monthly_goal.str }}</span>
+            <span v-if="stepGoals.monthly_goal.def > 0" class="qr-tag qr-def">DEF+{{ stepGoals.monthly_goal.def }}</span>
+            <span v-if="stepGoals.monthly_goal.luk > 0" class="qr-tag qr-luk">LUK+{{ stepGoals.monthly_goal.luk }}</span>
+            <span v-if="stepGoals.monthly_goal.gold > 0" class="qr-tag qr-gold">💰+{{ stepGoals.monthly_goal.gold }}</span>
+            <span v-if="stepGoals.monthly_goal.mana > 0" class="qr-tag qr-mana">✨+{{ stepGoals.monthly_goal.mana }}</span>
+          </div>
+        </div>
+      </router-link>
+    </div>
+    <div v-else-if="fitbitChecked" class="section steps-section steps-connect-mini">
+      <router-link to="/staff/fitbit" class="steps-connect-link">
+        <span class="steps-connect-icon">⌚</span>
+        <div>
+          <div class="steps-connect-title">Connect Fitbit</div>
+          <div class="steps-connect-sub">Track your daily steps & earn rewards</div>
+        </div>
+        <span class="steps-connect-arrow">→</span>
+      </router-link>
+    </div>
+
+    <!-- Approval Board: Pending Approvals -->
     <div v-if="pendingLeaves.length > 0 || pendingRedemptions.length > 0 || pendingWorkRequests.length > 0" class="section">
-      <h2 class="section-title">📜 Quest Board</h2>
+      <h2 class="section-title">📜 Approval Board</h2>
 
       <!-- Pending Leaves -->
       <div v-for="item in pendingLeaves" :key="'leave-'+item.id" class="quest-card quest-card--leave">
@@ -193,10 +275,12 @@
             </div>
             <div class="award-announce-body">
               <div class="award-announce-text">
-                <strong>{{ a.user_name }}</strong> received <strong>{{ a.badge_name }}</strong>
+                <strong>{{ a.user_name }}</strong>
+                <template v-if="a.detail === 'Badge Quest'"> completed <strong class="quest-highlight">Quest</strong> and received Badge <strong>{{ a.badge_name }}</strong></template>
+                <template v-else> received <strong>{{ a.badge_name }}</strong></template>
               </div>
               <div class="award-announce-meta">
-                {{ formatBadgeDate(a.timestamp) }}{{ a.detail ? ` • by ${a.detail}` : '' }}
+                {{ formatBadgeDate(a.timestamp) }}{{ a.detail && a.detail !== 'Badge Quest' ? ` • by ${a.detail}` : '' }}
               </div>
             </div>
           </template>
@@ -236,6 +320,20 @@
             <div class="award-announce-body">
               <div class="award-announce-text">
                 <strong>{{ a.user_name }}</strong> used <strong class="lottery-highlight">Magic Lottery</strong> — {{ a.reason }}
+              </div>
+              <div class="award-announce-meta">
+                {{ formatBadgeDate(a.timestamp) }}
+              </div>
+            </div>
+          </template>
+          <!-- Step Reward event -->
+          <template v-else-if="a.type === 'step_reward'">
+            <div class="award-announce-badge step-icon-circle">
+              <span>🥾</span>
+            </div>
+            <div class="award-announce-body">
+              <div class="award-announce-text">
+                <strong>{{ a.user_name }}</strong> completed <strong class="step-highlight">{{ a.goal_type }} Step Quest</strong> — {{ a.reward_label }}
               </div>
               <div class="award-announce-meta">
                 {{ formatBadgeDate(a.timestamp) }}
@@ -282,10 +380,12 @@
               </div>
               <div class="award-announce-body">
                 <div class="award-announce-text">
-                  <strong>{{ a.user_name }}</strong> received <strong>{{ a.badge_name }}</strong>
+                  <strong>{{ a.user_name }}</strong>
+                  <template v-if="a.detail === 'Badge Quest'"> completed <strong class="quest-highlight">Quest</strong> and received Badge <strong>{{ a.badge_name }}</strong></template>
+                  <template v-else> received <strong>{{ a.badge_name }}</strong></template>
                 </div>
                 <div class="award-announce-meta">
-                  {{ formatBadgeDate(a.timestamp) }}{{ a.detail ? ` • by ${a.detail}` : '' }}
+                  {{ formatBadgeDate(a.timestamp) }}{{ a.detail && a.detail !== 'Badge Quest' ? ` • by ${a.detail}` : '' }}
                 </div>
               </div>
             </template>
@@ -324,6 +424,20 @@
               <div class="award-announce-body">
                 <div class="award-announce-text">
                   <strong>{{ a.user_name }}</strong> used <strong class="lottery-highlight">Magic Lottery</strong> — {{ a.reason }}
+                </div>
+                <div class="award-announce-meta">
+                  {{ formatBadgeDate(a.timestamp) }}
+                </div>
+              </div>
+            </template>
+            <!-- Step Reward event (modal) -->
+            <template v-else-if="a.type === 'step_reward'">
+              <div class="award-announce-badge step-icon-circle">
+                <span>🥾</span>
+              </div>
+              <div class="award-announce-body">
+                <div class="award-announce-text">
+                  <strong>{{ a.user_name }}</strong> completed <strong class="step-highlight">{{ a.goal_type }} Step Quest</strong> — {{ a.reward_label }}
                 </div>
                 <div class="award-announce-meta">
                   {{ formatBadgeDate(a.timestamp) }}
@@ -369,6 +483,7 @@ import api, {
   approveRedemption, rejectRedemption,
   getPendingWorkRequests, approveWorkRequest, rejectWorkRequest,
   getMyBadges, getRecentBadgeAwards, getMyStats,
+  getFitbitStatus, syncFitbitSteps, getStepGoals,
 } from '../../services/api'
 
 export default {
@@ -393,6 +508,15 @@ export default {
       recentAwards: [],
       showGoldModal: false,
       showTownCrierModal: false,
+      fitbitConnected: false,
+      fitbitChecked: false,
+      stepGoals: {
+        today_steps: 0,
+        daily_goal: { target: 5000, str: 0, def: 0, luk: 0, gold: 0, mana: 0, reached: false, claimed: false },
+        monthly_steps: 0,
+        monthly_goal: { target: 0, enabled: false, reached: false, claimed: false },
+      },
+      stepsSyncing: false,
     }
   },
   async mounted() {
@@ -405,6 +529,7 @@ export default {
       this.userStatus = u.status_text || ''
     }
     await this.loadData()
+    this.loadFitbit()  // fire-and-forget, won't block page
   },
   methods: {
     async loadData() {
@@ -468,6 +593,17 @@ export default {
         this.recentAwards = []
       }
     },
+    async loadFitbit() {
+      try {
+        const { data } = await getFitbitStatus()
+        this.fitbitConnected = data.connected
+        this.fitbitChecked = true
+        if (this.fitbitConnected) {
+          const goalsRes = await getStepGoals()
+          this.stepGoals = goalsRes.data
+        }
+      } catch (e) { this.fitbitChecked = true }
+    },
     async handleApproveLeave(id) {
       try { await approveLeave(id); this.showToast('Quest accepted! ⚔️'); await this.loadData() }
       catch (e) { this.showToast(e.response?.data?.detail || 'Failed', 'error') }
@@ -501,6 +637,25 @@ export default {
     formatBadgeDate(d) {
       if (!d) return ''
       return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    },
+    async syncSteps() {
+      this.stepsSyncing = true
+      try {
+        await syncFitbitSteps()
+        const goalsRes = await getStepGoals()
+        this.stepGoals = goalsRes.data
+      } catch (e) { console.error(e) }
+      finally { this.stepsSyncing = false }
+    },
+  },
+  computed: {
+    dailyPct() {
+      const t = this.stepGoals.daily_goal?.target || 1
+      return Math.min(100, Math.round(((this.stepGoals.today_steps || 0) / t) * 100))
+    },
+    monthlyPct() {
+      const t = this.stepGoals.monthly_goal?.target || 1
+      return Math.min(100, Math.round(((this.stepGoals.monthly_steps || 0) / t) * 100))
     },
   },
 }
@@ -745,6 +900,7 @@ export default {
   display: flex; align-items: center; justify-content: center; font-size: 16px;
 }
 .lottery-highlight { color: #9b59b6; }
+.quest-highlight { color: #2ecc71; }
 
 /* See More Button */
 .btn-see-more {
@@ -861,4 +1017,99 @@ export default {
   font-size: 13px; font-weight: 700; color: #8b7355;
 }
 .balance-value { color: #d4a44c; }
+/* ═══ Step Quests ═══ */
+.steps-section {
+  padding: 20px; border-radius: 14px;
+  background: linear-gradient(145deg, rgba(44,24,16,0.8), rgba(26,26,46,0.9));
+  border: 2px solid rgba(212,164,76,0.25);
+}
+.steps-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.steps-sync-btn {
+  width: 32px; height: 32px; border-radius: 8px; font-size: 14px;
+  background: rgba(212,164,76,0.12); color: #d4a44c;
+  border: 1px solid rgba(212,164,76,0.25); cursor: pointer; transition: all 0.2s;
+}
+.steps-sync-btn:hover:not(:disabled) { background: rgba(212,164,76,0.22); }
+.steps-sync-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Quest progress bars */
+.quest-bar-link { text-decoration: none; color: inherit; display: block; margin-bottom: 10px; }
+.quest-bar-link:last-child { margin-bottom: 0; }
+.quest-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: 12px;
+  background: rgba(26,26,46,0.5);
+  border: 1px solid rgba(212,164,76,0.1);
+  transition: all 0.25s;
+}
+.quest-bar:hover { background: rgba(212,164,76,0.06); border-color: rgba(212,164,76,0.2); }
+.quest-bar--ready {
+  border-color: rgba(212,164,76,0.4);
+  background: rgba(212,164,76,0.08);
+  animation: quest-glow 2s ease-in-out infinite;
+}
+.quest-bar--done { opacity: 0.6; }
+@keyframes quest-glow {
+  0%, 100% { box-shadow: 0 0 6px rgba(212,164,76,0.1); }
+  50% { box-shadow: 0 0 16px rgba(212,164,76,0.25); }
+}
+.quest-bar-icon { font-size: 24px; flex-shrink: 0; }
+.quest-bar-main { flex: 1; min-width: 0; }
+.quest-bar-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.quest-bar-name { font-weight: 700; font-size: 13px; color: #d4a44c; }
+.quest-bar-pct { font-size: 11px; font-weight: 700; color: #8b7355; }
+.quest-bar-track {
+  height: 10px; border-radius: 5px;
+  background: rgba(26,26,46,0.8); overflow: hidden;
+  border: 1px solid rgba(212,164,76,0.1);
+}
+.quest-bar-track--monthly { border-color: rgba(46,204,113,0.15); }
+.quest-bar-fill {
+  height: 100%; border-radius: 5px; transition: width 0.6s ease;
+  background: linear-gradient(90deg, #b8860b, #d4a44c, #ffd700);
+  box-shadow: 0 0 8px rgba(212,164,76,0.3);
+}
+.quest-bar-fill--monthly {
+  background: linear-gradient(90deg, #27ae60, #2ecc71, #58d68d);
+  box-shadow: 0 0 8px rgba(46,204,113,0.3);
+}
+.quest-bar-fill--done {
+  background: linear-gradient(90deg, #555, #777) !important;
+  box-shadow: none !important;
+}
+.quest-bar-sub { font-size: 11px; color: #8b7355; margin-top: 4px; font-weight: 600; }
+
+/* Reward tags at the right end */
+.quest-bar-rewards {
+  display: flex; flex-direction: column; gap: 3px; flex-shrink: 0;
+  align-items: flex-end;
+}
+.qr-tag {
+  display: inline-block; padding: 2px 7px; border-radius: 5px;
+  font-size: 10px; font-weight: 800; white-space: nowrap;
+}
+.qr-str { background: rgba(231,76,60,0.15); color: #e74c3c; }
+.qr-def { background: rgba(52,152,219,0.15); color: #3498db; }
+.qr-luk { background: rgba(155,89,182,0.15); color: #9b59b6; }
+.qr-gold { background: rgba(212,164,76,0.15); color: #d4a44c; }
+.qr-mana { background: rgba(46,204,113,0.15); color: #2ecc71; }
+
+/* Town Crier step reward style */
+.step-icon-circle {
+  background: linear-gradient(135deg, rgba(184,134,11,0.2), rgba(212,164,76,0.3)) !important;
+  border-color: rgba(212,164,76,0.3) !important;
+}
+.step-highlight { color: #d4a44c; }
+
+/* Connect mini card */
+.steps-connect-mini { padding: 0 !important; overflow: hidden; }
+.steps-connect-link {
+  display: flex; align-items: center; gap: 14px; padding: 18px 20px;
+  text-decoration: none; color: inherit; transition: background 0.2s;
+}
+.steps-connect-link:hover { background: rgba(212,164,76,0.06); }
+.steps-connect-icon { font-size: 32px; }
+.steps-connect-title { font-weight: 700; font-size: 14px; color: #d4a44c; }
+.steps-connect-sub { font-size: 12px; color: #8b7355; }
+.steps-connect-arrow { font-size: 18px; color: #8b7355; margin-left: auto; }
 </style>

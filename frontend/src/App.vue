@@ -41,6 +41,10 @@
                         <span class="mr-3 text-lg">🏅</span>
                         <span class="font-semibold">Badge Forge</span>
                     </router-link>
+                    <router-link to="/badge-quests" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
+                        <span class="mr-3 text-lg">🎯</span>
+                        <span class="font-semibold">Badge Quest</span>
+                    </router-link>
                     <router-link to="/reports" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
                         <span class="mr-3 text-lg">📊</span>
                         <span class="font-semibold">Chronicles</span>

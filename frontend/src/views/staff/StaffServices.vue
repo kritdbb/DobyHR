@@ -14,13 +14,13 @@
         <span class="service-desc">Request time off</span>
       </router-link>
 
-      <!-- ReQuest Board -->
+      <!-- Approval Board -->
       <router-link to="/staff/approvals" class="service-card">
         <div class="icon-wrap">
           <div class="service-icon">📜</div>
           <span v-if="badges.approvals" class="notif-badge">{{ badges.approvals }}</span>
         </div>
-        <span class="service-label">ReQuest Board</span>
+        <span class="service-label">Approval Board</span>
         <span class="service-desc">Review requests</span>
       </router-link>
 
@@ -59,6 +59,15 @@
         </div>
         <span class="service-label">Town People</span>
         <span class="service-desc">Fellow adventurers</span>
+      </router-link>
+
+      <!-- Step Counter -->
+      <router-link to="/staff/fitbit" class="service-card">
+        <div class="icon-wrap">
+          <div class="service-icon">🥾</div>
+        </div>
+        <span class="service-label">Step Counter</span>
+        <span class="service-desc">Track your walks</span>
       </router-link>
 
       <!-- My Profile -->

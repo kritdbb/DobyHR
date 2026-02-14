@@ -149,6 +149,20 @@ def lucky_draw():
         db.close()
 
 
+def evaluate_badge_quests():
+    """Run daily: evaluate all active badge quests and auto-award badges."""
+    db = SessionLocal()
+    try:
+        from app.api.endpoints.badge_quests import _run_evaluation
+        result = _run_evaluation(db)
+        logger.info(f"🏅 Badge Quest evaluation: {result['awarded']} badges awarded")
+    except Exception as e:
+        logger.error(f"Badge Quest evaluation error: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
 scheduler = BackgroundScheduler()
 
 
@@ -172,5 +186,14 @@ def start_scheduler():
         id="lucky_draw",
         replace_existing=True,
     )
+    # Badge Quest evaluation at 01:00 UTC+7 (18:00 UTC)
+    scheduler.add_job(
+        evaluate_badge_quests,
+        "cron",
+        hour=18,
+        minute=0,
+        id="badge_quest_eval",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("✅ Scheduler started — auto coin/angel at 00:01 UTC+7, lucky draw at 12:30 UTC+7")
+    logger.info("✅ Scheduler started — auto coin/angel at 00:01 UTC+7, lucky draw at 12:30 UTC+7, badge quest eval at 01:00 UTC+7")
