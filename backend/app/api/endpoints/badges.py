@@ -528,6 +528,53 @@ def get_recent_awards(
                 "timestamp": sr.created_at.isoformat() if sr.created_at else None,
             })
 
+    # Mana Rescue events — aggregated per recipient
+    rescue_logs = (
+        db.query(CoinLog)
+        .filter(CoinLog.reason.ilike("%Mana Rescue from%"))
+        .order_by(CoinLog.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    # Group by recipient (user_id), collect rescuers
+    rescue_by_user = {}
+    for rl in rescue_logs:
+        uid = rl.user_id
+        if uid not in rescue_by_user:
+            user = db.query(User).filter(User.id == uid).first()
+            if not user:
+                continue
+            rescue_by_user[uid] = {
+                "user_name": f"{user.name} {user.surname or ''}".strip(),
+                "user_image": user.image,
+                "rescuers": [],
+                "total_gold": 0,
+                "latest_ts": rl.created_at,
+            }
+        rescue_by_user[uid]["rescuers"].append(rl.created_by or "Unknown")
+        rescue_by_user[uid]["total_gold"] += rl.amount
+        if rl.created_at and rl.created_at > rescue_by_user[uid]["latest_ts"]:
+            rescue_by_user[uid]["latest_ts"] = rl.created_at
+
+    for uid, info in rescue_by_user.items():
+        # Deduplicate rescuer names while preserving order
+        seen = set()
+        unique_rescuers = []
+        for r in info["rescuers"]:
+            if r not in seen:
+                seen.add(r)
+                unique_rescuers.append(r)
+        events.append({
+            "id": f"rescue-{uid}",
+            "type": "rescue",
+            "user_name": info["user_name"],
+            "user_image": info["user_image"],
+            "amount": info["total_gold"],
+            "rescuers": ", ".join(unique_rescuers),
+            "rescuer_count": len(info["rescuers"]),
+            "timestamp": info["latest_ts"].isoformat() if info["latest_ts"] else None,
+        })
+
     # Sort combined by timestamp desc and return top N
     events.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
     return events[:limit]

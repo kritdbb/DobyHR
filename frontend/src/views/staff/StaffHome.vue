@@ -153,6 +153,43 @@
       </router-link>
     </div>
 
+    <!-- 💖 ชุบทีคับ: Mana Rescue -->
+    <div v-if="negativeUsers.length > 0" class="section rescue-section">
+      <h2 class="section-title">🆘 Rescue - ชุบชีวิตเพื่อน</h2>
+      <div v-for="u in negativeUsers" :key="'rescue-'+u.id" class="rescue-card">
+        <div class="rescue-portrait">
+          <img v-if="u.image" :src="u.image" class="rescue-img" />
+          <span v-else class="rescue-fb">{{ u.name.charAt(0) }}</span>
+        </div>
+        <div class="rescue-body">
+          <div class="rescue-text">⚠️ <strong>{{ u.name }}</strong> กำลังติดลบ <span class="rescue-debt">{{ u.coins }} Gold</span>!</div>
+          <div class="rescue-sub">ช่วยส่ง Mana ให้หน่อย! ทุก Mana ที่ส่งไป จะช่วย +5 Gold</div>
+        </div>
+        <button class="rescue-btn" @click="openRescueConfirm(u)" :disabled="myAngelCoins < 1">
+          💖 ชุบชีวิต
+        </button>
+      </div>
+    </div>
+
+    <!-- Rescue Confirmation Modal -->
+    <div v-if="showRescueModal" class="badge-modal-overlay" @click.self="showRescueModal = false">
+      <div class="badge-modal rescue-modal">
+        <div class="rescue-modal-icon">💖</div>
+        <h3 class="badge-modal-title">ชุบชีวิตเพื่อน</h3>
+        <p class="rescue-modal-text">
+          คุณต้องการใช้ <strong>1 Mana</strong> ช่วยชุบชีวิต <strong>{{ rescueTarget?.name }}</strong> ไหม?<br>
+          Mana จะมีผล <strong class="rescue-gold">+5 Gold</strong> ให้กับเพื่อนที่ติดลบ
+        </p>
+        <div class="rescue-modal-balance">✨ Mana ของคุณ: {{ myAngelCoins }}</div>
+        <div class="rescue-modal-actions">
+          <button class="btn-cancel" @click="showRescueModal = false">ยกเลิก</button>
+          <button class="rescue-confirm-btn" @click="performRescue" :disabled="rescuing">
+            {{ rescuing ? 'กำลังชุบชีวิต...' : '💖 ยืนยัน ชุบชีวิต' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Approval Board: Pending Approvals -->
     <div v-if="pendingLeaves.length > 0 || pendingRedemptions.length > 0 || pendingWorkRequests.length > 0" class="section">
       <h2 class="section-title">📜 Approval Board</h2>
@@ -340,6 +377,21 @@
               </div>
             </div>
           </template>
+          <!-- Mana Rescue event -->
+          <template v-else-if="a.type === 'rescue'">
+            <div class="award-announce-badge rescue-icon-circle">
+              <span>🆘</span>
+            </div>
+            <div class="award-announce-body">
+              <div class="award-announce-text">
+                <strong>{{ a.user_name }}</strong> ได้รับการชุบชีวิตแล้ว! <strong class="rescue-highlight">Gold +{{ a.amount }}</strong>
+                <div class="rescue-by">โดย {{ a.rescuers }}</div>
+              </div>
+              <div class="award-announce-meta">
+                {{ formatBadgeDate(a.timestamp) }}
+              </div>
+            </div>
+          </template>
         </div>
         <button v-if="recentAwards.length > 5" class="btn-see-more" @click="showTownCrierModal = true">
           📯 See More ({{ recentAwards.length }} proclamations)
@@ -444,6 +496,21 @@
                 </div>
               </div>
             </template>
+            <!-- Mana Rescue event (modal) -->
+            <template v-else-if="a.type === 'rescue'">
+              <div class="award-announce-badge rescue-icon-circle">
+                <span>🆘</span>
+              </div>
+              <div class="award-announce-body">
+                <div class="award-announce-text">
+                  <strong>{{ a.user_name }}</strong> ได้รับการชุบชีวิตแล้ว! <strong class="rescue-highlight">Gold +{{ a.amount }}</strong>
+                  <div class="rescue-by">โดย {{ a.rescuers }}</div>
+                </div>
+                <div class="award-announce-meta">
+                  {{ formatBadgeDate(a.timestamp) }}
+                </div>
+              </div>
+            </template>
           </div>
         </div>
         <button class="badge-modal-close" @click="showTownCrierModal = false">Close</button>
@@ -517,6 +584,10 @@ export default {
         monthly_goal: { target: 0, enabled: false, reached: false, claimed: false },
       },
       stepsSyncing: false,
+      negativeUsers: [],
+      showRescueModal: false,
+      rescueTarget: null,
+      rescuing: false,
     }
   },
   async mounted() {
@@ -588,6 +659,11 @@ export default {
         this.myBadges = badgeRes.data
         this.recentAwards = awardRes.data
         this.myStats = statsRes.data
+        // Load negative-coin users for rescue
+        try {
+          const negRes = await api.get('/api/users/negative-coins')
+          this.negativeUsers = negRes.data || []
+        } catch (e2) { this.negativeUsers = [] }
       } catch (e) {
         this.myBadges = []
         this.recentAwards = []
@@ -647,6 +723,25 @@ export default {
       } catch (e) { console.error(e) }
       finally { this.stepsSyncing = false }
     },
+    openRescueConfirm(user) {
+      this.rescueTarget = user
+      this.showRescueModal = true
+    },
+    async performRescue() {
+      if (!this.rescueTarget) return
+      this.rescuing = true
+      try {
+        const res = await api.post('/api/users/rescue', { recipient_id: this.rescueTarget.id })
+        this.showToast(`💖 ชุบชีวิต ${res.data.recipient_name} สำเร็จ! Gold +5`)
+        this.showRescueModal = false
+        this.rescueTarget = null
+        await this.loadData()
+      } catch (e) {
+        this.showToast(e.response?.data?.detail || 'ชุบชีวิตไม่สำเร็จ', 'error')
+      } finally {
+        this.rescuing = false
+      }
+    },
   },
   computed: {
     dailyPct() {
@@ -663,6 +758,66 @@ export default {
 
 <style scoped>
 .staff-page { padding: 28px 0 16px; }
+
+/* ═══ Mana Rescue ═══ */
+.rescue-section { }
+.rescue-card {
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, rgba(231,76,60,0.08), rgba(192,57,43,0.04));
+  border: 1px solid rgba(231,76,60,0.2);
+  border-radius: 12px; padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.rescue-portrait { flex-shrink: 0; }
+.rescue-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(231,76,60,0.3); }
+.rescue-fb {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 800; color: #fff;
+}
+.rescue-body { flex: 1; min-width: 0; }
+.rescue-text { font-size: 13px; color: #e8d5b7; line-height: 1.4; }
+.rescue-debt { color: #e74c3c; font-weight: 700; }
+.rescue-sub { font-size: 11px; color: #8b7355; margin-top: 2px; }
+.rescue-btn {
+  flex-shrink: 0; background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff; border: none; padding: 8px 16px; border-radius: 10px;
+  font-weight: 700; font-size: 13px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(231,76,60,0.3);
+  transition: all 0.2s;
+}
+.rescue-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(231,76,60,0.4); }
+.rescue-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Rescue Modal */
+.rescue-modal { text-align: center; max-width: 380px; }
+.rescue-modal-icon { font-size: 48px; margin-bottom: 8px; }
+.rescue-modal-text { font-size: 14px; color: #c4a97d; line-height: 1.6; margin-bottom: 12px; }
+.rescue-gold { color: #f1c40f; }
+.rescue-modal-balance { font-size: 12px; color: #8b7355; margin-bottom: 16px; padding: 6px 12px; background: rgba(212,164,76,0.08); border-radius: 8px; display: inline-block; }
+.rescue-modal-actions { display: flex; gap: 10px; justify-content: center; }
+.rescue-confirm-btn {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff; border: none; padding: 10px 24px; border-radius: 10px;
+  font-weight: 700; font-size: 14px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(231,76,60,0.3);
+}
+.rescue-confirm-btn:hover { box-shadow: 0 4px 14px rgba(231,76,60,0.5); }
+.rescue-confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-cancel {
+  background: rgba(255,255,255,0.06); color: #8b7355;
+  border: 1px solid rgba(255,255,255,0.1); padding: 10px 20px;
+  border-radius: 10px; cursor: pointer; font-weight: 600;
+}
+
+/* Rescue event in Town Crier */
+.rescue-icon-circle {
+  background: linear-gradient(135deg, rgba(231,76,60,0.15), rgba(192,57,43,0.1));
+  border: 1px solid rgba(231,76,60,0.25);
+}
+.rescue-highlight { color: #f1c40f; }
+.rescue-by { font-size: 11px; color: #8b7355; margin-top: 2px; font-style: italic; }
 
 /* ═══ RPG Character Sheet ═══ */
 .char-sheet {

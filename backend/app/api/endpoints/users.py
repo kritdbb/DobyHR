@@ -120,6 +120,92 @@ def upload_my_image(
     db.refresh(current_user)
     return current_user
 
+# ── Mana Rescue ──────────────────────────────────────
+
+class RescueRequest(BaseModel):
+    recipient_id: int
+
+
+@router.get("/negative-coins")
+def get_negative_coin_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all users with negative coins (for Mana Rescue display)."""
+    users = db.query(User).filter(
+        User.coins < 0,
+        User.id != current_user.id,
+    ).order_by(User.coins.asc()).all()
+    return [
+        {
+            "id": u.id,
+            "name": f"{u.name} {u.surname or ''}".strip(),
+            "image": u.image,
+            "coins": u.coins,
+            "position": u.position,
+        }
+        for u in users
+    ]
+
+
+@router.post("/rescue")
+def rescue_user(
+    req: RescueRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Spend 1 Mana to give +5 Gold to a user with negative coins."""
+    if current_user.id == req.recipient_id:
+        raise HTTPException(status_code=400, detail="Cannot rescue yourself")
+
+    if current_user.angel_coins < 1:
+        raise HTTPException(status_code=400, detail="Insufficient Mana (need at least 1)")
+
+    recipient = db.query(User).filter(User.id == req.recipient_id).first()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if recipient.coins >= 0:
+        raise HTTPException(status_code=400, detail="This user does not need rescuing (coins >= 0)")
+
+    # Deduct 1 Mana from sender
+    current_user.angel_coins -= 1
+
+    # Give +5 Gold to recipient
+    recipient.coins += 5
+
+    sender_name = f"{current_user.name} {current_user.surname or ''}".strip()
+    recipient_name = f"{recipient.name} {recipient.surname or ''}".strip()
+
+    # Log for sender
+    sender_log = CoinLog(
+        user_id=current_user.id,
+        amount=-1,
+        reason=f"💖 Mana Rescue: sent to {recipient_name}",
+        created_by="System",
+    )
+    db.add(sender_log)
+
+    # Log for recipient (+5 Gold)
+    recipient_log = CoinLog(
+        user_id=recipient.id,
+        amount=5,
+        reason=f"💖 Mana Rescue from {sender_name}",
+        created_by=sender_name,
+    )
+    db.add(recipient_log)
+
+    db.commit()
+
+    return {
+        "message": f"Rescued {recipient_name}! +5 Gold",
+        "sender_mana": current_user.angel_coins,
+        "recipient_coins": recipient.coins,
+        "recipient_name": recipient_name,
+        "sender_name": sender_name,
+    }
+
+
 @router.get("/{user_id}", response_model=UserResponse)
 def read_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -468,3 +554,4 @@ def get_staff_list(
         }
         for u in users
     ]
+

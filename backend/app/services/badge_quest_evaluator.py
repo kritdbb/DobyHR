@@ -147,6 +147,22 @@ def _resolve_leave(leave_type: str):
 
 # ── Registry ──────────────────────────────────────────
 
+def _resolve_rescue_given(user_id: int, db: Session) -> int:
+    """How many times this user rescued someone (sent Mana Rescue)."""
+    return db.query(CoinLog).filter(
+        CoinLog.user_id == user_id,
+        CoinLog.reason.ilike("%Mana Rescue: sent to%"),
+    ).count()
+
+
+def _resolve_rescue_received(user_id: int, db: Session) -> int:
+    """How many times this user was rescued."""
+    return db.query(CoinLog).filter(
+        CoinLog.user_id == user_id,
+        CoinLog.reason.ilike("%Mana Rescue from%"),
+    ).count()
+
+
 FIELD_RESOLVERS = {
     "checkin_streak": _resolve_checkin_streak,
     "total_steps": _resolve_total_steps,
@@ -165,6 +181,9 @@ FIELD_RESOLVERS = {
     "leave_business": _resolve_leave("business"),
     # Total redemptions
     "total_redemptions": _resolve_total_redemptions,
+    # Rescue
+    "rescue_given": _resolve_rescue_given,
+    "rescue_received": _resolve_rescue_received,
 }
 
 # item_<id> fields are registered dynamically — see _ensure_item_fields()
@@ -208,6 +227,8 @@ FIELD_DESCRIPTIONS = {
     "leave_vacation":     {"label": "🏖 Vacation Leave",    "desc": "Approved vacation leave count",             "example": "leave_vacation >= 1"},
     "leave_business":     {"label": "💼 Business Leave",    "desc": "Approved business leave count",             "example": "leave_business >= 1"},
     "total_redemptions":  {"label": "🛍 Total Redemptions", "desc": "Total items redeemed from shop",            "example": "total_redemptions >= 5"},
+    "rescue_given":       {"label": "🆘 Rescues Given",    "desc": "Times rescued a friend (sent Mana Rescue)", "example": "rescue_given >= 3"},
+    "rescue_received":    {"label": "💖 Rescues Received",  "desc": "Times been rescued by friends",             "example": "rescue_received >= 1"},
 }
 
 # Legacy labels (kept for backward compat)
