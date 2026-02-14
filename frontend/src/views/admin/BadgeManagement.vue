@@ -5,7 +5,7 @@
         <h1 class="page-title">🏅 Badge Forge</h1>
         <p class="page-sub">Create and award badges to adventurers</p>
       </div>
-      <button class="btn-create" @click="showCreateModal = true">⚒️ Forge New Badge</button>
+      <button class="btn-create" @click="editingBadgeId = null; newBadge = { name: '', description: '', stat_str: 0, stat_def: 0, stat_luk: 0 }; badgeFile = null; previewUrl = null; showCreateModal = true">⚒️ Forge New Badge</button>
     </div>
 
     <!-- Badge Grid -->
@@ -33,7 +33,7 @@
     <!-- Create Badge Modal -->
     <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
       <div class="modal-box">
-        <h2 class="modal-title">⚒️ Forge New Badge</h2>
+        <h2 class="modal-title">{{ editingBadgeId ? '✏️ Edit Badge' : '⚒️ Forge New Badge' }}</h2>
         <div class="form-group">
           <label>Badge Name</label>
           <input v-model="newBadge.name" class="form-input" placeholder="e.g. Dragon Slayer" />
@@ -56,24 +56,24 @@
             <div class="stat-input-group">
               <span class="stat-icon">⚔️</span>
               <label class="stat-label">STR</label>
-              <input v-model.number="newBadge.stat_str" type="number" min="0" class="form-input stat-num" />
+              <input v-model.number="newBadge.stat_str" type="number" class="form-input stat-num" />
             </div>
             <div class="stat-input-group">
               <span class="stat-icon">🛡️</span>
               <label class="stat-label">DEF</label>
-              <input v-model.number="newBadge.stat_def" type="number" min="0" class="form-input stat-num" />
+              <input v-model.number="newBadge.stat_def" type="number" class="form-input stat-num" />
             </div>
             <div class="stat-input-group">
               <span class="stat-icon">🍀</span>
               <label class="stat-label">LUK</label>
-              <input v-model.number="newBadge.stat_luk" type="number" min="0" class="form-input stat-num" />
+              <input v-model.number="newBadge.stat_luk" type="number" class="form-input stat-num" />
             </div>
           </div>
         </div>
         <div class="modal-actions">
           <button class="btn-cancel" @click="showCreateModal = false">Cancel</button>
-          <button class="btn-save" @click="createBadge" :disabled="!newBadge.name || creating">
-            {{ creating ? 'Forging...' : '⚒️ Forge Badge' }}
+          <button class="btn-save" @click="saveBadge" :disabled="!newBadge.name || creating">
+            {{ creating ? 'Saving...' : (editingBadgeId ? '💾 Save Changes' : '⚒️ Forge Badge') }}
           </button>
         </div>
       </div>
@@ -91,13 +91,14 @@
             <h2 class="modal-title" style="margin:0">{{ selectedBadge.name }}</h2>
             <p class="detail-desc">{{ selectedBadge.description || 'No description' }}</p>
           </div>
+          <button class="btn-edit" @click="openEditBadge" title="Edit badge">✏️</button>
           <button class="btn-delete" @click="confirmDeleteBadge" title="Delete badge">🗑️</button>
         </div>
         <!-- Stats display -->
         <div class="detail-stats" v-if="selectedBadge.stat_str || selectedBadge.stat_def || selectedBadge.stat_luk">
-          <div class="detail-stat"><span class="stat-icon">⚔️</span> STR +{{ selectedBadge.stat_str || 0 }}</div>
-          <div class="detail-stat"><span class="stat-icon">🛡️</span> DEF +{{ selectedBadge.stat_def || 0 }}</div>
-          <div class="detail-stat"><span class="stat-icon">🍀</span> LUK +{{ selectedBadge.stat_luk || 0 }}</div>
+          <div class="detail-stat"><span class="stat-icon">⚔️</span> STR {{ (selectedBadge.stat_str || 0) >= 0 ? '+' : '' }}{{ selectedBadge.stat_str || 0 }}</div>
+          <div class="detail-stat"><span class="stat-icon">🛡️</span> DEF {{ (selectedBadge.stat_def || 0) >= 0 ? '+' : '' }}{{ selectedBadge.stat_def || 0 }}</div>
+          <div class="detail-stat"><span class="stat-icon">🍀</span> LUK {{ (selectedBadge.stat_luk || 0) >= 0 ? '+' : '' }}{{ selectedBadge.stat_luk || 0 }}</div>
         </div>
 
         <!-- Award section -->
@@ -139,7 +140,7 @@
 </template>
 
 <script>
-import { getBadges, createBadge, deleteBadge, awardBadge, revokeBadge, getBadgeHolders, getUsers } from '../../services/api'
+import { getBadges, createBadge, updateBadge, deleteBadge, awardBadge, revokeBadge, getBadgeHolders, getUsers } from '../../services/api'
 
 export default {
   name: 'BadgeManagement',
@@ -151,6 +152,7 @@ export default {
       showCreateModal: false,
       showDetailModal: false,
       newBadge: { name: '', description: '', stat_str: 0, stat_def: 0, stat_luk: 0 },
+      editingBadgeId: null,
       badgeFile: null,
       previewUrl: null,
       creating: false,
@@ -188,7 +190,7 @@ export default {
       this.badgeFile = file
       this.previewUrl = URL.createObjectURL(file)
     },
-    async createBadge() {
+    async saveBadge() {
       this.creating = true
       try {
         const fd = new FormData()
@@ -198,18 +200,38 @@ export default {
         fd.append('stat_def', this.newBadge.stat_def || 0)
         fd.append('stat_luk', this.newBadge.stat_luk || 0)
         if (this.badgeFile) fd.append('file', this.badgeFile)
-        await createBadge(fd)
-        this.showToast('Badge forged! 🏅')
+        if (this.editingBadgeId) {
+          await updateBadge(this.editingBadgeId, fd)
+          this.showToast('Badge updated! ✏️')
+        } else {
+          await createBadge(fd)
+          this.showToast('Badge forged! 🏅')
+        }
         this.showCreateModal = false
+        this.editingBadgeId = null
         this.newBadge = { name: '', description: '', stat_str: 0, stat_def: 0, stat_luk: 0 }
         this.badgeFile = null
         this.previewUrl = null
         await this.loadData()
       } catch (e) {
-        this.showToast('Failed to forge badge', 'error')
+        this.showToast('Failed to save badge', 'error')
       } finally {
         this.creating = false
       }
+    },
+    openEditBadge() {
+      this.editingBadgeId = this.selectedBadge.id
+      this.newBadge = {
+        name: this.selectedBadge.name,
+        description: this.selectedBadge.description || '',
+        stat_str: this.selectedBadge.stat_str || 0,
+        stat_def: this.selectedBadge.stat_def || 0,
+        stat_luk: this.selectedBadge.stat_luk || 0,
+      }
+      this.badgeFile = null
+      this.previewUrl = this.selectedBadge.image || null
+      this.showDetailModal = false
+      this.showCreateModal = true
     },
     async openBadgeDetail(badge) {
       this.selectedBadge = badge
@@ -362,8 +384,10 @@ export default {
 .detail-img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid #d4a44c; }
 .detail-img-placeholder { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #b8860b, #d4a44c); display: flex; align-items: center; justify-content: center; font-size: 28px; }
 .detail-desc { color: #8b7355; font-size: 13px; margin: 4px 0 0; }
-.btn-delete { background: rgba(192,57,43,0.2); color: #e74c3c; border: 1px solid rgba(192,57,43,0.3); padding: 6px 10px; border-radius: 8px; cursor: pointer; margin-left: auto; font-size: 16px; }
+.btn-delete { background: rgba(192,57,43,0.2); color: #e74c3c; border: 1px solid rgba(192,57,43,0.3); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 16px; }
 .btn-delete:hover { background: rgba(192,57,43,0.4); }
+.btn-edit { background: rgba(52,152,219,0.2); color: #3498db; border: 1px solid rgba(52,152,219,0.3); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+.btn-edit:hover { background: rgba(52,152,219,0.4); }
 
 .detail-stats { display: flex; gap: 12px; margin-bottom: 20px; padding: 10px 14px; background: rgba(212,164,76,0.06); border-radius: 10px; border: 1px solid rgba(212,164,76,0.1); }
 .detail-stat { font-size: 13px; color: #e8dcc8; font-weight: 600; }

@@ -180,6 +180,7 @@ export const getUserAngelCoinLogs = (userId) => api.get(`/api/users/${userId}/an
 // --- Badges ---
 export const getBadges = () => api.get('/api/badges')
 export const createBadge = (formData) => api.post('/api/badges', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+export const updateBadge = (id, formData) => api.put(`/api/badges/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const deleteBadge = (id) => api.delete(`/api/badges/${id}`)
 export const awardBadge = (badgeId, userIds) => api.post(`/api/badges/${badgeId}/award`, { user_ids: userIds })
 export const revokeBadge = (badgeId, userId) => api.delete(`/api/badges/${badgeId}/revoke/${userId}`)

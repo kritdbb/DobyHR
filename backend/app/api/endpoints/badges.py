@@ -68,6 +68,50 @@ def create_badge(
     )
 
 
+@router.put("/{badge_id}", response_model=BadgeResponse)
+def update_badge(
+    badge_id: int,
+    name: str = Form(...),
+    description: str = Form(None),
+    stat_str: int = Form(0),
+    stat_def: int = Form(0),
+    stat_luk: int = Form(0),
+    file: UploadFile = File(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_admin),
+):
+    """Admin edits an existing badge."""
+    badge = db.query(Badge).filter(Badge.id == badge_id).first()
+    if not badge:
+        raise HTTPException(status_code=404, detail="Badge not found")
+
+    badge.name = name
+    badge.description = description
+    badge.stat_str = stat_str
+    badge.stat_def = stat_def
+    badge.stat_luk = stat_luk
+
+    if file:
+        ext = os.path.splitext(file.filename)[1]
+        filename = f"badge_{uuid.uuid4().hex[:8]}{ext}"
+        upload_dir = os.path.join(settings.UPLOAD_DIR, "badges")
+        os.makedirs(upload_dir, exist_ok=True)
+        filepath = os.path.join(upload_dir, filename)
+        with open(filepath, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        badge.image = f"/uploads/badges/{filename}"
+
+    db.commit()
+    db.refresh(badge)
+
+    count = db.query(func.count(UserBadge.id)).filter(UserBadge.badge_id == badge.id).scalar()
+    return BadgeResponse(
+        id=badge.id, name=badge.name, description=badge.description,
+        image=badge.image, stat_str=badge.stat_str or 0, stat_def=badge.stat_def or 0, stat_luk=badge.stat_luk or 0,
+        created_at=badge.created_at, holder_count=count
+    )
+
+
 # ── Town People (staff directory with stats) ──────────
 
 @router.get("/town-people")

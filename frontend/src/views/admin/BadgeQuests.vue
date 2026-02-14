@@ -48,6 +48,9 @@
           <span class="quest-status" :class="q.is_active ? 'status-active' : 'status-inactive'">
             {{ q.is_active ? '✅ Active' : '⏸ Inactive' }}
           </span>
+          <span v-if="q.max_awards" class="quest-limit" :class="{ 'quest-limit--full': q.current_awards >= q.max_awards }">
+            🏆 {{ q.current_awards || 0 }}/{{ q.max_awards }}
+          </span>
         </div>
         <div v-if="q.description" class="quest-card-desc">{{ q.description }}</div>
         <div class="quest-card-footer">
@@ -159,6 +162,10 @@
         <label class="form-label">DESCRIPTION (OPTIONAL)</label>
         <input v-model="form.description" class="form-input" placeholder="e.g. Walk 100k steps total" />
 
+        <!-- Max Awards -->
+        <label class="form-label">MAX AWARDS (OPTIONAL - LEAVE BLANK FOR UNLIMITED)</label>
+        <input v-model.number="form.max_awards" type="number" min="1" class="form-input" placeholder="e.g. 10 — auto-disable after 10 awards" />
+
         <!-- Active Toggle -->
         <label class="form-checkbox">
           <input type="checkbox" v-model="form.is_active" /> ACTIVE
@@ -200,6 +207,7 @@ export default {
         condition_query: '',
         description: '',
         is_active: true,
+        max_awards: null,
       },
     }
   },
@@ -278,7 +286,7 @@ export default {
     },
     openCreate() {
       this.editingId = null
-      this.form = { badge_id: '', condition_query: '', description: '', is_active: true }
+      this.form = { badge_id: '', condition_query: '', description: '', is_active: true, max_awards: null }
       this.previewResult = null
       this.queryValidation = null
       this.showModal = true
@@ -290,6 +298,7 @@ export default {
         condition_query: q.condition_query || (q.condition_type ? `${q.condition_type} >= ${q.threshold}` : ''),
         description: q.description || '',
         is_active: q.is_active,
+        max_awards: q.max_awards || null,
       }
       this.previewResult = null
       this.queryValidation = null
@@ -303,6 +312,7 @@ export default {
           condition_query: this.form.condition_query,
           description: this.form.description || null,
           is_active: this.form.is_active,
+          max_awards: this.form.max_awards || null,
         }
         if (this.editingId) {
           await api.put(`/api/badge-quests/${this.editingId}`, body)
@@ -409,6 +419,9 @@ export default {
 .quest-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-left: 52px; }
 .quest-card-date { font-size: 11px; color: #6b5a3e; }
 .quest-card-actions { display: flex; gap: 6px; }
+
+.quest-limit { font-size: 11px; font-weight: 700; flex-shrink: 0; color: #d4a44c; background: rgba(212,164,76,0.1); padding: 2px 8px; border-radius: 6px; }
+.quest-limit--full { color: #e74c3c; background: rgba(231,76,60,0.1); }
 
 /* Modal */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }

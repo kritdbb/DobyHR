@@ -13,6 +13,7 @@ class BadgeQuest(Base):
     threshold = Column(Integer, nullable=True, default=1)  # legacy threshold
     condition_query = Column(Text, nullable=True)  # new: "total_steps >= 50 AND mana_sent > 3"
     is_active = Column(Boolean, default=True)
+    max_awards = Column(Integer, nullable=True, default=None)  # None = unlimited
     description = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

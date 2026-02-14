@@ -32,6 +32,7 @@ class BadgeQuestCreate(BaseModel):
     threshold: Optional[int] = None                # legacy
     is_active: bool = True
     description: Optional[str] = None
+    max_awards: Optional[int] = None               # None = unlimited
 
 
 class BadgeQuestUpdate(BaseModel):
@@ -41,6 +42,7 @@ class BadgeQuestUpdate(BaseModel):
     threshold: Optional[int] = None
     is_active: Optional[bool] = None
     description: Optional[str] = None
+    max_awards: Optional[int] = None               # None = unlimited, 0 to clear
 
 
 # ── Fields & Condition Types ─────────────────────────
@@ -82,6 +84,11 @@ def list_quests(
     result = []
     for q in quests:
         badge = db.query(Badge).filter(Badge.id == q.badge_id).first()
+        # Count current holders for this badge
+        from sqlalchemy import func
+        current_awards = db.query(func.count(UserBadge.id)).filter(
+            UserBadge.badge_id == q.badge_id
+        ).scalar() or 0
         result.append({
             "id": q.id,
             "badge_id": q.badge_id,
@@ -92,6 +99,8 @@ def list_quests(
             "condition_label": CONDITION_LABELS.get(q.condition_type, q.condition_type) if q.condition_type else None,
             "threshold": q.threshold,
             "is_active": q.is_active,
+            "max_awards": q.max_awards,
+            "current_awards": current_awards,
             "description": q.description,
             "created_at": q.created_at.isoformat() if q.created_at else None,
         })
@@ -129,6 +138,7 @@ def create_quest(
         threshold=body.threshold if not body.condition_query else None,
         is_active=body.is_active,
         description=body.description,
+        max_awards=body.max_awards,
     )
     db.add(quest)
     db.commit()
@@ -175,6 +185,8 @@ def update_quest(
         quest.is_active = body.is_active
     if body.description is not None:
         quest.description = body.description
+    if body.max_awards is not None:
+        quest.max_awards = body.max_awards if body.max_awards > 0 else None
 
     db.commit()
     return {"message": "Quest updated"}
@@ -288,12 +300,25 @@ def _run_evaluation(db: Session):
             logger.info(f"🎯 {user_name}: [{query_display}] → {'✅' if met else '❌'}")
 
             if met:
+                # Check max_awards limit before awarding
+                if quest.max_awards is not None:
+                    from sqlalchemy import func as sqlfunc
+                    holder_count = db.query(sqlfunc.count(UserBadge.id)).filter(
+                        UserBadge.badge_id == quest.badge_id
+                    ).scalar() or 0
+                    if holder_count >= quest.max_awards:
+                        # Limit reached — auto-disable this quest
+                        quest.is_active = False
+                        logger.info(f"🔒 Quest {quest.id} auto-disabled: {holder_count}/{quest.max_awards} reached")
+                        break  # stop processing more users for this quest
+
                 ub = UserBadge(
                     user_id=user.id,
                     badge_id=quest.badge_id,
                     awarded_by="Badge Quest",
                 )
                 db.add(ub)
+                db.flush()  # flush so holder_count is accurate for next iteration
                 awarded_list.append({
                     "user_id": user.id,
                     "user_name": user_name,
@@ -301,6 +326,17 @@ def _run_evaluation(db: Session):
                     "query": query_display,
                 })
                 logger.info(f"🏅 Badge Quest awarded '{badge.name}' to {user_name}")
+
+                # Re-check limit after awarding
+                if quest.max_awards is not None:
+                    from sqlalchemy import func as sqlfunc
+                    holder_count = db.query(sqlfunc.count(UserBadge.id)).filter(
+                        UserBadge.badge_id == quest.badge_id
+                    ).scalar() or 0
+                    if holder_count >= quest.max_awards:
+                        quest.is_active = False
+                        logger.info(f"🔒 Quest {quest.id} auto-disabled: {holder_count}/{quest.max_awards} reached")
+                        break
 
     db.commit()
     return {"awarded": len(awarded_list), "details": awarded_list}
