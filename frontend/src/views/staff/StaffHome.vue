@@ -111,6 +111,37 @@
         </div>
       </router-link>
 
+      <!-- Daily Tier 2 Quest Bar -->
+      <router-link v-if="stepGoals.daily2_goal && stepGoals.daily2_goal.enabled" to="/staff/fitbit" class="quest-bar-link">
+        <div class="quest-bar" :class="{ 'quest-bar--done': stepGoals.daily2_goal.claimed, 'quest-bar--ready': stepGoals.daily2_goal.reached && !stepGoals.daily2_goal.claimed }">
+          <div class="quest-bar-icon">
+            <span v-if="stepGoals.daily2_goal.claimed">✅</span>
+            <span v-else-if="stepGoals.daily2_goal.reached">⭐</span>
+            <span v-else>⚔️</span>
+          </div>
+          <div class="quest-bar-main">
+            <div class="quest-bar-label">
+              <span class="quest-bar-name">Daily Quest II</span>
+              <span class="quest-bar-pct">{{ daily2Pct }}%</span>
+            </div>
+            <div class="quest-bar-track">
+              <div class="quest-bar-fill" :style="{ width: daily2Pct + '%' }"
+                   :class="{ 'quest-bar-fill--done': stepGoals.daily2_goal.claimed }"></div>
+            </div>
+            <div class="quest-bar-sub">
+              {{ (stepGoals.today_steps || 0).toLocaleString() }} / {{ (stepGoals.daily2_goal.target || 0).toLocaleString() }} steps
+            </div>
+          </div>
+          <div class="quest-bar-rewards">
+            <span v-if="stepGoals.daily2_goal.str > 0" class="qr-tag qr-str">STR+{{ stepGoals.daily2_goal.str }}</span>
+            <span v-if="stepGoals.daily2_goal.def > 0" class="qr-tag qr-def">DEF+{{ stepGoals.daily2_goal.def }}</span>
+            <span v-if="stepGoals.daily2_goal.luk > 0" class="qr-tag qr-luk">LUK+{{ stepGoals.daily2_goal.luk }}</span>
+            <span v-if="stepGoals.daily2_goal.gold > 0" class="qr-tag qr-gold">💰+{{ stepGoals.daily2_goal.gold }}</span>
+            <span v-if="stepGoals.daily2_goal.mana > 0" class="qr-tag qr-mana">✨+{{ stepGoals.daily2_goal.mana }}</span>
+          </div>
+        </div>
+      </router-link>
+
       <!-- Monthly Quest Bar -->
       <router-link v-if="stepGoals.monthly_goal && stepGoals.monthly_goal.enabled" to="/staff/fitbit" class="quest-bar-link">
         <div class="quest-bar quest-bar--monthly" :class="{ 'quest-bar--done': stepGoals.monthly_goal.claimed, 'quest-bar--ready': stepGoals.monthly_goal.reached && !stepGoals.monthly_goal.claimed }">
@@ -580,6 +611,7 @@ export default {
       stepGoals: {
         today_steps: 0,
         daily_goal: { target: 5000, str: 0, def: 0, luk: 0, gold: 0, mana: 0, reached: false, claimed: false },
+        daily2_goal: { target: 0, enabled: false, str: 0, def: 0, luk: 0, gold: 0, mana: 0, reached: false, claimed: false },
         monthly_steps: 0,
         monthly_goal: { target: 0, enabled: false, reached: false, claimed: false },
       },
@@ -746,6 +778,10 @@ export default {
   computed: {
     dailyPct() {
       const t = this.stepGoals.daily_goal?.target || 1
+      return Math.min(100, Math.round(((this.stepGoals.today_steps || 0) / t) * 100))
+    },
+    daily2Pct() {
+      const t = this.stepGoals.daily2_goal?.target || 1
       return Math.min(100, Math.round(((this.stepGoals.today_steps || 0) / t) * 100))
     },
     monthlyPct() {

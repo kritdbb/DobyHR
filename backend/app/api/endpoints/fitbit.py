@@ -272,6 +272,7 @@ def _get_step_config(db: Session):
     if not company:
         return {
             "daily_target": 5000, "daily_str": 0, "daily_def": 0, "daily_luk": 0, "daily_gold": 0, "daily_mana": 0,
+            "daily2_target": 0, "daily2_str": 0, "daily2_def": 0, "daily2_luk": 0, "daily2_gold": 0, "daily2_mana": 0,
             "monthly_target": 75000, "monthly_str": 0, "monthly_def": 0, "monthly_luk": 0, "monthly_gold": 1, "monthly_mana": 0,
         }
     return {
@@ -281,6 +282,12 @@ def _get_step_config(db: Session):
         "daily_luk": company.step_daily_luk or 0,
         "daily_gold": company.step_daily_gold or 0,
         "daily_mana": company.step_daily_mana or 0,
+        "daily2_target": company.step_daily2_target or 0,
+        "daily2_str": company.step_daily2_str or 0,
+        "daily2_def": company.step_daily2_def or 0,
+        "daily2_luk": company.step_daily2_luk or 0,
+        "daily2_gold": company.step_daily2_gold or 0,
+        "daily2_mana": company.step_daily2_mana or 0,
         "monthly_target": company.step_monthly_target or 0,
         "monthly_str": company.step_monthly_str or 0,
         "monthly_def": company.step_monthly_def or 0,
@@ -325,6 +332,25 @@ def get_step_goals(
         "claimed": daily_claimed,
     }
 
+    # Daily Tier 2 goal
+    daily2_claimed = db.query(StepReward).filter(
+        StepReward.user_id == current_user.id,
+        StepReward.reward_date == today,
+        StepReward.reward_type == "daily2",
+    ).first() is not None
+
+    daily2_goal = {
+        "target": cfg["daily2_target"],
+        "str": cfg["daily2_str"],
+        "def": cfg["daily2_def"],
+        "luk": cfg["daily2_luk"],
+        "gold": cfg["daily2_gold"],
+        "mana": cfg["daily2_mana"],
+        "reached": today_steps >= cfg["daily2_target"] if cfg["daily2_target"] > 0 else False,
+        "claimed": daily2_claimed,
+        "enabled": cfg["daily2_target"] > 0,
+    }
+
     # Monthly total
     monthly_steps_row = db.query(func.coalesce(func.sum(FitbitSteps.steps), 0)).filter(
         FitbitSteps.user_id == current_user.id,
@@ -354,6 +380,7 @@ def get_step_goals(
         "today_steps": today_steps,
         "today_date": today.isoformat(),
         "daily_goal": daily_goal,
+        "daily2_goal": daily2_goal,
         "monthly_steps": monthly_steps,
         "monthly_goal": monthly_goal,
     }
@@ -373,6 +400,12 @@ def claim_step_reward(
         threshold = cfg["daily_target"]
         reward_date = today
         rewards = {k: cfg[f"daily_{k}"] for k in ["str", "def", "luk", "gold", "mana"]}
+    elif reward_type == "daily2":
+        threshold = cfg["daily2_target"]
+        reward_date = today
+        rewards = {k: cfg[f"daily2_{k}"] for k in ["str", "def", "luk", "gold", "mana"]}
+        if threshold <= 0:
+            raise HTTPException(status_code=400, detail="Daily Tier 2 goal is disabled")
     elif reward_type == "monthly":
         threshold = cfg["monthly_target"]
         reward_date = _month_start_bkk()

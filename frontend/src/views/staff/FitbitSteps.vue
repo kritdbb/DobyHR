@@ -51,8 +51,8 @@
           <div class="progress-fill" :style="{ width: dailyProgress + '%' }"></div>
         </div>
         <div class="progress-label">
-          <span>🏁 Goal: {{ dailyGoal.target.toLocaleString() }} steps</span>
-          <span>{{ dailyProgress }}%</span>
+          <span>🏁 Goal: {{ (daily2Goal.enabled ? daily2Goal.target : dailyGoal.target).toLocaleString() }} steps</span>
+          <span>{{ daily2Goal.enabled ? daily2Progress : dailyProgress }}%</span>
         </div>
       </div>
 
@@ -83,6 +83,36 @@
           </button>
           <span v-else-if="dailyGoal.claimed" class="claimed-label">Claimed</span>
           <span v-else class="locked-label">{{ todaySteps.toLocaleString() }}/{{ dailyGoal.target.toLocaleString() }}</span>
+        </div>
+      </div>
+
+      <!-- Daily Tier 2 Quest -->
+      <div v-if="daily2Goal.enabled" class="quests-card">
+        <h3 class="section-title">⚔️ Daily Step Quest II</h3>
+        <p class="section-sub">Higher goal, bigger bounty (resets at midnight)</p>
+        <div class="quest-row" :class="{ 'quest-row--done': daily2Goal.claimed, 'quest-row--ready': daily2Goal.reached && !daily2Goal.claimed }">
+          <div class="quest-icon">
+            <span v-if="daily2Goal.claimed">✅</span>
+            <span v-else-if="daily2Goal.reached">⭐</span>
+            <span v-else>🔒</span>
+          </div>
+          <div class="quest-info">
+            <div class="quest-name">🗡️ Walk {{ daily2Goal.target.toLocaleString() }} steps</div>
+            <div class="quest-reward">
+              <span v-if="daily2Goal.str > 0" class="reward-tag reward-str">STR +{{ daily2Goal.str }}</span>
+              <span v-if="daily2Goal.def > 0" class="reward-tag reward-def">DEF +{{ daily2Goal.def }}</span>
+              <span v-if="daily2Goal.luk > 0" class="reward-tag reward-luk">LUK +{{ daily2Goal.luk }}</span>
+              <span v-if="daily2Goal.gold > 0" class="reward-tag reward-gold">Gold +{{ daily2Goal.gold }}</span>
+              <span v-if="daily2Goal.mana > 0" class="reward-tag reward-mana">Mana +{{ daily2Goal.mana }}</span>
+              <span v-if="!hasAnyReward(daily2Goal)" class="reward-tag reward-none">No reward set</span>
+            </div>
+          </div>
+          <button v-if="daily2Goal.reached && !daily2Goal.claimed" @click="claimReward('daily2')"
+                  class="claim-btn" :disabled="claiming">
+            Claim
+          </button>
+          <span v-else-if="daily2Goal.claimed" class="claimed-label">Claimed</span>
+          <span v-else class="locked-label">{{ todaySteps.toLocaleString() }}/{{ daily2Goal.target.toLocaleString() }}</span>
         </div>
       </div>
 
@@ -197,6 +227,7 @@ export default {
       goals: {
         today_steps: 0,
         daily_goal: { target: 5000, str: 0, def: 0, luk: 0, gold: 0, mana: 0, reached: false, claimed: false },
+        daily2_goal: { target: 0, enabled: false, str: 0, def: 0, luk: 0, gold: 0, mana: 0, reached: false, claimed: false },
         monthly_steps: 0,
         monthly_goal: { target: 75000, str: 0, def: 0, luk: 0, gold: 0, mana: 0, reached: false, claimed: false, enabled: true },
       },
@@ -211,6 +242,13 @@ export default {
     },
     dailyProgress() {
       const t = this.dailyGoal.target || 1
+      return Math.min(100, Math.round((this.todaySteps / t) * 100))
+    },
+    daily2Goal() {
+      return this.goals.daily2_goal || { target: 0, enabled: false, str: 0, def: 0, luk: 0, gold: 0, mana: 0, reached: false, claimed: false }
+    },
+    daily2Progress() {
+      const t = this.daily2Goal.target || 1
       return Math.min(100, Math.round((this.todaySteps / t) * 100))
     },
     monthlyGoal() {
