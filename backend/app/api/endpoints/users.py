@@ -366,6 +366,8 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
 
     update_data = data.model_dump(exclude_unset=True)
+    if "password" in update_data:
+        update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
     for key, value in update_data.items():
         setattr(user, key, value)
 
