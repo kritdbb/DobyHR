@@ -914,7 +914,8 @@ export default {
 .char-sheet {
   position: relative;
   text-align: center;
-  background: linear-gradient(170deg, #110a1e 0%, #1e0e0a 40%, #0f0f1e 100%);
+  background: linear-gradient(170deg, rgba(17,10,30,0.85) 0%, rgba(30,14,10,0.85) 40%, rgba(15,15,30,0.85) 100%),
+    url('/icons/user_frame.png') center / cover no-repeat;
   border: 2px solid #d4a44c;
   border-radius: 4px;
   padding: 28px 20px 20px;
@@ -1266,7 +1267,8 @@ export default {
 /* ═══ Step Quests ═══ */
 .steps-section {
   padding: 20px; border-radius: 14px;
-  background: linear-gradient(145deg, rgba(44,24,16,0.8), rgba(26,26,46,0.9));
+  background: linear-gradient(145deg, rgba(44,24,16,0.85), rgba(26,26,46,0.9)),
+    url('/icons/step_quests.png') center / cover no-repeat;
   border: 2px solid rgba(212,164,76,0.25);
 }
 .steps-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -1287,6 +1289,10 @@ export default {
   background: rgba(26,26,46,0.5);
   border: 1px solid rgba(212,164,76,0.1);
   transition: all 0.25s;
+}
+.quest-bar--multitier {
+  background: linear-gradient(135deg, rgba(26,26,46,0.7), rgba(44,24,16,0.7)),
+    url('/icons/daily_quest.png') right center / contain no-repeat;
 }
 .quest-bar:hover { background: rgba(212,164,76,0.06); border-color: rgba(212,164,76,0.2); }
 .quest-bar--ready {

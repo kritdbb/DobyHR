@@ -4,9 +4,19 @@
     
     <!-- Quota Cards -->
     <div class="quota-grid">
-      <div v-for="(q, type) in quota" :key="type" class="quota-card">
-        <div class="quota-type">{{ type }}</div>
-        <div class="quota-value">{{ q.total - q.used }}</div>
+      <div v-if="quota.sick" class="quota-card" style="background-image: url('/icons/leave_sick.png')">
+        <div class="quota-type">sick</div>
+        <div class="quota-value">{{ quota.sick.total - quota.sick.used }}</div>
+        <div class="quota-label">remaining</div>
+      </div>
+      <div v-if="quota.business" class="quota-card" style="background-image: url('/icons/leave_business.png')">
+        <div class="quota-type">business</div>
+        <div class="quota-value">{{ quota.business.total - quota.business.used }}</div>
+        <div class="quota-label">remaining</div>
+      </div>
+      <div v-if="quota.vacation" class="quota-card" style="background-image: url('/icons/leave_vacation.png')">
+        <div class="quota-type">vacation</div>
+        <div class="quota-value">{{ quota.vacation.total - quota.vacation.used }}</div>
         <div class="quota-label">remaining</div>
       </div>
     </div>
@@ -142,12 +152,15 @@ export default {
 .quota-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
 .quota-card {
   padding: 14px 8px; border-radius: 10px; text-align: center;
-  background: linear-gradient(145deg, rgba(44,24,16,0.8), rgba(26,26,46,0.9));
+  background-color: rgba(44,24,16,0.8);
+  background-size: cover; background-position: center;
   border: 2px solid rgba(212,164,76,0.2);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  min-height: 120px; overflow: hidden;
 }
-.quota-type { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #d4a44c; font-weight: 800; margin-bottom: 4px; }
-.quota-value { font-size: 28px; font-weight: 800; color: #d4a44c; }
-.quota-label { font-size: 10px; color: #8b7355; font-weight: 700; }
+.quota-type { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #d4a44c; font-weight: 800; margin-bottom: 4px; text-shadow: 0 1px 6px rgba(0,0,0,0.9); }
+.quota-value { font-size: 28px; font-weight: 800; color: #d4a44c; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
+.quota-label { font-size: 10px; color: #e8d5b7; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
 
 /* New Request */
 .new-request-btn {
