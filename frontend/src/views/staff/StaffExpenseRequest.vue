@@ -5,18 +5,15 @@
 
     <!-- Type Picker -->
     <div v-if="!selectedType" class="type-picker">
-      <button class="type-card" @click="selectedType = 'general'">
-        <div class="type-icon"><img src="/icons/generalexpense.png" class="type-icon-img" /></div>
+      <button class="type-card" :style="{ backgroundImage: 'url(/icons/generalexpense.png)' }" @click="selectedType = 'general'">
         <span class="type-label">General Expense</span>
         <span class="type-desc">Bills, receipts &amp; invoices</span>
       </button>
-      <button class="type-card" @click="selectedType = 'travel'">
-        <div class="type-icon"><img src="/icons/travelexpense.png" class="type-icon-img" /></div>
+      <button class="type-card" :style="{ backgroundImage: 'url(/icons/travelexpense.png)' }" @click="selectedType = 'travel'">
         <span class="type-label">Travel Expense</span>
         <span class="type-desc">Mileage &amp; transport costs</span>
       </button>
-      <button class="type-card" @click="selectedType = 'center'">
-        <div class="type-icon"><img src="/icons/centerexpense.png" class="type-icon-img" /></div>
+      <button class="type-card" :style="{ backgroundImage: 'url(/icons/centerexpense.png)' }" @click="selectedType = 'center'">
         <span class="type-label">Center Expense</span>
         <span class="type-desc">Shared company costs</span>
       </button>
@@ -480,16 +477,23 @@ export default {
 /* Type Picker */
 .type-picker { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 24px; }
 .type-card {
-  display: flex; flex-direction: column; align-items: center; padding: 28px 16px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  padding: 20px 12px 16px; min-height: 120px;
   border-radius: 14px; border: 2px solid rgba(212,164,76,0.2);
-  background: linear-gradient(145deg, rgba(44,24,16,0.8), rgba(26,26,46,0.9));
+  background-color: rgba(26,26,46,0.85);
+  background-size: 70%; background-repeat: no-repeat; background-position: center 30%;
+  background-blend-mode: soft-light;
   color: #e8d5b7; cursor: pointer; transition: all 0.2s;
+  position: relative;
+}
+.type-card::before {
+  content: ''; position: absolute; inset: 0; border-radius: 12px;
+  background: linear-gradient(180deg, transparent 30%, rgba(15,12,20,0.85) 75%);
+  pointer-events: none;
 }
 .type-card:hover { border-color: #d4a44c; transform: translateY(-3px); box-shadow: 0 8px 28px rgba(212,164,76,0.15); }
-.type-icon { font-size: 36px; margin-bottom: 8px; }
-.type-icon-img { width: 64px; height: 64px; object-fit: contain; }
-.type-label { font-family: 'Cinzel', serif; font-weight: 700; font-size: 14px; margin-bottom: 4px; }
-.type-desc { font-size: 12px; color: #8b7355; }
+.type-label { font-family: 'Cinzel', serif; font-weight: 700; font-size: 14px; margin-bottom: 2px; position: relative; z-index: 1; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+.type-desc { font-size: 11px; color: #a89070; position: relative; z-index: 1; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
 
 /* Form */
 .form-section { animation: fadeIn 0.3s ease; }
@@ -566,11 +570,11 @@ export default {
   margin-bottom: 10px; overflow: hidden;
 }
 .history-icon-wrap {
-  width: 64px; min-height: 64px; flex-shrink: 0;
+  width: 60px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(212,164,76,0.08);
+  background: rgba(212,164,76,0.06);
 }
-.history-icon-img { width: 44px; height: 44px; object-fit: contain; }
+.history-icon-img { width: 100%; height: 100%; object-fit: cover; }
 .history-content { flex: 1; padding: 12px 14px; }
 .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .history-type { font-weight: 700; font-size: 13px; color: #e8d5b7; }
