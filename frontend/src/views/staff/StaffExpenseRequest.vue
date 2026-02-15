@@ -478,22 +478,16 @@ export default {
 .type-picker { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 24px; }
 .type-card {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-  padding: 20px 12px 16px; min-height: 120px;
+  padding: 10px 8px 12px; aspect-ratio: 1 / 1;
   border-radius: 14px; border: 2px solid rgba(212,164,76,0.2);
-  background-color: rgba(26,26,46,0.85);
-  background-size: 70%; background-repeat: no-repeat; background-position: center 30%;
-  background-blend-mode: soft-light;
+  background-color: rgba(26,26,46,0.5);
+  background-size: cover; background-repeat: no-repeat; background-position: center;
   color: #e8d5b7; cursor: pointer; transition: all 0.2s;
-  position: relative;
-}
-.type-card::before {
-  content: ''; position: absolute; inset: 0; border-radius: 12px;
-  background: linear-gradient(180deg, transparent 30%, rgba(15,12,20,0.85) 75%);
-  pointer-events: none;
+  overflow: hidden;
 }
 .type-card:hover { border-color: #d4a44c; transform: translateY(-3px); box-shadow: 0 8px 28px rgba(212,164,76,0.15); }
-.type-label { font-family: 'Cinzel', serif; font-weight: 700; font-size: 14px; margin-bottom: 2px; position: relative; z-index: 1; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
-.type-desc { font-size: 11px; color: #a89070; position: relative; z-index: 1; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+.type-label { font-family: 'Cinzel', serif; font-weight: 700; font-size: 13px; margin-bottom: 2px; text-shadow: 0 1px 6px rgba(0,0,0,0.8), 0 0 12px rgba(0,0,0,0.6); }
+.type-desc { font-size: 10px; color: #c8b090; text-shadow: 0 1px 5px rgba(0,0,0,0.8), 0 0 10px rgba(0,0,0,0.6); }
 
 /* Form */
 .form-section { animation: fadeIn 0.3s ease; }
