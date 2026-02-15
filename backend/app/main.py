@@ -34,6 +34,32 @@ for _attempt in range(10):
         logger.warning(f"⏳ create_all failed (attempt {_attempt+1}/10): {_e}")
         time.sleep(3)
 
+
+def auto_migrate():
+    """
+    Auto-migration: safely add new columns that create_all won't handle.
+    Uses IF NOT EXISTS so it's safe to run repeatedly.
+    Add new ALTER TABLE lines here whenever you add columns to existing models.
+    """
+    from sqlalchemy import text
+    migrations = [
+        # ── Rescue (Revival Pool) ──
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS rescue_cost_per_person INTEGER DEFAULT 1",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS rescue_required_people INTEGER DEFAULT 3",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS rescue_gold_on_revive INTEGER DEFAULT 0",
+    ]
+    try:
+        with engine.connect() as conn:
+            for sql in migrations:
+                conn.execute(text(sql))
+            conn.commit()
+        logger.info(f"✅ Auto-migration complete ({len(migrations)} checks)")
+    except Exception as e:
+        logger.warning(f"⚠️ Auto-migration error: {e}")
+
+
+auto_migrate()
+
 app = FastAPI(title="HR System API", version="1.0.0")
 
 
