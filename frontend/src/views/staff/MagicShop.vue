@@ -546,7 +546,7 @@ export default {
 }
 
 /* ── Fortune Wheel Card ── */
-.fw-card { border-color: rgba(255,215,0,0.25); position: relative; overflow: hidden; }
+.fw-card { border-color: rgba(255,215,0,0.25); position: relative; overflow: hidden; justify-content: flex-end; min-height: 200px; }
 .fw-card:hover { border-color: rgba(255,215,0,0.5); box-shadow: 0 4px 20px rgba(255,215,0,0.08); }
 .fw-card .magic-name, .fw-card .magic-desc, .fw-card .magic-cost {
   text-shadow: 0 1px 6px rgba(0,0,0,0.8), 0 0 12px rgba(0,0,0,0.6);
