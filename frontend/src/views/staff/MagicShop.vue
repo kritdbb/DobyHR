@@ -17,8 +17,7 @@
         </div>
       </div>
       <div class="magic-grid">
-        <div class="magic-card scroll-card luk">
-          <div class="magic-icon">🍀</div>
+        <div class="magic-card scroll-card luk" style="background-image: url('/icons/scroll_luck.png')">
           <div class="magic-name">Scroll of Luck</div>
           <div class="magic-desc">Permanently gain +1 LUK</div>
           <div class="magic-cost">Cost: 💰 20</div>
@@ -30,8 +29,7 @@
           </div>
         </div>
 
-        <div class="magic-card scroll-card str">
-          <div class="magic-icon">⚔️</div>
+        <div class="magic-card scroll-card str" style="background-image: url('/icons/scroll_strength.png')">
           <div class="magic-name">Scroll of Strength</div>
           <div class="magic-desc">Permanently gain +1 STR</div>
           <div class="magic-cost">Cost: 💰 20</div>
@@ -43,8 +41,7 @@
           </div>
         </div>
 
-        <div class="magic-card scroll-card def">
-          <div class="magic-icon">🛡️</div>
+        <div class="magic-card scroll-card def" style="background-image: url('/icons/scroll_defense.png')">
           <div class="magic-name">Scroll of Defense</div>
           <div class="magic-desc">Permanently gain +1 DEF</div>
           <div class="magic-cost">Cost: 💰 20</div>
@@ -437,6 +434,17 @@ export default {
   box-shadow: 0 6px 24px rgba(212,164,76,0.08);
 }
 
+.scroll-card {
+  background-size: cover; background-position: center;
+  justify-content: flex-end; min-height: 180px; overflow: hidden;
+}
+.scroll-card .magic-name, .scroll-card .magic-desc, .scroll-card .magic-cost {
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 0 14px rgba(0,0,0,0.7);
+  position: relative; z-index: 1;
+}
+.scroll-card .magic-buy, .scroll-card .magic-result {
+  position: relative; z-index: 1;
+}
 .scroll-card.luk { border-color: rgba(46,204,113,0.25); }
 .scroll-card.str { border-color: rgba(231,76,60,0.25); }
 .scroll-card.def { border-color: rgba(52,152,219,0.25); }
