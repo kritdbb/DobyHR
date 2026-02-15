@@ -1267,7 +1267,7 @@ export default {
 /* ═══ Step Quests ═══ */
 .steps-section {
   padding: 20px; border-radius: 14px;
-  background: linear-gradient(145deg, rgba(44,24,16,0.85), rgba(26,26,46,0.9)),
+  background: linear-gradient(145deg, rgba(44,24,16,0.6), rgba(26,26,46,0.65)),
     url('/icons/step_quests.png') center / cover no-repeat;
   border: 2px solid rgba(212,164,76,0.25);
 }
