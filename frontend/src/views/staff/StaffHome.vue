@@ -1290,10 +1290,7 @@ export default {
   border: 1px solid rgba(212,164,76,0.1);
   transition: all 0.25s;
 }
-.quest-bar--multitier {
-  background: linear-gradient(135deg, rgba(26,26,46,0.7), rgba(44,24,16,0.7)),
-    url('/icons/daily_quest.png') right center / contain no-repeat;
-}
+
 .quest-bar:hover { background: rgba(212,164,76,0.06); border-color: rgba(212,164,76,0.2); }
 .quest-bar--ready {
   border-color: rgba(212,164,76,0.4);
