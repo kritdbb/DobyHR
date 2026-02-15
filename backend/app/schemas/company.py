@@ -23,6 +23,12 @@ class CompanyBase(BaseModel):
     step_daily_luk: Optional[int] = 0
     step_daily_gold: Optional[int] = 0
     step_daily_mana: Optional[int] = 0
+    step_daily2_target: Optional[int] = 0
+    step_daily2_str: Optional[int] = 0
+    step_daily2_def: Optional[int] = 0
+    step_daily2_luk: Optional[int] = 0
+    step_daily2_gold: Optional[int] = 0
+    step_daily2_mana: Optional[int] = 0
     step_monthly_target: Optional[int] = 75000
     step_monthly_str: Optional[int] = 0
     step_monthly_def: Optional[int] = 0
@@ -52,6 +58,12 @@ class CompanyUpdate(BaseModel):
     step_daily_luk: Optional[int] = None
     step_daily_gold: Optional[int] = None
     step_daily_mana: Optional[int] = None
+    step_daily2_target: Optional[int] = None
+    step_daily2_str: Optional[int] = None
+    step_daily2_def: Optional[int] = None
+    step_daily2_luk: Optional[int] = None
+    step_daily2_gold: Optional[int] = None
+    step_daily2_mana: Optional[int] = None
     step_monthly_target: Optional[int] = None
     step_monthly_str: Optional[int] = None
     step_monthly_def: Optional[int] = None
