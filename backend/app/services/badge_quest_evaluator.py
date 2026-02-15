@@ -75,10 +75,11 @@ def _resolve_mana_sent(user_id: int, db: Session) -> int:
     )
 
 
-def _resolve_lottery_played(user_id: int, db: Session) -> int:
+def _resolve_revival_prayers(user_id: int, db: Session) -> int:
+    """How many times this user contributed a Revival Prayer."""
     return (
         db.query(func.count(CoinLog.id))
-        .filter(CoinLog.user_id == user_id, CoinLog.reason.ilike("%Magic Lottery%"))
+        .filter(CoinLog.reason.ilike(f"%Revival Prayer from {db.query(User).filter(User.id == user_id).first().name if db.query(User).filter(User.id == user_id).first() else ''}%"))
         .scalar()
     )
 
@@ -148,19 +149,22 @@ def _resolve_leave(leave_type: str):
 # ── Registry ──────────────────────────────────────────
 
 def _resolve_rescue_given(user_id: int, db: Session) -> int:
-    """How many times this user rescued someone (sent Mana Rescue)."""
-    return db.query(CoinLog).filter(
-        CoinLog.user_id == user_id,
-        CoinLog.reason.ilike("%Mana Rescue: sent to%"),
-    ).count()
+    """How many times this user contributed a Revival Prayer to help someone."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return 0
+    user_name = f"{user.name} {user.surname or ''}".strip()
+    return db.query(func.count(CoinLog.id)).filter(
+        CoinLog.reason.ilike(f"%Revival Prayer from {user_name}%"),
+    ).scalar()
 
 
 def _resolve_rescue_received(user_id: int, db: Session) -> int:
-    """How many times this user was rescued."""
-    return db.query(CoinLog).filter(
+    """How many times this user was successfully revived."""
+    return db.query(func.count(CoinLog.id)).filter(
         CoinLog.user_id == user_id,
-        CoinLog.reason.ilike("%Mana Rescue from%"),
-    ).count()
+        CoinLog.reason.ilike("💖 Revived by%"),
+    ).scalar()
 
 
 FIELD_RESOLVERS = {
@@ -168,7 +172,7 @@ FIELD_RESOLVERS = {
     "total_steps": _resolve_total_steps,
     "mana_received": _resolve_mana_received,
     "mana_sent": _resolve_mana_sent,
-    "lottery_played": _resolve_lottery_played,
+    "revival_prayers": _resolve_revival_prayers,
     "scroll_purchased": _resolve_scroll_purchased,
     "coins": _resolve_user_field("coins"),
     "angel_coins": _resolve_user_field("angel_coins"),
@@ -216,8 +220,8 @@ FIELD_DESCRIPTIONS = {
     "total_steps":        {"label": "Total Steps",          "desc": "All-time total steps walked (Fitbit)",     "example": "total_steps >= 10000"},
     "mana_received":      {"label": "Mana Received",        "desc": "Times received Mana from others",          "example": "mana_received >= 3"},
     "mana_sent":          {"label": "Mana Sent",            "desc": "Times sent Mana to others",                "example": "mana_sent >= 3"},
-    "lottery_played":     {"label": "Lottery Played",       "desc": "Times played Magic Lottery",               "example": "lottery_played >= 5"},
-    "scroll_purchased":   {"label": "Scrolls Purchased",    "desc": "Times purchased any Scroll",               "example": "scroll_purchased >= 2"},
+    "revival_prayers":    {"label": "🙏 Revival Prayers",   "desc": "Times contributed a Revival Prayer",       "example": "revival_prayers >= 3"},
+    "scroll_purchased":   {"label": "📜 Scrolls Purchased", "desc": "Times purchased any Scroll",               "example": "scroll_purchased >= 2"},
     "coins":              {"label": "Gold (current)",       "desc": "Current Gold balance",                     "example": "coins >= 100"},
     "angel_coins":        {"label": "Mana (current)",       "desc": "Current Mana balance",                     "example": "angel_coins >= 10"},
     "base_str":           {"label": "Base STR",             "desc": "Base Strength stat",                       "example": "base_str >= 15"},
@@ -227,8 +231,8 @@ FIELD_DESCRIPTIONS = {
     "leave_vacation":     {"label": "🏖 Vacation Leave",    "desc": "Approved vacation leave count",             "example": "leave_vacation >= 1"},
     "leave_business":     {"label": "💼 Business Leave",    "desc": "Approved business leave count",             "example": "leave_business >= 1"},
     "total_redemptions":  {"label": "🛍 Total Redemptions", "desc": "Total items redeemed from shop",            "example": "total_redemptions >= 5"},
-    "rescue_given":       {"label": "🆘 Rescues Given",    "desc": "Times rescued a friend (sent Mana Rescue)", "example": "rescue_given >= 3"},
-    "rescue_received":    {"label": "💖 Rescues Received",  "desc": "Times been rescued by friends",             "example": "rescue_received >= 1"},
+    "rescue_given":       {"label": "🆘 Rescue Given",     "desc": "Times contributed a Revival Prayer to help others", "example": "rescue_given >= 3"},
+    "rescue_received":    {"label": "💖 Rescue Received",   "desc": "Times successfully revived by friends",          "example": "rescue_received >= 1"},
 }
 
 # Legacy labels (kept for backward compat)

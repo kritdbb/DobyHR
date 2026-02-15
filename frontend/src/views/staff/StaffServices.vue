@@ -87,7 +87,7 @@
       <!-- Row 5 (right): Revival Records -->
       <router-link to="/staff/revival-records" class="service-card">
         <div class="icon-wrap">
-          <div class="service-icon">📜</div>
+          <img src="/icons/revive_record.png" class="service-icon-img" />
         </div>
         <span class="service-label">Revival Records</span>
         <span class="service-desc">Hall of Fame</span>

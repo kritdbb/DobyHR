@@ -47,6 +47,10 @@ def auto_migrate():
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS rescue_cost_per_person INTEGER DEFAULT 1",
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS rescue_required_people INTEGER DEFAULT 3",
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS rescue_gold_on_revive INTEGER DEFAULT 0",
+        # ── Badge Quest Rewards ──
+        "ALTER TABLE badge_quests ADD COLUMN IF NOT EXISTS reward_type VARCHAR(20) DEFAULT 'badge'",
+        "ALTER TABLE badge_quests ADD COLUMN IF NOT EXISTS reward_value INTEGER DEFAULT 0",
+        "ALTER TABLE badge_quests ALTER COLUMN badge_id DROP NOT NULL",
     ]
     try:
         with engine.connect() as conn:

@@ -15,10 +15,10 @@
 
     <!-- Evaluate result banner -->
     <div v-if="evalResult" class="eval-banner" @click="evalResult = null">
-      🏅 Awarded <strong>{{ evalResult.awarded }}</strong> badge(s)
+      🏅 Awarded <strong>{{ evalResult.awarded }}</strong> reward(s)
       <span v-if="evalResult.details.length"> —
         <span v-for="(d, i) in evalResult.details" :key="i">
-          {{ d.user_name }} → {{ d.badge_name }}<span v-if="i < evalResult.details.length - 1">, </span>
+          {{ d.user_name }} → {{ d.reward }}<span v-if="i < evalResult.details.length - 1">, </span>
         </span>
       </span>
       <span v-else> — no new awards</span>
@@ -37,13 +37,14 @@
         <div class="quest-card-header">
           <div class="quest-badge-icon">
             <img v-if="q.badge_image" :src="q.badge_image" class="quest-badge-img" />
-            <span v-else>🏅</span>
+            <span v-else>{{ rewardIcon(q.reward_type) }}</span>
           </div>
           <div class="quest-card-info">
-            <div class="quest-card-name">{{ q.badge_name }}</div>
+            <div class="quest-card-name">{{ q.badge_name || rewardLabel(q) }}</div>
             <div class="quest-card-query">
               <code>{{ q.condition_query || `${q.condition_type} >= ${q.threshold}` }}</code>
             </div>
+            <div v-if="q.reward_type !== 'badge'" class="quest-reward-tag">🎁 {{ rewardLabel(q) }}</div>
           </div>
           <span class="quest-status" :class="q.is_active ? 'status-active' : 'status-inactive'">
             {{ q.is_active ? '✅ Active' : '⏸ Inactive' }}
@@ -68,12 +69,32 @@
       <div class="modal-box">
         <h3 class="modal-title">{{ editingId ? '✏️ Edit Quest' : '✨ New Quest' }}</h3>
 
-        <!-- Badge Selection -->
-        <label class="form-label">BADGE TO AWARD</label>
-        <select v-model="form.badge_id" class="form-input">
-          <option value="">— Select Badge —</option>
-          <option v-for="b in badges" :key="b.id" :value="b.id">{{ b.name }}</option>
+        <!-- Reward Type -->
+        <label class="form-label">🎁 REWARD TYPE</label>
+        <select v-model="form.reward_type" class="form-input">
+          <option value="badge">🏅 Badge</option>
+          <option value="gold">💰 Gold</option>
+          <option value="mana">🔮 Mana</option>
+          <option value="str">⚔️ STR</option>
+          <option value="def">🛡️ DEF</option>
+          <option value="luk">🍀 LUK</option>
+          <option value="coupon">🎫 Coupon (Item)</option>
         </select>
+
+        <!-- Badge Selection (only for badge type) -->
+        <template v-if="form.reward_type === 'badge'">
+          <label class="form-label">BADGE TO AWARD</label>
+          <select v-model="form.badge_id" class="form-input">
+            <option value="">— Select Badge —</option>
+            <option v-for="b in badges" :key="b.id" :value="b.id">{{ b.name }}</option>
+          </select>
+        </template>
+
+        <!-- Reward Value (for non-badge types) -->
+        <template v-if="form.reward_type !== 'badge'">
+          <label class="form-label">{{ form.reward_type === 'coupon' ? 'ITEM ID (from Coupon Shop)' : 'REWARD AMOUNT' }}</label>
+          <input v-model.number="form.reward_value" type="number" min="1" class="form-input" :placeholder="form.reward_type === 'coupon' ? 'e.g. 6 (item ID)' : 'e.g. 10'" />
+        </template>
 
         <!-- Query Input -->
         <label class="form-label">📜 CONDITION QUERY</label>
@@ -147,9 +168,9 @@
               <code class="field-example">checkin_streak >= 10</code>
               <span class="field-desc">10 consecutive days on time</span>
             </div>
-            <div class="field-row" @click="form.condition_query = 'lottery_played >= 3 AND scroll_purchased >= 2'">
-              <code class="field-example">lottery_played >= 3 AND scroll_purchased >= 2</code>
-              <span class="field-desc">Magic shop enthusiast</span>
+            <div class="field-row" @click="form.condition_query = 'revival_prayers >= 3 AND scroll_purchased >= 2'">
+              <code class="field-example">revival_prayers >= 3 AND scroll_purchased >= 2</code>
+              <span class="field-desc">Revival hero & scroll collector</span>
             </div>
             <div class="field-row" @click="form.condition_query = 'base_str >= 15 OR base_def >= 15 OR base_luk >= 15'">
               <code class="field-example">base_str >= 15 OR base_def >= 15 OR base_luk >= 15</code>
@@ -173,7 +194,7 @@
 
         <div class="modal-actions">
           <button class="btn btn-cancel" @click="showModal = false">Cancel</button>
-          <button class="btn btn-save" @click="saveQuest" :disabled="saving || !form.badge_id || !form.condition_query">
+          <button class="btn btn-save" @click="saveQuest" :disabled="saving || !form.condition_query || (form.reward_type === 'badge' && !form.badge_id)">
             {{ saving ? '⏳ Saving…' : (editingId ? 'Update' : 'Create') }}
           </button>
         </div>
@@ -208,6 +229,8 @@ export default {
         description: '',
         is_active: true,
         max_awards: null,
+        reward_type: 'badge',
+        reward_value: 0,
       },
     }
   },
@@ -286,7 +309,7 @@ export default {
     },
     openCreate() {
       this.editingId = null
-      this.form = { badge_id: '', condition_query: '', description: '', is_active: true, max_awards: null }
+      this.form = { badge_id: '', condition_query: '', description: '', is_active: true, max_awards: null, reward_type: 'badge', reward_value: 0 }
       this.previewResult = null
       this.queryValidation = null
       this.showModal = true
@@ -294,11 +317,13 @@ export default {
     openEdit(q) {
       this.editingId = q.id
       this.form = {
-        badge_id: q.badge_id,
+        badge_id: q.badge_id || '',
         condition_query: q.condition_query || (q.condition_type ? `${q.condition_type} >= ${q.threshold}` : ''),
         description: q.description || '',
         is_active: q.is_active,
         max_awards: q.max_awards || null,
+        reward_type: q.reward_type || 'badge',
+        reward_value: q.reward_value || 0,
       }
       this.previewResult = null
       this.queryValidation = null
@@ -308,11 +333,13 @@ export default {
       this.saving = true
       try {
         const body = {
-          badge_id: this.form.badge_id,
+          badge_id: this.form.reward_type === 'badge' ? this.form.badge_id : null,
           condition_query: this.form.condition_query,
           description: this.form.description || null,
           is_active: this.form.is_active,
           max_awards: this.form.max_awards || null,
+          reward_type: this.form.reward_type,
+          reward_value: this.form.reward_value || 0,
         }
         if (this.editingId) {
           await api.put(`/api/badge-quests/${this.editingId}`, body)
@@ -343,11 +370,27 @@ export default {
       try {
         const res = await api.post('/api/badge-quests/evaluate')
         this.evalResult = res.data
-        this.showToast(`Awarded ${res.data.awarded} badge(s)`)
+        this.showToast(`Awarded ${res.data.awarded} reward(s)`)
       } catch (e) {
         this.showToast('Evaluation failed', 'error')
       }
       this.evaluating = false
+    },
+    rewardIcon(type) {
+      const icons = { badge: '🏅', gold: '💰', mana: '🔮', str: '⚔️', def: '🛡️', luk: '🍀', coupon: '🎫' }
+      return icons[type] || '🏅'
+    },
+    rewardLabel(q) {
+      const t = q.reward_type || 'badge'
+      const v = q.reward_value || 0
+      if (t === 'badge') return q.badge_name || 'Badge'
+      if (t === 'gold') return `+${v} Gold`
+      if (t === 'mana') return `+${v} Mana`
+      if (t === 'str') return `+${v} STR`
+      if (t === 'def') return `+${v} DEF`
+      if (t === 'luk') return `+${v} LUK`
+      if (t === 'coupon') return `Coupon #${v}`
+      return t
     },
     formatDate(d) {
       if (!d) return ''
@@ -422,6 +465,7 @@ export default {
 
 .quest-limit { font-size: 11px; font-weight: 700; flex-shrink: 0; color: #d4a44c; background: rgba(212,164,76,0.1); padding: 2px 8px; border-radius: 6px; }
 .quest-limit--full { color: #e74c3c; background: rgba(231,76,60,0.1); }
+.quest-reward-tag { font-size: 11px; font-weight: 700; color: #f1c40f; margin-top: 3px; }
 
 /* Modal */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
