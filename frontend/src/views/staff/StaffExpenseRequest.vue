@@ -217,17 +217,22 @@
         <p class="empty-text">No expense requests yet</p>
       </div>
       <div v-for="exp in myExpenses" :key="exp.id" class="history-card">
-        <div class="history-header">
-          <span class="history-type">{{ exp.expense_type === 'GENERAL' ? '📄' : exp.expense_type === 'CENTER' ? '🏢' : '🚗' }} {{ exp.expense_type }}</span>
-          <span :class="'status-badge ' + exp.status.toLowerCase()">{{ exp.status }}</span>
+        <div class="history-icon-wrap">
+          <img :src="'/icons/' + (exp.expense_type === 'GENERAL' ? 'generalexpense' : exp.expense_type === 'CENTER' ? 'centerexpense' : 'travelexpense') + '.png'" class="history-icon-img" />
         </div>
-        <div class="history-details">
-          <span>{{ exp.expense_type === 'TRAVEL' ? exp.travel_date : exp.expense_date }}</span>
-          <span class="history-amount">฿{{ (exp.expense_type === 'TRAVEL' ? exp.total_amount : exp.amount).toLocaleString() }}</span>
-        </div>
-        <div v-if="exp.description" class="history-desc">{{ exp.description }}</div>
-        <div v-if="exp.status === 'PENDING'" class="history-progress">
-          Approval: {{ exp.current_step }}/{{ exp.total_steps }}
+        <div class="history-content">
+          <div class="history-header">
+            <span class="history-type">{{ exp.expense_type }}</span>
+            <span :class="'status-badge ' + exp.status.toLowerCase()">{{ exp.status }}</span>
+          </div>
+          <div class="history-details">
+            <span>{{ exp.expense_type === 'TRAVEL' ? exp.travel_date : exp.expense_date }}</span>
+            <span class="history-amount">฿{{ (exp.expense_type === 'TRAVEL' ? exp.total_amount : exp.amount).toLocaleString() }}</span>
+          </div>
+          <div v-if="exp.description" class="history-desc">{{ exp.description }}</div>
+          <div v-if="exp.status === 'PENDING'" class="history-progress">
+            Approval: {{ exp.current_step }}/{{ exp.total_steps }}
+          </div>
         </div>
       </div>
     </div>
@@ -482,7 +487,7 @@ export default {
 }
 .type-card:hover { border-color: #d4a44c; transform: translateY(-3px); box-shadow: 0 8px 28px rgba(212,164,76,0.15); }
 .type-icon { font-size: 36px; margin-bottom: 8px; }
-.type-icon-img { width: 48px; height: 48px; object-fit: contain; }
+.type-icon-img { width: 64px; height: 64px; object-fit: contain; }
 .type-label { font-family: 'Cinzel', serif; font-weight: 700; font-size: 14px; margin-bottom: 4px; }
 .type-desc { font-size: 12px; color: #8b7355; }
 
@@ -556,11 +561,19 @@ export default {
 .empty-text { color: #8b7355; font-weight: 600; }
 
 .history-card {
+  display: flex; align-items: stretch;
   background: rgba(26,26,46,0.7); border: 1px solid rgba(212,164,76,0.15); border-radius: 12px;
-  padding: 14px 16px; margin-bottom: 10px;
+  margin-bottom: 10px; overflow: hidden;
 }
-.history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.history-type { font-weight: 700; font-size: 14px; color: #e8d5b7; }
+.history-icon-wrap {
+  width: 64px; min-height: 64px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(212,164,76,0.08);
+}
+.history-icon-img { width: 44px; height: 44px; object-fit: contain; }
+.history-content { flex: 1; padding: 12px 14px; }
+.history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.history-type { font-weight: 700; font-size: 13px; color: #e8d5b7; }
 .history-details { display: flex; justify-content: space-between; font-size: 13px; color: #8b7355; }
 .history-amount { font-weight: 800; color: #d4a44c; }
 .history-desc { font-size: 12px; color: #8b7355; margin-top: 4px; }
