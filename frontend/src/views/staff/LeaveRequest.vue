@@ -1,6 +1,6 @@
 <template>
   <div class="staff-page">
-    <h1 class="page-title">🏨 Rest at Inn</h1>
+    <h1 class="page-title">📋 Leave Request</h1>
     
     <!-- Quota Cards -->
     <div class="quota-grid">
@@ -27,7 +27,7 @@
     </button>
     
     <!-- History -->
-    <div class="section">
+    <div class="section chronicles-section">
       <h2 class="section-title">📋 Chronicles</h2>
       <div v-if="history.length === 0" class="empty-state">
         <div class="empty-icon">🏨</div>
@@ -158,9 +158,9 @@ export default {
   display: flex; flex-direction: column; justify-content: flex-end;
   min-height: 120px; overflow: hidden;
 }
-.quota-type { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #d4a44c; font-weight: 800; margin-bottom: 4px; text-shadow: 0 1px 6px rgba(0,0,0,0.9); }
-.quota-value { font-size: 28px; font-weight: 800; color: #d4a44c; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
-.quota-label { font-size: 10px; color: #e8d5b7; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
+.quota-type { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #fff; font-weight: 800; margin-bottom: 4px; text-shadow: 0 1px 6px rgba(0,0,0,0.9); }
+.quota-value { font-size: 28px; font-weight: 800; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
+.quota-label { font-size: 10px; color: #fff; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
 
 /* New Request */
 .new-request-btn {
@@ -181,12 +181,19 @@ export default {
   font-family: 'Cinzel', serif;
   font-size: 16px; font-weight: 800; color: #d4a44c; margin-bottom: 14px;
 }
+.chronicles-section {
+  padding: 20px 16px; border-radius: 14px;
+  background: linear-gradient(145deg, rgba(44,24,16,0.85), rgba(26,26,46,0.88)),
+    url('/icons/leave_chronicles.png') center / cover no-repeat;
+  border: 2px solid rgba(212,164,76,0.2);
+}
 
 /* History */
 .history-list { display: flex; flex-direction: column; gap: 10px; }
 .history-card {
   padding: 14px 16px; border-radius: 10px; border-left: 4px solid;
-  background: rgba(44,24,16,0.6);
+  background: rgba(26,26,46,0.6);
+  backdrop-filter: blur(4px);
   border-color: rgba(212,164,76,0.2);
 }
 .history-card--pending { border-color: #d4a44c; }
