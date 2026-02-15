@@ -40,6 +40,7 @@ class FortuneWheelResponse(BaseModel):
     currency: str
     price: int
     is_active: bool
+    icon_image: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

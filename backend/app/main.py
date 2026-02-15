@@ -53,6 +53,8 @@ def auto_migrate():
         "ALTER TABLE badge_quests ALTER COLUMN badge_id DROP NOT NULL",
         # ── Center Expense enum ──
         "ALTER TYPE expensetype ADD VALUE IF NOT EXISTS 'CENTER'",
+        # ── Fortune Wheel icon ──
+        "ALTER TABLE fortune_wheels ADD COLUMN IF NOT EXISTS icon_image VARCHAR(500)",
     ]
     try:
         with engine.connect() as conn:

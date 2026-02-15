@@ -211,6 +211,7 @@ export const updateFortuneWheel = (id, data) => api.put(`/api/fortune-wheels/${i
 export const deleteFortuneWheel = (id) => api.delete(`/api/fortune-wheels/${id}`)
 export const getActiveFortuneWheels = () => api.get('/api/fortune-wheels/active')
 export const spinFortuneWheel = (id) => api.post(`/api/fortune-wheels/${id}/spin`)
+export const uploadWheelIcon = (id, formData) => api.post(`/api/fortune-wheels/${id}/icon`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 
 // --- Expenses ---
 export const createGeneralExpense = (formData) => api.post('/api/expenses/general', formData, { headers: { 'Content-Type': 'multipart/form-data' } })

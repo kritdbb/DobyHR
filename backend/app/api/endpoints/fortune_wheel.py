@@ -1,5 +1,5 @@
-import random
-from fastapi import APIRouter, Depends, HTTPException
+import random, os, uuid, shutil
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -63,6 +63,31 @@ def delete_wheel(wheel_id: int, db: Session = Depends(get_db), current_user: Use
     db.delete(wheel)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/{wheel_id}/icon", response_model=FortuneWheelResponse)
+async def upload_wheel_icon(
+    wheel_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_gm_or_above),
+):
+    wheel = db.query(FortuneWheel).filter(FortuneWheel.id == wheel_id).first()
+    if not wheel:
+        raise HTTPException(status_code=404, detail="Wheel not found")
+
+    upload_dir = "/app/uploads/fortune_wheels"
+    os.makedirs(upload_dir, exist_ok=True)
+    ext = os.path.splitext(file.filename or "")[1] or ".png"
+    filename = f"{uuid.uuid4().hex}{ext}"
+    path = os.path.join(upload_dir, filename)
+    with open(path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    wheel.icon_image = f"/uploads/fortune_wheels/{filename}"
+    db.commit()
+    db.refresh(wheel)
+    return wheel
 
 
 # ── Staff: list active wheels ──────────────────────────────

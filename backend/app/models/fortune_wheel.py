@@ -14,5 +14,6 @@ class FortuneWheel(Base):
     currency = Column(String(20), default="gold") # "gold" or "mana"
     price = Column(Integer, default=0)            # cost to spin
     is_active = Column(Boolean, default=False)
+    icon_image = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -32,6 +32,16 @@
           <input type="text" v-model="wheelName" class="fw-name-input" placeholder="e.g. Lucky Spin..." />
         </div>
 
+        <!-- Icon Image -->
+        <div class="fw-name-section">
+          <label class="fw-label">🖼️ Icon Image</label>
+          <div class="fw-icon-upload" @click="$refs.iconInput.click()">
+            <img v-if="iconPreview" :src="iconPreview" class="fw-icon-preview" />
+            <span v-else class="fw-icon-placeholder">📤 Upload icon</span>
+          </div>
+          <input ref="iconInput" type="file" accept="image/*" style="display:none" @change="onIconChange" />
+        </div>
+
         <h3 class="fw-config-title">⚙️ Segments</h3>
         <div class="fw-segments">
           <div v-for="(seg, i) in segments" :key="seg._uid || i" class="fw-seg-row"
@@ -190,7 +200,7 @@
 </template>
 
 <script>
-import { getFortuneWheels, createFortuneWheel, updateFortuneWheel, deleteFortuneWheel as apiDeleteWheel } from '../../services/api'
+import { getFortuneWheels, createFortuneWheel, updateFortuneWheel, deleteFortuneWheel as apiDeleteWheel, uploadWheelIcon } from '../../services/api'
 
 const DEFAULT_COLORS = [
   '#c0392b', '#2980b9', '#27ae60', '#d4a44c', '#8e44ad',
@@ -218,6 +228,9 @@ export default {
       currency: 'gold',
       price: 50,
       isActive: false,
+      iconPreview: null,
+      iconFile: null,
+      apiBase: import.meta.env.VITE_API_URL || '',
       wheelSize: 420,
       currentRotation: 0,
       spinning: false,
@@ -479,6 +492,8 @@ export default {
       this.currency = w.currency
       this.price = w.price
       this.isActive = w.is_active
+      this.iconPreview = w.icon_image ? (this.apiBase + w.icon_image) : null
+      this.iconFile = null
       this.result = null
     },
     newWheel() {
@@ -490,6 +505,7 @@ export default {
       ]
       this.spinMin = 3; this.spinMax = 7
       this.currency = 'gold'; this.price = 50; this.isActive = false; this.result = null
+      this.iconPreview = null; this.iconFile = null
     },
     async saveWheel() {
       if (!this.wheelName.trim()) return
@@ -509,6 +525,15 @@ export default {
           this.currentWheel = data
           this.showToast('💾 Wheel created!')
         }
+        // Upload icon if selected
+        if (this.iconFile && this.currentWheel) {
+          const fd = new FormData()
+          fd.append('file', this.iconFile)
+          const { data: updated } = await uploadWheelIcon(this.currentWheel.id, fd)
+          this.currentWheel = updated
+          this.iconPreview = updated.icon_image ? (this.apiBase + updated.icon_image) : null
+          this.iconFile = null
+        }
         await this.loadSavedWheels()
       } catch (e) {
         this.showToast(e.response?.data?.detail || 'Failed to save', 'error')
@@ -522,6 +547,12 @@ export default {
         this.newWheel()
         await this.loadSavedWheels()
       } catch (e) { this.showToast('Failed to delete', 'error') }
+    },
+    onIconChange(e) {
+      const file = e.target.files[0]
+      if (!file) return
+      this.iconFile = file
+      this.iconPreview = URL.createObjectURL(file)
     },
   },
 }
@@ -562,6 +593,16 @@ export default {
 .fw-saved-chip.active { border-color: #d4a44c; background: rgba(212,164,76,0.15); color: #d4a44c; }
 
 /* ── Config Panel ── */
+.fw-icon-upload {
+  width: 80px; height: 80px; border-radius: 10px;
+  border: 2px dashed rgba(212,164,76,0.3); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; transition: border-color 0.2s;
+  background: rgba(255,255,255,0.03);
+}
+.fw-icon-upload:hover { border-color: #d4a44c; }
+.fw-icon-preview { width: 100%; height: 100%; object-fit: cover; }
+.fw-icon-placeholder { font-size: 12px; color: #8b7355; text-align: center; }
 .fw-name-section { margin-bottom: 16px; }
 .fw-label { font-size: 11px; color: #8b7355; font-weight: 700; margin-bottom: 4px; display: block; }
 .fw-name-input {

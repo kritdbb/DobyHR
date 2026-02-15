@@ -105,8 +105,9 @@
         </div>
       </div>
       <div class="magic-grid">
-        <div v-for="fw in fortuneWheels" :key="'fw-' + fw.id" class="magic-card fw-card">
-          <div class="magic-icon">🎡</div>
+        <div v-for="fw in fortuneWheels" :key="'fw-' + fw.id" class="magic-card fw-card"
+          :style="fw.icon_image ? { backgroundImage: 'url(' + apiBase + fw.icon_image + ')', backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+          <div v-if="!fw.icon_image" class="magic-icon">🎡</div>
           <div class="magic-name">{{ fw.name }}</div>
           <div class="magic-desc">Spin the wheel for a chance to win prizes!</div>
           <div class="magic-cost">Cost: {{ fw.currency === 'gold' ? '💰' : '✨' }} {{ fw.price }} {{ fw.currency === 'gold' ? 'Gold' : 'Mana' }}</div>
@@ -162,6 +163,7 @@ export default {
       myCoins: 0,
       buying: null,
       lastResult: null,
+      apiBase: import.meta.env.VITE_API_URL || '',
       titleText: '',
       currentStatus: '',
       // Fortune Wheels
@@ -544,8 +546,12 @@ export default {
 }
 
 /* ── Fortune Wheel Card ── */
-.fw-card { border-color: rgba(255,215,0,0.25); }
+.fw-card { border-color: rgba(255,215,0,0.25); position: relative; overflow: hidden; }
 .fw-card:hover { border-color: rgba(255,215,0,0.5); box-shadow: 0 4px 20px rgba(255,215,0,0.08); }
+.fw-card .magic-name, .fw-card .magic-desc, .fw-card .magic-cost {
+  text-shadow: 0 1px 6px rgba(0,0,0,0.8), 0 0 12px rgba(0,0,0,0.6);
+  position: relative; z-index: 1;
+}
 .fw-buy-btn {
   background: linear-gradient(135deg, #8b6914, #d4a44c) !important;
   color: #fff !important;
