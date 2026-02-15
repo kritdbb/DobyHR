@@ -15,6 +15,11 @@
         <span class="type-label">Travel Expense</span>
         <span class="type-desc">Mileage &amp; transport costs</span>
       </button>
+      <button class="type-card" @click="selectedType = 'center'">
+        <div class="type-icon">🏢</div>
+        <span class="type-label">Center Expense</span>
+        <span class="type-desc">Shared company costs</span>
+      </button>
     </div>
 
     <!-- General Expense Form -->
@@ -55,6 +60,52 @@
 
       <button class="submit-btn" :disabled="submitting || !canSubmitGeneral" @click="submitGeneral">
         {{ submitting ? 'Submitting...' : '📤 Submit Request' }}
+      </button>
+    </div>
+
+    <!-- Center Expense Form (same layout as general) -->
+    <div v-if="selectedType === 'center'" class="form-section">
+      <button class="back-btn" @click="selectedType = null">← Back</button>
+      <h2 class="section-title">🏢 Center Expense</h2>
+      <div class="center-notice">ℹ️ ค่าใช้จ่ายส่วนกลาง — ไม่ต้องผ่านการอนุมัติ</div>
+
+      <div class="form-group">
+        <label>Date</label>
+        <input v-model="centerForm.date" type="date" class="form-input" />
+      </div>
+
+      <div class="form-group">
+        <label>📸 Receipt / Invoice</label>
+        <div
+          class="file-drop"
+          @click="$refs.centerFile.click()"
+          @dragover.prevent
+          @drop.prevent="onDropCenter"
+        >
+          <template v-if="centerForm.file">
+            <img v-if="!centerForm.isPdf" :src="centerForm.filePreview" class="file-preview" />
+            <div v-else class="pdf-badge">📎 {{ centerForm.file.name }}</div>
+            <button class="remove-btn" @click.stop="removeCenterFile">✕</button>
+          </template>
+          <template v-else>
+            <div class="drop-text">📤 Tap or drop file here</div>
+          </template>
+        </div>
+        <input ref="centerFile" type="file" accept="image/*,.pdf" style="display:none" @change="onCenterFileChange" />
+      </div>
+
+      <div class="form-group">
+        <label>Description</label>
+        <input v-model="centerForm.description" type="text" class="form-input" placeholder="What is this expense for?" />
+      </div>
+
+      <div class="form-group">
+        <label>Amount (฿)</label>
+        <input v-model.number="centerForm.amount" type="number" class="form-input" placeholder="0.00" />
+      </div>
+
+      <button class="submit-btn" :disabled="submitting || !canSubmitCenter" @click="submitCenter">
+        {{ submitting ? 'Submitting...' : '📤 Submit Center Expense' }}
       </button>
     </div>
 
@@ -167,12 +218,12 @@
       </div>
       <div v-for="exp in myExpenses" :key="exp.id" class="history-card">
         <div class="history-header">
-          <span class="history-type">{{ exp.expense_type === 'GENERAL' ? '📄' : '🚗' }} {{ exp.expense_type }}</span>
+          <span class="history-type">{{ exp.expense_type === 'GENERAL' ? '📄' : exp.expense_type === 'CENTER' ? '🏢' : '🚗' }} {{ exp.expense_type }}</span>
           <span :class="'status-badge ' + exp.status.toLowerCase()">{{ exp.status }}</span>
         </div>
         <div class="history-details">
-          <span>{{ exp.expense_type === 'GENERAL' ? exp.expense_date : exp.travel_date }}</span>
-          <span class="history-amount">฿{{ (exp.expense_type === 'GENERAL' ? exp.amount : exp.total_amount).toLocaleString() }}</span>
+          <span>{{ exp.expense_type === 'TRAVEL' ? exp.travel_date : exp.expense_date }}</span>
+          <span class="history-amount">฿{{ (exp.expense_type === 'TRAVEL' ? exp.total_amount : exp.amount).toLocaleString() }}</span>
         </div>
         <div v-if="exp.description" class="history-desc">{{ exp.description }}</div>
         <div v-if="exp.status === 'PENDING'" class="history-progress">
@@ -184,7 +235,7 @@
 </template>
 
 <script>
-import { createGeneralExpense, createTravelExpense, getMyExpenses } from '../../services/api'
+import { createGeneralExpense, createTravelExpense, createCenterExpense, getMyExpenses } from '../../services/api'
 
 export default {
   name: 'StaffExpenseRequest',
@@ -216,6 +267,14 @@ export default {
         otherFiles: [],
         otherPreviews: [],
       },
+      centerForm: {
+        file: null,
+        filePreview: null,
+        isPdf: false,
+        date: new Date().toISOString().slice(0, 10),
+        description: '',
+        amount: null,
+      },
     }
   },
   computed: {
@@ -231,6 +290,9 @@ export default {
     },
     canSubmitTravel() {
       return this.travelForm.date && this.travelForm.outboundFile && this.travelForm.returnFile && (this.travelForm.kmOut > 0 || this.travelForm.kmReturn > 0)
+    },
+    canSubmitCenter() {
+      return this.centerForm.file && this.centerForm.date && this.centerForm.description && this.centerForm.amount > 0
     },
   },
   async mounted() {
@@ -351,6 +413,55 @@ export default {
     resetTravel() {
       this.travelForm = { date: new Date().toISOString().slice(0, 10), description: '', vehicleType: 'CAR', kmOut: null, kmReturn: null, otherCost: 0, outboundFile: null, outboundPreview: null, returnFile: null, returnPreview: null, otherFiles: [], otherPreviews: [] }
     },
+
+    // Center file handlers
+    onCenterFileChange(e) {
+      const file = e.target.files[0]
+      if (!file) return
+      this.setCenterFile(file)
+    },
+    onDropCenter(e) {
+      const file = e.dataTransfer.files[0]
+      if (file) this.setCenterFile(file)
+    },
+    setCenterFile(file) {
+      this.centerForm.file = file
+      this.centerForm.isPdf = file.type === 'application/pdf'
+      if (!this.centerForm.isPdf) {
+        const reader = new FileReader()
+        reader.onload = (e) => { this.centerForm.filePreview = e.target.result }
+        reader.readAsDataURL(file)
+      } else {
+        this.centerForm.filePreview = null
+      }
+    },
+    removeCenterFile() {
+      this.centerForm.file = null
+      this.centerForm.filePreview = null
+      this.centerForm.isPdf = false
+    },
+    async submitCenter() {
+      this.submitting = true
+      try {
+        const fd = new FormData()
+        fd.append('expense_date', this.centerForm.date)
+        fd.append('description', this.centerForm.description)
+        fd.append('amount', this.centerForm.amount)
+        fd.append('file', this.centerForm.file)
+        await createCenterExpense(fd)
+        this.showToast('Center expense submitted! ✅', 'success')
+        this.resetCenter()
+        this.selectedType = null
+        await this.loadHistory()
+      } catch (e) {
+        this.showToast(e.response?.data?.detail || 'Failed to submit', 'error')
+      } finally {
+        this.submitting = false
+      }
+    },
+    resetCenter() {
+      this.centerForm = { file: null, filePreview: null, isPdf: false, date: new Date().toISOString().slice(0, 10), description: '', amount: null }
+    },
   },
 }
 </script>
@@ -359,6 +470,7 @@ export default {
 .staff-page { padding: 28px 0 16px; }
 .page-title { font-family: 'Cinzel', serif; font-size: 26px; font-weight: 800; color: #d4a44c; text-shadow: 0 2px 8px rgba(212,164,76,0.2); margin-bottom: 4px; }
 .page-sub { color: #8b7355; font-size: 14px; font-weight: 600; margin-bottom: 24px; font-style: italic; }
+.center-notice { padding: 10px 14px; border-radius: 10px; background: rgba(52,152,219,0.1); border: 1px solid rgba(52,152,219,0.2); color: #3498db; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
 
 /* Type Picker */
 .type-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }

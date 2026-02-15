@@ -215,6 +215,7 @@ export const spinFortuneWheel = (id) => api.post(`/api/fortune-wheels/${id}/spin
 // --- Expenses ---
 export const createGeneralExpense = (formData) => api.post('/api/expenses/general', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const createTravelExpense = (formData) => api.post('/api/expenses/travel', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+export const createCenterExpense = (formData) => api.post('/api/expenses/center', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const getMyExpenses = () => api.get('/api/expenses/my')
 export const getPendingExpenseApprovals = () => api.get('/api/expenses/pending-approvals')
 export const approveExpense = (id) => api.put(`/api/expenses/${id}/approve`)

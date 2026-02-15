@@ -51,6 +51,8 @@ def auto_migrate():
         "ALTER TABLE badge_quests ADD COLUMN IF NOT EXISTS reward_type VARCHAR(20) DEFAULT 'badge'",
         "ALTER TABLE badge_quests ADD COLUMN IF NOT EXISTS reward_value INTEGER DEFAULT 0",
         "ALTER TABLE badge_quests ALTER COLUMN badge_id DROP NOT NULL",
+        # ── Center Expense enum ──
+        "ALTER TYPE expensetype ADD VALUE IF NOT EXISTS 'CENTER'",
     ]
     try:
         with engine.connect() as conn:

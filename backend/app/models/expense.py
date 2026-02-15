@@ -8,6 +8,7 @@ from datetime import datetime
 class ExpenseType(str, enum.Enum):
     GENERAL = "GENERAL"
     TRAVEL = "TRAVEL"
+    CENTER = "CENTER"
 
 
 class VehicleType(str, enum.Enum):

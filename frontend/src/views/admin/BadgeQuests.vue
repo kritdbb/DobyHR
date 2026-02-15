@@ -92,8 +92,12 @@
 
         <!-- Reward Value (for non-badge types) -->
         <template v-if="form.reward_type !== 'badge'">
-          <label class="form-label">{{ form.reward_type === 'coupon' ? 'ITEM ID (from Coupon Shop)' : 'REWARD AMOUNT' }}</label>
-          <input v-model.number="form.reward_value" type="number" min="1" class="form-input" :placeholder="form.reward_type === 'coupon' ? 'e.g. 6 (item ID)' : 'e.g. 10'" />
+          <label class="form-label">{{ form.reward_type === 'coupon' ? 'COUPON ITEM' : 'REWARD AMOUNT' }}</label>
+          <select v-if="form.reward_type === 'coupon'" v-model="form.reward_value" class="form-input">
+            <option :value="0">— Select Coupon Item —</option>
+            <option v-for="r in rewards" :key="r.id" :value="r.id">{{ r.name }}</option>
+          </select>
+          <input v-else v-model.number="form.reward_value" type="number" min="1" class="form-input" placeholder="e.g. 10" />
         </template>
 
         <!-- Query Input -->
@@ -204,7 +208,7 @@
 </template>
 
 <script>
-import api, { getBadges } from '../../services/api'
+import api, { getBadges, getRewards } from '../../services/api'
 
 export default {
   name: 'BadgeQuests',
@@ -213,6 +217,7 @@ export default {
     return {
       quests: [],
       badges: [],
+      rewards: [],
       fields: [],
       loading: true,
       showModal: false,
@@ -251,14 +256,16 @@ export default {
     async loadAll() {
       this.loading = true
       try {
-        const [questsRes, badgesRes, fieldsRes] = await Promise.all([
+        const [questsRes, badgesRes, fieldsRes, rewardsRes] = await Promise.all([
           api.get('/api/badge-quests/'),
           getBadges(),
           api.get('/api/badge-quests/fields'),
+          getRewards(),
         ])
         this.quests = questsRes.data
         this.badges = badgesRes.data
         this.fields = fieldsRes.data
+        this.rewards = rewardsRes.data
       } catch (e) {
         this.showToast('Failed to load data', 'error')
       }
@@ -389,7 +396,10 @@ export default {
       if (t === 'str') return `+${v} STR`
       if (t === 'def') return `+${v} DEF`
       if (t === 'luk') return `+${v} LUK`
-      if (t === 'coupon') return `Coupon #${v}`
+      if (t === 'coupon') {
+        const item = this.rewards.find(r => r.id === v)
+        return item ? `🎫 ${item.name}` : `Coupon #${v}`
+      }
       return t
     },
     formatDate(d) {

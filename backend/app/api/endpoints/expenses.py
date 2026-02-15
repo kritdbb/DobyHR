@@ -105,6 +105,40 @@ async def create_general_expense(
     db.refresh(exp)
     return _expense_to_dict(exp)
 
+# ───────── CREATE CENTER EXPENSE ─────────
+# Like general but: owner = admin@admin.com, auto-approved
+
+@router.post("/center")
+async def create_center_expense(
+    expense_date: str = Form(...),
+    description: str = Form(...),
+    amount: float = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    admin_user = db.query(User).filter(User.email == "admin@admin.com").first()
+    if not admin_user:
+        raise HTTPException(status_code=400, detail="admin@admin.com user not found")
+
+    file_url = _save_file(file)
+
+    exp = ExpenseRequest(
+        user_id=admin_user.id,
+        expense_type=ExpenseType.CENTER,
+        expense_date=date.fromisoformat(expense_date),
+        description=description,
+        amount=amount,
+        file_path=file_url,
+        total_steps=0,
+        current_step=0,
+        status=ExpenseStatus.ALL_APPROVED,
+    )
+    db.add(exp)
+    db.commit()
+    db.refresh(exp)
+    return _expense_to_dict(exp)
+
 
 # ───────── CREATE TRAVEL EXPENSE ─────────
 

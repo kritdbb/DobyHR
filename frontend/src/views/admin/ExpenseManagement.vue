@@ -44,10 +44,10 @@
             <td>{{ exp.user_name }}</td>
             <td>
               <span class="type-badge" :class="exp.expense_type.toLowerCase()">
-                {{ exp.expense_type === 'GENERAL' ? '📄' : '🚗' }} {{ exp.expense_type }}
+                {{ exp.expense_type === 'GENERAL' ? '📄' : exp.expense_type === 'CENTER' ? '🏢' : '🚗' }} {{ exp.expense_type }}
               </span>
             </td>
-            <td>{{ exp.expense_type === 'GENERAL' ? exp.expense_date : exp.travel_date }}</td>
+            <td>{{ exp.expense_type === 'TRAVEL' ? exp.travel_date : exp.expense_date }}</td>
             <td>
               <template v-if="editingId === exp.id">
                 <input v-model="editForm.description" class="form-input" style="width: 100%; font-size: 12px;" />
@@ -61,7 +61,7 @@
                 <input v-model.number="editForm.amount" type="number" class="form-input" style="width: 80px; font-size: 12px;" />
               </template>
               <template v-else>
-                ฿{{ (exp.expense_type === 'GENERAL' ? exp.amount : exp.total_amount).toLocaleString() }}
+                ฿{{ (exp.expense_type === 'TRAVEL' ? exp.total_amount : exp.amount).toLocaleString() }}
               </template>
             </td>
             <td>
@@ -159,7 +159,7 @@ export default {
     startEdit(exp) {
       this.editingId = exp.id
       this.editForm = {
-        amount: exp.expense_type === 'GENERAL' ? exp.amount : exp.total_amount,
+        amount: exp.expense_type === 'TRAVEL' ? exp.total_amount : exp.amount,
         description: exp.description || '',
         other_cost: exp.other_cost || 0,
       }
@@ -209,6 +209,7 @@ td { padding: 10px 12px; font-size: 13px; color: #e8d5b7; border-bottom: 1px sol
 .type-badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
 .type-badge.general { background: rgba(52,152,219,0.15); color: #3498db; }
 .type-badge.travel { background: rgba(46,204,113,0.15); color: #2ecc71; }
+.type-badge.center { background: rgba(155,89,182,0.15); color: #9b59b6; }
 
 .status-badge {
   font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; white-space: nowrap;
