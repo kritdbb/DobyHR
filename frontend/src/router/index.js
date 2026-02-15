@@ -154,6 +154,10 @@ const routes = [
                 path: 'expense',
                 component: () => import('../views/staff/StaffExpenseRequest.vue')
             },
+            {
+                path: 'revival-records',
+                component: () => import('../views/staff/RevivalRecords.vue')
+            },
         ]
     },
     {

@@ -267,6 +267,49 @@ def rescue_user(
         }
 
 
+@router.get("/rescue/records")
+def get_revival_records(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get revival history for the Hall of Fame."""
+    logs = db.query(CoinLog).filter(
+        CoinLog.reason.ilike("💖 Revived by%"),
+    ).order_by(CoinLog.created_at.desc()).limit(50).all()
+
+    records = []
+    for log in logs:
+        user = db.query(User).filter(User.id == log.user_id).first()
+        # Parse rescuer names from reason: "💖 Revived by Name1, Name2!"
+        rescuers_str = log.reason.replace("💖 Revived by ", "").rstrip("!")
+        rescuer_names = [n.strip() for n in rescuers_str.split(",")]
+
+        # Look up rescuer images
+        rescuers = []
+        for rname in rescuer_names:
+            # Match by first name
+            rescuer = db.query(User).filter(User.name == rname.split()[0] if rname else "").first()
+            rescuers.append({
+                "name": rname,
+                "image": rescuer.image if rescuer else None,
+            })
+
+        records.append({
+            "id": log.id,
+            "revived_user": {
+                "id": user.id if user else None,
+                "name": f"{user.name} {user.surname or ''}".strip() if user else "Unknown",
+                "image": user.image if user else None,
+            },
+            "rescuers": rescuers,
+            "rescuer_count": len(rescuer_names),
+            "gold_given": log.amount,
+            "date": log.created_at.isoformat() if log.created_at else None,
+        })
+
+    return records
+
+
 @router.get("/rescue/pool/{user_id}")
 def get_rescue_pool(
     user_id: int,

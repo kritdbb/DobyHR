@@ -84,6 +84,15 @@
         <span class="service-desc">Fellow adventurers</span>
       </router-link>
 
+      <!-- Row 5 (right): Revival Records -->
+      <router-link to="/staff/revival-records" class="service-card">
+        <div class="icon-wrap">
+          <div class="service-icon">📜</div>
+        </div>
+        <span class="service-label">Revival Records</span>
+        <span class="service-desc">Hall of Fame</span>
+      </router-link>
+
     </div>
 
     <!-- Leave Guild bar -->
