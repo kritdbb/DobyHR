@@ -33,7 +33,7 @@ def seed_data():
                     surname=f"{i}",
                     email=email,
                     hashed_password=get_password_hash("password"),
-                    role=UserRole.STAFF,
+                    role=UserRole.PLAYER,
                     coins=100 + (i*10),
                     sick_leave_days=30,
                     business_leave_days=30,

@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.models.user import User, UserRole
 from app.models.reward import CoinLog
-from app.api.deps import get_current_user, get_current_active_admin
+from app.api.deps import get_current_user, get_current_gm_or_above
 from app.core.security import get_password_hash
 from app.schemas.user import UserCreate, UserUpdate, UserResponse, UserListResponse
 from app.schemas.reward import CoinLogResponse, CoinAdjustRequest
@@ -233,7 +233,7 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db)):
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -304,7 +304,7 @@ def adjust_user_coins(
     user_id: int,
     req: CoinAdjustRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -331,7 +331,7 @@ def get_user_coin_logs(
     current_user: User = Depends(get_current_user)
 ):
     # Allow user to see own logs, or admin to see anyone's
-    if current_user.id != user_id and current_user.role != UserRole.ADMIN:
+    if current_user.id != user_id and current_user.role not in (UserRole.GOD, UserRole.GM):
          raise HTTPException(status_code=403, detail="Not authorized")
          
     return db.query(CoinLog).filter(
@@ -347,7 +347,7 @@ def get_user_angel_coin_logs(
     current_user: User = Depends(get_current_user)
 ):
     """Return only angel-coin-related log entries."""
-    if current_user.id != user_id and current_user.role != UserRole.ADMIN:
+    if current_user.id != user_id and current_user.role not in (UserRole.GOD, UserRole.GM):
          raise HTTPException(status_code=403, detail="Not authorized")
     return (
         db.query(CoinLog)
@@ -361,7 +361,7 @@ def get_user_angel_coin_logs(
 def get_user_attendance(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin),
+    current_user: User = Depends(get_current_gm_or_above),
 ):
     from app.models.attendance import Attendance
     return (
@@ -377,7 +377,7 @@ def get_user_attendance(
 def get_user_leaves(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin),
+    current_user: User = Depends(get_current_gm_or_above),
 ):
     from app.models.leave import LeaveRequest
     return (
@@ -392,7 +392,7 @@ def get_user_leaves(
 def get_user_redemptions(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin),
+    current_user: User = Depends(get_current_gm_or_above),
 ):
     from app.models.reward import Redemption
     return (
@@ -456,7 +456,7 @@ def grant_angel_coins(
     user_id: int,
     req: AngelCoinGrantRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     """Admin grants angel coins to a user."""
     if req.amount <= 0:

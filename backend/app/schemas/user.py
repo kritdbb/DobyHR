@@ -18,7 +18,7 @@ class UserBase(BaseModel):
     start_date: Optional[date] = None
     email: Optional[str] = None
     phone: Optional[str] = None
-    role: Optional[UserRole] = UserRole.STAFF
+    role: Optional[UserRole] = UserRole.PLAYER
     coins: int = 0
     angel_coins: int = 0
     working_days: Optional[str] = "mon,tue,wed,thu,fri"

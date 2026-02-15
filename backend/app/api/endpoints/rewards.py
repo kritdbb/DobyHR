@@ -7,7 +7,7 @@ import os
 from app.core.config import settings
 
 from app.core.database import get_db
-from app.api.deps import get_current_user, get_current_active_admin
+from app.api.deps import get_current_user, get_current_gm_or_above
 from app.models.user import User, UserRole
 from app.models.reward import Reward, Redemption, CoinLog, RedemptionStatus
 from app.schemas.reward import (
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/rewards", tags=["Rewards"])
 def create_reward(
     reward: RewardCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     db_reward = Reward(**reward.dict())
     db.add(db_reward)
@@ -36,7 +36,7 @@ def update_reward(
     reward_id: int,
     reward_in: RewardUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     reward = db.query(Reward).filter(Reward.id == reward_id).first()
     if not reward:
@@ -53,7 +53,7 @@ def update_reward(
 def delete_reward(
     reward_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     reward = db.query(Reward).filter(Reward.id == reward_id).first()
     if not reward:
@@ -76,7 +76,7 @@ async def upload_reward_image(
     reward_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     reward = db.query(Reward).filter(Reward.id == reward_id).first()
     if not reward:
@@ -146,7 +146,7 @@ def get_my_redemptions(
 def get_all_redemptions(
     status: RedemptionStatus = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     query = db.query(Redemption).options(
         joinedload(Redemption.user),
@@ -171,7 +171,7 @@ def get_all_redemptions(
 def verify_redemption(
     qr_code: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin) # HR/Admin only
+    current_user: User = Depends(get_current_gm_or_above) # HR/Admin only
 ):
     redemption = db.query(Redemption).filter(Redemption.qr_code == qr_code).first()
     if not redemption:
@@ -187,7 +187,7 @@ def verify_redemption(
 def handover_redemption(
     qr_code: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     redemption = db.query(Redemption).filter(Redemption.qr_code == qr_code).first()
     if not redemption:

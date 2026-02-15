@@ -1,0 +1,463 @@
+<template>
+  <div class="staff-page">
+    <h1 class="page-title">💰 Expense Request</h1>
+    <p class="page-sub">Submit your expense claims</p>
+
+    <!-- Type Picker -->
+    <div v-if="!selectedType" class="type-picker">
+      <button class="type-card" @click="selectedType = 'general'">
+        <div class="type-icon">📄</div>
+        <span class="type-label">General Expense</span>
+        <span class="type-desc">Bills, receipts &amp; invoices</span>
+      </button>
+      <button class="type-card" @click="selectedType = 'travel'">
+        <div class="type-icon">🚗</div>
+        <span class="type-label">Travel Expense</span>
+        <span class="type-desc">Mileage &amp; transport costs</span>
+      </button>
+    </div>
+
+    <!-- General Expense Form -->
+    <div v-if="selectedType === 'general'" class="form-section">
+      <button class="back-btn" @click="selectedType = null">← Back</button>
+      <h2 class="section-title">📄 General Expense</h2>
+
+      <div class="form-group">
+        <label>Upload Receipt (Image or PDF)</label>
+        <div class="file-drop" @click="$refs.generalFile.click()" @dragover.prevent @drop.prevent="onDropGeneral">
+          <input ref="generalFile" type="file" accept="image/*,.pdf" style="display:none" @change="onGeneralFileChange" />
+          <div v-if="!generalForm.file" class="drop-text">
+            <span class="drop-icon">📎</span>
+            <span>Tap or drag to upload</span>
+          </div>
+          <div v-else class="file-preview">
+            <img v-if="generalForm.filePreview && !generalForm.isPdf" :src="generalForm.filePreview" class="preview-img" />
+            <div v-else class="pdf-badge">📄 {{ generalForm.file.name }}</div>
+            <button class="remove-btn" @click.stop="removeGeneralFile">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Expense Date</label>
+        <input v-model="generalForm.date" type="date" class="form-input" />
+      </div>
+
+      <div class="form-group">
+        <label>Description</label>
+        <input v-model="generalForm.description" type="text" class="form-input" placeholder="What is this expense for?" />
+      </div>
+
+      <div class="form-group">
+        <label>Amount (฿)</label>
+        <input v-model.number="generalForm.amount" type="number" class="form-input" placeholder="0.00" />
+      </div>
+
+      <button class="submit-btn" :disabled="submitting || !canSubmitGeneral" @click="submitGeneral">
+        {{ submitting ? 'Submitting...' : '📤 Submit Request' }}
+      </button>
+    </div>
+
+    <!-- Travel Expense Form -->
+    <div v-if="selectedType === 'travel'" class="form-section">
+      <button class="back-btn" @click="selectedType = null">← Back</button>
+      <h2 class="section-title">🚗 Travel Expense</h2>
+
+      <div class="form-group">
+        <label>Travel Date</label>
+        <input v-model="travelForm.date" type="date" class="form-input" />
+      </div>
+
+      <div class="form-group">
+        <label>Description</label>
+        <input v-model="travelForm.description" type="text" class="form-input" placeholder="Where & why? e.g. ไปพบลูกค้า จ.ชลบุรี" />
+      </div>
+
+      <div class="form-group">
+        <label>Vehicle Type</label>
+        <div class="vehicle-picker">
+          <button :class="['vehicle-btn', travelForm.vehicleType === 'CAR' ? 'active' : '']" @click="travelForm.vehicleType = 'CAR'">
+            🚗 Car (฿10/km)
+          </button>
+          <button :class="['vehicle-btn', travelForm.vehicleType === 'MOTORCYCLE' ? 'active' : '']" @click="travelForm.vehicleType = 'MOTORCYCLE'">
+            🏍️ Motorcycle (฿5/km)
+          </button>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="form-group">
+          <label>KM Outbound</label>
+          <input v-model.number="travelForm.kmOut" type="number" class="form-input" placeholder="0" />
+        </div>
+        <div class="form-group">
+          <label>KM Return</label>
+          <input v-model.number="travelForm.kmReturn" type="number" class="form-input" placeholder="0" />
+        </div>
+      </div>
+
+      <div class="cost-summary">
+        <div class="cost-row"><span>Travel Cost</span><span>฿{{ travelCost.toLocaleString() }}</span></div>
+      </div>
+
+      <!-- Outbound / Return images -->
+      <div class="two-col">
+        <div class="form-group">
+          <label>📸 Outbound Photo</label>
+          <div class="file-drop small" @click="$refs.outImg.click()">
+            <input ref="outImg" type="file" accept="image/*" style="display:none" @change="onOutboundImg" />
+            <div v-if="!travelForm.outboundPreview" class="drop-text"><span>📎 Upload</span></div>
+            <div v-else class="file-preview">
+              <img :src="travelForm.outboundPreview" class="preview-img" />
+              <button class="remove-btn" @click.stop="travelForm.outboundFile=null;travelForm.outboundPreview=null">✕</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>📸 Return Photo</label>
+          <div class="file-drop small" @click="$refs.retImg.click()">
+            <input ref="retImg" type="file" accept="image/*" style="display:none" @change="onReturnImg" />
+            <div v-if="!travelForm.returnPreview" class="drop-text"><span>📎 Upload</span></div>
+            <div v-else class="file-preview">
+              <img :src="travelForm.returnPreview" class="preview-img" />
+              <button class="remove-btn" @click.stop="travelForm.returnFile=null;travelForm.returnPreview=null">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Other costs -->
+      <h3 class="sub-title">Other Costs (Tolls, etc.)</h3>
+      <div class="form-group">
+        <label>Other Cost Amount (฿)</label>
+        <input v-model.number="travelForm.otherCost" type="number" class="form-input" placeholder="0.00" />
+      </div>
+      <div class="form-group">
+        <label>Upload Receipts (multiple)</label>
+        <div class="file-drop" @click="$refs.otherFiles.click()">
+          <input ref="otherFiles" type="file" accept="image/*,.pdf" multiple style="display:none" @change="onOtherFiles" />
+          <div v-if="travelForm.otherFiles.length === 0" class="drop-text"><span class="drop-icon">📎</span><span>Tap to upload receipts</span></div>
+          <div v-else class="multi-preview">
+            <div v-for="(f, i) in travelForm.otherPreviews" :key="i" class="mini-thumb">
+              <img :src="f" class="preview-img" />
+              <button class="remove-btn mini" @click.stop="removeOtherFile(i)">✕</button>
+            </div>
+            <div class="add-more" @click.stop="$refs.otherFiles.click()">+</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cost-summary total">
+        <div class="cost-row"><span>Travel Cost</span><span>฿{{ travelCost.toLocaleString() }}</span></div>
+        <div class="cost-row"><span>Other Cost</span><span>฿{{ (travelForm.otherCost || 0).toLocaleString() }}</span></div>
+        <div class="cost-row grand"><span>Grand Total</span><span>฿{{ grandTotal.toLocaleString() }}</span></div>
+      </div>
+
+      <button class="submit-btn" :disabled="submitting || !canSubmitTravel" @click="submitTravel">
+        {{ submitting ? 'Submitting...' : '📤 Submit Request' }}
+      </button>
+    </div>
+
+    <!-- My Expense History -->
+    <div v-if="!selectedType" class="history-section">
+      <h2 class="section-title">📋 My Requests</h2>
+      <div v-if="myExpenses.length === 0" class="empty-state">
+        <div class="empty-icon">💰</div>
+        <p class="empty-text">No expense requests yet</p>
+      </div>
+      <div v-for="exp in myExpenses" :key="exp.id" class="history-card">
+        <div class="history-header">
+          <span class="history-type">{{ exp.expense_type === 'GENERAL' ? '📄' : '🚗' }} {{ exp.expense_type }}</span>
+          <span :class="'status-badge ' + exp.status.toLowerCase()">{{ exp.status }}</span>
+        </div>
+        <div class="history-details">
+          <span>{{ exp.expense_type === 'GENERAL' ? exp.expense_date : exp.travel_date }}</span>
+          <span class="history-amount">฿{{ (exp.expense_type === 'GENERAL' ? exp.amount : exp.total_amount).toLocaleString() }}</span>
+        </div>
+        <div v-if="exp.description" class="history-desc">{{ exp.description }}</div>
+        <div v-if="exp.status === 'PENDING'" class="history-progress">
+          Approval: {{ exp.current_step }}/{{ exp.total_steps }}
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { createGeneralExpense, createTravelExpense, getMyExpenses } from '../../services/api'
+
+export default {
+  name: 'StaffExpenseRequest',
+  inject: ['showToast'],
+  data() {
+    return {
+      selectedType: null,
+      submitting: false,
+      myExpenses: [],
+      generalForm: {
+        file: null,
+        filePreview: null,
+        isPdf: false,
+        date: new Date().toISOString().slice(0, 10),
+        description: '',
+        amount: null,
+      },
+      travelForm: {
+        date: new Date().toISOString().slice(0, 10),
+        description: '',
+        vehicleType: 'CAR',
+        kmOut: null,
+        kmReturn: null,
+        otherCost: 0,
+        outboundFile: null,
+        outboundPreview: null,
+        returnFile: null,
+        returnPreview: null,
+        otherFiles: [],
+        otherPreviews: [],
+      },
+    }
+  },
+  computed: {
+    travelCost() {
+      const rate = this.travelForm.vehicleType === 'CAR' ? 10 : 5
+      return ((this.travelForm.kmOut || 0) + (this.travelForm.kmReturn || 0)) * rate
+    },
+    grandTotal() {
+      return this.travelCost + (this.travelForm.otherCost || 0)
+    },
+    canSubmitGeneral() {
+      return this.generalForm.file && this.generalForm.date && this.generalForm.description && this.generalForm.amount > 0
+    },
+    canSubmitTravel() {
+      return this.travelForm.date && this.travelForm.outboundFile && this.travelForm.returnFile && (this.travelForm.kmOut > 0 || this.travelForm.kmReturn > 0)
+    },
+  },
+  async mounted() {
+    await this.loadHistory()
+  },
+  methods: {
+    async loadHistory() {
+      try {
+        const res = await getMyExpenses()
+        this.myExpenses = res.data || []
+      } catch (e) { console.error(e) }
+    },
+
+    // General file handlers
+    onGeneralFileChange(e) {
+      const file = e.target.files[0]
+      if (!file) return
+      this.setGeneralFile(file)
+    },
+    onDropGeneral(e) {
+      const file = e.dataTransfer.files[0]
+      if (file) this.setGeneralFile(file)
+    },
+    setGeneralFile(file) {
+      this.generalForm.file = file
+      this.generalForm.isPdf = file.type === 'application/pdf'
+      if (!this.generalForm.isPdf) {
+        const reader = new FileReader()
+        reader.onload = (e) => { this.generalForm.filePreview = e.target.result }
+        reader.readAsDataURL(file)
+      } else {
+        this.generalForm.filePreview = null
+      }
+    },
+    removeGeneralFile() {
+      this.generalForm.file = null
+      this.generalForm.filePreview = null
+      this.generalForm.isPdf = false
+    },
+
+    // Travel image handlers
+    onOutboundImg(e) {
+      const file = e.target.files[0]
+      if (!file) return
+      this.travelForm.outboundFile = file
+      const reader = new FileReader()
+      reader.onload = (ev) => { this.travelForm.outboundPreview = ev.target.result }
+      reader.readAsDataURL(file)
+    },
+    onReturnImg(e) {
+      const file = e.target.files[0]
+      if (!file) return
+      this.travelForm.returnFile = file
+      const reader = new FileReader()
+      reader.onload = (ev) => { this.travelForm.returnPreview = ev.target.result }
+      reader.readAsDataURL(file)
+    },
+    onOtherFiles(e) {
+      for (const file of e.target.files) {
+        this.travelForm.otherFiles.push(file)
+        const reader = new FileReader()
+        reader.onload = (ev) => { this.travelForm.otherPreviews.push(ev.target.result) }
+        reader.readAsDataURL(file)
+      }
+    },
+    removeOtherFile(i) {
+      this.travelForm.otherFiles.splice(i, 1)
+      this.travelForm.otherPreviews.splice(i, 1)
+    },
+
+    // Submissions
+    async submitGeneral() {
+      this.submitting = true
+      try {
+        const fd = new FormData()
+        fd.append('expense_date', this.generalForm.date)
+        fd.append('description', this.generalForm.description)
+        fd.append('amount', this.generalForm.amount)
+        fd.append('file', this.generalForm.file)
+        await createGeneralExpense(fd)
+        this.showToast('Expense submitted! ✅', 'success')
+        this.resetGeneral()
+        this.selectedType = null
+        await this.loadHistory()
+      } catch (e) {
+        this.showToast(e.response?.data?.detail || 'Failed to submit', 'error')
+      } finally {
+        this.submitting = false
+      }
+    },
+    async submitTravel() {
+      this.submitting = true
+      try {
+        const fd = new FormData()
+        fd.append('travel_date', this.travelForm.date)
+        fd.append('vehicle_type', this.travelForm.vehicleType)
+        fd.append('km_outbound', this.travelForm.kmOut)
+        fd.append('km_return', this.travelForm.kmReturn)
+        fd.append('description', this.travelForm.description || '')
+        fd.append('other_cost', this.travelForm.otherCost || 0)
+        fd.append('outbound_image', this.travelForm.outboundFile)
+        fd.append('return_image', this.travelForm.returnFile)
+        this.travelForm.otherFiles.forEach(f => fd.append('other_files', f))
+        await createTravelExpense(fd)
+        this.showToast('Travel expense submitted! ✅', 'success')
+        this.resetTravel()
+        this.selectedType = null
+        await this.loadHistory()
+      } catch (e) {
+        this.showToast(e.response?.data?.detail || 'Failed to submit', 'error')
+      } finally {
+        this.submitting = false
+      }
+    },
+    resetGeneral() {
+      this.generalForm = { file: null, filePreview: null, isPdf: false, date: new Date().toISOString().slice(0, 10), description: '', amount: null }
+    },
+    resetTravel() {
+      this.travelForm = { date: new Date().toISOString().slice(0, 10), description: '', vehicleType: 'CAR', kmOut: null, kmReturn: null, otherCost: 0, outboundFile: null, outboundPreview: null, returnFile: null, returnPreview: null, otherFiles: [], otherPreviews: [] }
+    },
+  },
+}
+</script>
+
+<style scoped>
+.staff-page { padding: 28px 0 16px; }
+.page-title { font-family: 'Cinzel', serif; font-size: 26px; font-weight: 800; color: #d4a44c; text-shadow: 0 2px 8px rgba(212,164,76,0.2); margin-bottom: 4px; }
+.page-sub { color: #8b7355; font-size: 14px; font-weight: 600; margin-bottom: 24px; font-style: italic; }
+
+/* Type Picker */
+.type-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+.type-card {
+  display: flex; flex-direction: column; align-items: center; padding: 28px 16px;
+  border-radius: 14px; border: 2px solid rgba(212,164,76,0.2);
+  background: linear-gradient(145deg, rgba(44,24,16,0.8), rgba(26,26,46,0.9));
+  color: #e8d5b7; cursor: pointer; transition: all 0.2s;
+}
+.type-card:hover { border-color: #d4a44c; transform: translateY(-3px); box-shadow: 0 8px 28px rgba(212,164,76,0.15); }
+.type-icon { font-size: 36px; margin-bottom: 10px; }
+.type-label { font-family: 'Cinzel', serif; font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.type-desc { font-size: 12px; color: #8b7355; }
+
+/* Form */
+.form-section { animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.back-btn { background: none; border: none; color: #d4a44c; font-weight: 700; font-size: 14px; cursor: pointer; margin-bottom: 16px; padding: 0; }
+.section-title { font-family: 'Cinzel', serif; font-size: 20px; color: #e8d5b7; margin-bottom: 18px; }
+.sub-title { font-family: 'Cinzel', serif; font-size: 15px; color: #d4a44c; margin: 18px 0 10px; }
+
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 13px; font-weight: 700; color: #d4a44c; margin-bottom: 6px; }
+.form-input {
+  width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(212,164,76,0.3);
+  background: rgba(26,26,46,0.6); color: #e8d5b7; font-size: 14px; box-sizing: border-box;
+}
+.form-input:focus { outline: none; border-color: #d4a44c; }
+
+/* File Drop */
+.file-drop {
+  border: 2px dashed rgba(212,164,76,0.3); border-radius: 12px; padding: 24px;
+  text-align: center; cursor: pointer; transition: border-color 0.2s; min-height: 80px;
+  display: flex; align-items: center; justify-content: center;
+}
+.file-drop.small { padding: 14px; min-height: 60px; }
+.file-drop:hover { border-color: #d4a44c; }
+.drop-text { color: #8b7355; font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.drop-icon { font-size: 24px; }
+.file-preview { position: relative; display: inline-block; }
+.preview-img { max-height: 120px; border-radius: 8px; object-fit: cover; }
+.pdf-badge { background: rgba(212,164,76,0.15); border-radius: 8px; padding: 10px 16px; color: #d4a44c; font-weight: 700; font-size: 13px; }
+.remove-btn { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; background: #c0392b; color: #fff; border: 2px solid rgba(44,24,16,0.9); font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.remove-btn.mini { width: 18px; height: 18px; font-size: 9px; top: -4px; right: -4px; }
+
+/* Multi Preview */
+.multi-preview { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.mini-thumb { position: relative; }
+.mini-thumb .preview-img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; }
+.add-more { width: 60px; height: 60px; border-radius: 6px; border: 2px dashed rgba(212,164,76,0.3); display: flex; align-items: center; justify-content: center; color: #d4a44c; font-size: 24px; cursor: pointer; }
+
+/* Vehicle Picker */
+.vehicle-picker { display: flex; gap: 10px; }
+.vehicle-btn {
+  flex: 1; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 700;
+  border: 2px solid rgba(212,164,76,0.2); background: rgba(26,26,46,0.6); color: #8b7355; cursor: pointer; transition: all 0.2s;
+}
+.vehicle-btn.active { border-color: #d4a44c; color: #e8d5b7; background: rgba(212,164,76,0.15); }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* Cost Summary */
+.cost-summary { background: rgba(26,26,46,0.6); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; border: 1px solid rgba(212,164,76,0.15); }
+.cost-summary.total { border-color: rgba(212,164,76,0.4); }
+.cost-row { display: flex; justify-content: space-between; font-size: 14px; color: #e8d5b7; padding: 4px 0; }
+.cost-row.grand { font-weight: 800; font-size: 16px; color: #d4a44c; border-top: 1px solid rgba(212,164,76,0.2); padding-top: 8px; margin-top: 4px; }
+
+/* Submit */
+.submit-btn {
+  width: 100%; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 800;
+  border: none; cursor: pointer; color: #1c1208;
+  background: linear-gradient(135deg, #d4a44c, #b8860b);
+  box-shadow: 0 4px 15px rgba(212,164,76,0.25); transition: all 0.2s;
+}
+.submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(212,164,76,0.35); }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* History */
+.history-section { margin-top: 28px; }
+.empty-state { text-align: center; padding: 32px 0; }
+.empty-icon { font-size: 36px; margin-bottom: 8px; }
+.empty-text { color: #8b7355; font-weight: 600; }
+
+.history-card {
+  background: rgba(26,26,46,0.7); border: 1px solid rgba(212,164,76,0.15); border-radius: 12px;
+  padding: 14px 16px; margin-bottom: 10px;
+}
+.history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.history-type { font-weight: 700; font-size: 14px; color: #e8d5b7; }
+.history-details { display: flex; justify-content: space-between; font-size: 13px; color: #8b7355; }
+.history-amount { font-weight: 800; color: #d4a44c; }
+.history-desc { font-size: 12px; color: #8b7355; margin-top: 4px; }
+.history-progress { font-size: 12px; color: #e67e22; margin-top: 4px; font-weight: 700; }
+
+.status-badge {
+  font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px; text-transform: uppercase;
+}
+.status-badge.pending { background: rgba(230,126,34,0.2); color: #e67e22; }
+.status-badge.all_approved { background: rgba(46,204,113,0.2); color: #2ecc71; }
+.status-badge.confirmed { background: rgba(52,152,219,0.2); color: #3498db; }
+.status-badge.rejected { background: rgba(192,57,43,0.2); color: #c0392b; }
+</style>

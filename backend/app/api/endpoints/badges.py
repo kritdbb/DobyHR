@@ -43,7 +43,7 @@ def create_badge(
     stat_luk: int = Form(0),
     file: UploadFile = File(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     """Admin creates a new badge with optional image upload and stat bonuses."""
     badge = Badge(name=name, description=description, stat_str=stat_str, stat_def=stat_def, stat_luk=stat_luk)
@@ -78,7 +78,7 @@ def update_badge(
     stat_luk: int = Form(0),
     file: UploadFile = File(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     """Admin edits an existing badge."""
     badge = db.query(Badge).filter(Badge.id == badge_id).first()
@@ -270,7 +270,7 @@ def buy_magic_item(
 def delete_badge(
     badge_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     badge = db.query(Badge).filter(Badge.id == badge_id).first()
     if not badge:
@@ -287,7 +287,7 @@ def award_badge(
     badge_id: int,
     req: AwardBadgeRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     """Award a badge to one or more users."""
     badge = db.query(Badge).filter(Badge.id == badge_id).first()
@@ -315,7 +315,7 @@ def revoke_badge(
     badge_id: int,
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     ub = db.query(UserBadge).filter(
         UserBadge.user_id == user_id, UserBadge.badge_id == badge_id
@@ -333,7 +333,7 @@ def revoke_badge(
 def get_badge_holders(
     badge_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     """Get all users who hold a specific badge."""
     holders = db.query(UserBadge).filter(UserBadge.badge_id == badge_id).all()

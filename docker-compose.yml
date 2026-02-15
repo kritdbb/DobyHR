@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-hr_db}
     ports:
-      - "18102:5432"
+      - "127.0.0.1:18102:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -25,7 +25,7 @@ services:
       - ./backend:/app
       - uploads_data:/app/uploads
     ports:
-      - "18100:8000"
+      - "127.0.0.1:18100:8000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-hr_db}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}

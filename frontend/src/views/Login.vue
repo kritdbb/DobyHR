@@ -55,7 +55,7 @@ export default {
 
       if (this.$router.currentRoute.value.query.redirect) {
         this.$router.push(this.$router.currentRoute.value.query.redirect)
-      } else if (data.role === 'admin') {
+      } else if (['god', 'gm'].includes(data.role)) {
         this.$router.push('/company')
       } else {
         this.$router.push('/staff/check-in')

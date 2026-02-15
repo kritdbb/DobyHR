@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 from app.core.database import get_db
-from app.api.deps import get_current_active_admin
+from app.api.deps import get_current_gm_or_above
 from app.models.user import User, UserRole
 from app.models.attendance import Attendance
 from app.models.leave import LeaveRequest, LeaveStatus
@@ -20,7 +20,7 @@ DAY_MAP = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
 def process_absent_penalties(
     target_date: Optional[date] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     """
     Process absent penalties for a given date (default: yesterday).
@@ -40,7 +40,7 @@ def process_absent_penalties(
     day_code = DAY_MAP.get(target_date.weekday(), "")
     
     # Find all staff users
-    users = db.query(User).filter(User.role == UserRole.STAFF).all()
+    users = db.query(User).filter(User.role == UserRole.PLAYER).all()
     
     penalized = []
     skipped_non_working = 0

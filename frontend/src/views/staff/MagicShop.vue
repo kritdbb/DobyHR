@@ -4,118 +4,156 @@
       <router-link to="/staff/services" class="ms-back">← Back</router-link>
       <h1 class="page-title">🔮 Magic Shop</h1>
       <p class="page-sub">Spend your Gold on mystic arts</p>
-      <div class="ms-gold">💰 {{ myCoins }} Gold</div>
+      <div class="ms-gold">💰 {{ myCoins }} Gold &nbsp; ✨ {{ myMana }} Mana</div>
     </div>
 
-    <div class="magic-grid">
-      <!-- Magic Lottery -->
-      <div class="magic-card lottery-card">
-        <div class="magic-icon">🎲</div>
-        <div class="magic-name">Magic Lottery</div>
-        <div class="magic-desc">Roll the dice! Pay 3 Gold, result: -6 to +8 Gold</div>
-        <div class="magic-cost">Cost: 💰 3</div>
-        <button class="magic-buy lottery-btn" :disabled="buying || myCoins < 3" @click="buyLottery">
-          {{ buying === 'magic_lottery' ? '🎲 Rolling...' : '🎲 Try Luck!' }}
-        </button>
-      </div>
-
-      <!-- Scroll of Luck -->
-      <div class="magic-card scroll-card luk">
-        <div class="magic-icon">🍀</div>
-        <div class="magic-name">Scroll of Luck</div>
-        <div class="magic-desc">Permanently gain +1 LUK</div>
-        <div class="magic-cost">Cost: 💰 1</div>
-        <button class="magic-buy" :disabled="buying || myCoins < 1" @click="buy('scroll_of_luck')">
-          {{ buying === 'scroll_of_luck' ? 'Learning...' : 'Buy Scroll' }}
-        </button>
-        <div v-if="lastResult && lastResult.item === 'Scroll of Luck'" class="magic-result win">
-          🍀 LUK is now {{ lastResult.new_value }}!
+    <!-- ═══ Section 1: Scroll Emporium ═══ -->
+    <div class="ms-section">
+      <div class="ms-section-header">
+        <span class="ms-section-icon">📜</span>
+        <div>
+          <h2 class="ms-section-title">Scroll Emporium</h2>
+          <p class="ms-section-sub">Enhance your stats permanently</p>
         </div>
       </div>
-
-      <!-- Scroll of Strength -->
-      <div class="magic-card scroll-card str">
-        <div class="magic-icon">⚔️</div>
-        <div class="magic-name">Scroll of Strength</div>
-        <div class="magic-desc">Permanently gain +1 STR</div>
-        <div class="magic-cost">Cost: 💰 1</div>
-        <button class="magic-buy" :disabled="buying || myCoins < 1" @click="buy('scroll_of_strength')">
-          {{ buying === 'scroll_of_strength' ? 'Learning...' : 'Buy Scroll' }}
-        </button>
-        <div v-if="lastResult && lastResult.item === 'Scroll of Strength'" class="magic-result win">
-          ⚔️ STR is now {{ lastResult.new_value }}!
-        </div>
-      </div>
-
-      <!-- Scroll of Defense -->
-      <div class="magic-card scroll-card def">
-        <div class="magic-icon">🛡️</div>
-        <div class="magic-name">Scroll of Defense</div>
-        <div class="magic-desc">Permanently gain +1 DEF</div>
-        <div class="magic-cost">Cost: 💰 1</div>
-        <button class="magic-buy" :disabled="buying || myCoins < 1" @click="buy('scroll_of_defense')">
-          {{ buying === 'scroll_of_defense' ? 'Learning...' : 'Buy Scroll' }}
-        </button>
-        <div v-if="lastResult && lastResult.item === 'Scroll of Defense'" class="magic-result win">
-          🛡️ DEF is now {{ lastResult.new_value }}!
-        </div>
-      </div>
-
-      <!-- Title Scroll -->
-      <div class="magic-card scroll-card title">
-        <div class="magic-icon">📜</div>
-        <div class="magic-name">Title Scroll</div>
-        <div class="magic-desc">Write your own status (70 chars)</div>
-        <div class="magic-cost">Cost: 💰 1</div>
-        <div class="title-input-wrap">
-          <input
-            v-model="titleText"
-            type="text"
-            maxlength="70"
-            placeholder="Enter your status..."
-            class="title-input"
-            :disabled="buying"
-          />
-          <span class="title-counter">{{ titleText.length }}/70</span>
-        </div>
-        <button class="magic-buy title-btn" :disabled="buying || myCoins < 1 || !titleText.trim()" @click="buyTitle">
-          {{ buying === 'title_scroll' ? 'Writing...' : '📜 Set Status' }}
-        </button>
-        <div v-if="currentStatus" class="title-current">💬 {{ currentStatus }}</div>
-        <div v-if="lastResult && lastResult.item === 'Title Scroll'" class="magic-result win">
-          ✨ Status updated!
-        </div>
-      </div>
-    </div>
-
-    <!-- Lottery Spin Popup Overlay -->
-    <div v-if="showLotteryPopup" class="lottery-overlay">
-      <div class="lottery-popup">
-        <div class="lottery-title">🎲 Magic Lottery 🎲</div>
-        <div class="lottery-subtitle">Spending 3 Gold...</div>
-
-        <div class="lottery-wheel-wrap">
-          <div class="lottery-number" :class="{ spinning: isSpinning, reveal: isRevealed, 'is-win': isRevealed && lotteryWon > 3, 'is-lose': isRevealed && lotteryWon < 3 }">
-            {{ displayNumber }}
+      <div class="magic-grid">
+        <div class="magic-card scroll-card luk">
+          <div class="magic-icon">🍀</div>
+          <div class="magic-name">Scroll of Luck</div>
+          <div class="magic-desc">Permanently gain +1 LUK</div>
+          <div class="magic-cost">Cost: 💰 1</div>
+          <button class="magic-buy" :disabled="buying || myCoins < 1" @click="buy('scroll_of_luck')">
+            {{ buying === 'scroll_of_luck' ? 'Learning...' : 'Buy Scroll' }}
+          </button>
+          <div v-if="lastResult && lastResult.item === 'Scroll of Luck'" class="magic-result win">
+            🍀 LUK is now {{ lastResult.new_value }}!
           </div>
         </div>
 
-        <div v-if="isRevealed" class="lottery-result-text" :class="lotteryWon >= 3 ? 'win-text' : 'lose-text'">
-          <template v-if="lotteryWon > 0">🎉 You got {{ lotteryWon }} Gold! ({{ lotteryWon - 3 >= 0 ? '+' : '' }}{{ lotteryWon - 3 }} net)</template>
-          <template v-else-if="lotteryWon === 0">😐 Zero! You lost 3 Gold</template>
-          <template v-else>💀 Cursed! {{ lotteryWon }} Gold ({{ lotteryWon - 3 }} net)</template>
+        <div class="magic-card scroll-card str">
+          <div class="magic-icon">⚔️</div>
+          <div class="magic-name">Scroll of Strength</div>
+          <div class="magic-desc">Permanently gain +1 STR</div>
+          <div class="magic-cost">Cost: 💰 1</div>
+          <button class="magic-buy" :disabled="buying || myCoins < 1" @click="buy('scroll_of_strength')">
+            {{ buying === 'scroll_of_strength' ? 'Learning...' : 'Buy Scroll' }}
+          </button>
+          <div v-if="lastResult && lastResult.item === 'Scroll of Strength'" class="magic-result win">
+            ⚔️ STR is now {{ lastResult.new_value }}!
+          </div>
         </div>
 
-        <button v-if="isRevealed" class="lottery-close-btn" @click="closeLotteryPopup">
-          {{ lotteryWon >= 3 ? '🎉 Nice!' : '😤 Try Again' }}
+        <div class="magic-card scroll-card def">
+          <div class="magic-icon">🛡️</div>
+          <div class="magic-name">Scroll of Defense</div>
+          <div class="magic-desc">Permanently gain +1 DEF</div>
+          <div class="magic-cost">Cost: 💰 1</div>
+          <button class="magic-buy" :disabled="buying || myCoins < 1" @click="buy('scroll_of_defense')">
+            {{ buying === 'scroll_of_defense' ? 'Learning...' : 'Buy Scroll' }}
+          </button>
+          <div v-if="lastResult && lastResult.item === 'Scroll of Defense'" class="magic-result win">
+            🛡️ DEF is now {{ lastResult.new_value }}!
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Section 2: Custom Workshop ═══ -->
+    <div class="ms-section">
+      <div class="ms-section-header">
+        <span class="ms-section-icon">⚗️</span>
+        <div>
+          <h2 class="ms-section-title">Custom Workshop</h2>
+          <p class="ms-section-sub">Craft your own identity</p>
+        </div>
+      </div>
+      <div class="magic-grid">
+        <div class="magic-card scroll-card title">
+          <div class="magic-icon">📜</div>
+          <div class="magic-name">Title Scroll</div>
+          <div class="magic-desc">Write your own status (70 chars)</div>
+          <div class="magic-cost">Cost: 💰 1</div>
+          <div class="title-input-wrap">
+            <input
+              v-model="titleText"
+              type="text"
+              maxlength="70"
+              placeholder="Enter your status..."
+              class="title-input"
+              :disabled="buying"
+            />
+            <span class="title-counter">{{ titleText.length }}/70</span>
+          </div>
+          <button class="magic-buy title-btn" :disabled="buying || myCoins < 1 || !titleText.trim()" @click="buyTitle">
+            {{ buying === 'title_scroll' ? 'Writing...' : '📜 Set Status' }}
+          </button>
+          <div v-if="currentStatus" class="title-current">💬 {{ currentStatus }}</div>
+          <div v-if="lastResult && lastResult.item === 'Title Scroll'" class="magic-result win">
+            ✨ Status updated!
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Section 3: Lucky Zone ═══ -->
+    <div class="ms-section" v-if="fortuneWheels.length > 0">
+      <div class="ms-section-header">
+        <span class="ms-section-icon">🎰</span>
+        <div>
+          <h2 class="ms-section-title">Lucky Zone</h2>
+          <p class="ms-section-sub">Test your fate with fortune wheels</p>
+        </div>
+      </div>
+      <div class="magic-grid">
+        <div v-for="fw in fortuneWheels" :key="'fw-' + fw.id" class="magic-card fw-card">
+          <div class="magic-icon">🎡</div>
+          <div class="magic-name">{{ fw.name }}</div>
+          <div class="magic-desc">Spin the wheel for a chance to win prizes!</div>
+          <div class="magic-cost">Cost: {{ fw.currency === 'gold' ? '💰' : '✨' }} {{ fw.price }} {{ fw.currency === 'gold' ? 'Gold' : 'Mana' }}</div>
+          <button class="magic-buy fw-buy-btn" :disabled="buying || (fw.currency === 'gold' ? myCoins < fw.price : myMana < fw.price)" @click="openWheelPopup(fw)">
+            🎡 Spin!
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fortune Wheel Spin Popup Overlay -->
+    <div v-if="showWheelPopup" class="fw-overlay">
+      <div class="fw-popup">
+        <button class="fw-popup-close" @click="closeWheelPopup" :disabled="fwSpinning">✕</button>
+        <div class="fw-popup-title">🎡 {{ activeWheel?.name || 'Fortune Wheel' }}</div>
+        <div class="fw-popup-subtitle">{{ activeWheel?.currency === 'gold' ? '💰' : '✨' }} {{ activeWheel?.price }} {{ activeWheel?.currency === 'gold' ? 'Gold' : 'Mana' }}</div>
+
+        <div class="fw-popup-wheel-container">
+          <div class="fw-popup-glow" :class="{ spinning: fwSpinning, won: fwResult && !fwSpinning }"></div>
+          <div class="fw-popup-pointer">
+            <svg width="30" height="38" viewBox="0 0 36 44">
+              <polygon points="18,44 4,8 18,16 32,8" fill="#ffd700" stroke="#8b6914" stroke-width="1.5"/>
+              <circle cx="18" cy="10" r="5" fill="#ffd700" stroke="#8b6914" stroke-width="1"/>
+            </svg>
+          </div>
+          <canvas ref="fwCanvas" :width="fwSize" :height="fwSize" class="fw-popup-canvas" :style="fwWheelStyle"></canvas>
+          <div class="fw-popup-hub">⚜</div>
+        </div>
+
+        <button v-if="!fwSpinning && !fwResult" class="fw-popup-spin-btn" @click="spinFortuneWheel" :disabled="fwSpinning">
+          ⚔️ SPIN!
         </button>
+
+        <transition name="result-fade">
+          <div v-if="fwResult && !fwSpinning" class="fw-popup-result">
+            <div class="fw-popup-result-title">{{ fwResult.message }}</div>
+            <div class="fw-popup-result-sparks">✦ ✧ ✦</div>
+            <button class="fw-popup-done-btn" @click="closeWheelPopup">Continue</button>
+          </div>
+        </transition>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { buyMagicItem } from '../../services/api'
+import { buyMagicItem, getActiveFortuneWheels, spinFortuneWheel } from '../../services/api'
 
 export default {
   name: 'MagicShop',
@@ -124,95 +162,45 @@ export default {
       myCoins: 0,
       buying: null,
       lastResult: null,
-      // Lottery popup
-      showLotteryPopup: false,
-      isSpinning: false,
-      isRevealed: false,
-      displayNumber: 0,
-      lotteryWon: 0,
-      spinInterval: null,
-      // Title Scroll
       titleText: '',
       currentStatus: '',
+      // Fortune Wheels
+      fortuneWheels: [],
+      myMana: 0,
+      showWheelPopup: false,
+      activeWheel: null,
+      fwSpinning: false,
+      fwResult: null,
+      fwSize: 340,
+      fwRotation: 0,
+      fwUseTransition: false,
+      fwSpinDuration: 0,
     }
+  },
+  computed: {
+    fwWheelStyle() {
+      return {
+        transform: `rotate(${this.fwRotation}deg)`,
+        transition: this.fwUseTransition
+          ? `transform ${this.fwSpinDuration}s cubic-bezier(0.15, 0.60, 0.07, 1.0)`
+          : 'none',
+      }
+    },
   },
   mounted() {
     this.refreshCoins()
-  },
-  beforeUnmount() {
-    if (this.spinInterval) clearInterval(this.spinInterval)
+    this.loadFortuneWheels()
   },
   methods: {
     async refreshCoins() {
       try {
         const { data } = await import('../../services/api').then(m => m.default.get('/api/users/me'))
         this.myCoins = data.coins || 0
+        this.myMana = data.angel_coins || 0
         this.currentStatus = data.status_text || ''
       } catch (e) { /* ignore */ }
     },
 
-    async buyLottery() {
-      if (this.myCoins < 3 || this.buying) return
-      this.buying = 'magic_lottery'
-      this.lastResult = null
-
-      try {
-        // Call API first to get the result
-        const { data } = await buyMagicItem('magic_lottery')
-        this.lotteryWon = data.won
-        this.myCoins = data.coins
-
-        // Update local storage
-        const user = JSON.parse(localStorage.getItem('user') || '{}')
-        user.coins = data.coins
-        localStorage.setItem('user', JSON.stringify(user))
-
-        // Start the animation
-        this.showLotteryPopup = true
-        this.isSpinning = true
-        this.isRevealed = false
-        this.displayNumber = 0
-
-        // Spin through random numbers rapidly
-        let spinCount = 0
-        const totalSpins = 20
-        const startSpeed = 60
-        const endSpeed = 250
-
-        const doSpin = () => {
-          spinCount++
-          this.displayNumber = Math.floor(Math.random() * 15) - 6 // -6 to 8
-
-          if (spinCount >= totalSpins) {
-            // Reveal the actual result
-            this.displayNumber = this.lotteryWon
-            this.isSpinning = false
-            this.isRevealed = true
-            return
-          }
-
-          // Gradually slow down
-          const progress = spinCount / totalSpins
-          const delay = startSpeed + (endSpeed - startSpeed) * Math.pow(progress, 2)
-          this.spinInterval = setTimeout(doSpin, delay)
-        }
-
-        setTimeout(doSpin, 400) // Small delay before spinning starts
-      } catch (e) {
-        const msg = e.response?.data?.detail || 'Purchase failed'
-        alert(msg)
-        this.showLotteryPopup = false
-      } finally {
-        this.buying = null
-      }
-    },
-
-    closeLotteryPopup() {
-      this.showLotteryPopup = false
-      this.isSpinning = false
-      this.isRevealed = false
-      if (this.spinInterval) clearTimeout(this.spinInterval)
-    },
 
     async buy(itemType) {
       if (this.myCoins < 1) return
@@ -252,6 +240,146 @@ export default {
       } finally {
         this.buying = null
       }
+    },
+
+    // ── Fortune Wheel ──
+    async loadFortuneWheels() {
+      try {
+        const { data } = await getActiveFortuneWheels()
+        this.fortuneWheels = data
+      } catch (e) { console.error('Failed to load fortune wheels', e) }
+    },
+
+    openWheelPopup(fw) {
+      this.activeWheel = fw
+      this.fwResult = null
+      this.fwSpinning = false
+      this.fwRotation = 0
+      this.fwUseTransition = false
+      this.showWheelPopup = true
+      this.$nextTick(() => this.drawFwWheel())
+    },
+
+    closeWheelPopup() {
+      if (this.fwSpinning) return
+      this.showWheelPopup = false
+      this.activeWheel = null
+      this.fwResult = null
+    },
+
+    drawFwWheel() {
+      const canvas = this.$refs.fwCanvas
+      if (!canvas || !this.activeWheel) return
+      const ctx = canvas.getContext('2d')
+      const size = this.fwSize
+      const cx = size / 2, cy = size / 2, r = size / 2 - 10
+      const segments = this.activeWheel.segments
+      const total = segments.reduce((s, seg) => s + (seg.weight || 1), 0)
+      let startAngle = 0
+
+      ctx.clearRect(0, 0, size, size)
+
+      segments.forEach(seg => {
+        const sliceAngle = ((seg.weight || 1) / total) * 2 * Math.PI
+        const midAngle = startAngle + sliceAngle / 2
+        const gx = cx + r * 0.5 * Math.cos(midAngle)
+        const gy = cy + r * 0.5 * Math.sin(midAngle)
+        const grad = ctx.createRadialGradient(cx, cy, 25, gx, gy, r)
+        grad.addColorStop(0, this.lightenHex(seg.color, 30))
+        grad.addColorStop(0.6, seg.color)
+        grad.addColorStop(1, this.darkenHex(seg.color, 30))
+
+        ctx.beginPath(); ctx.moveTo(cx, cy)
+        ctx.arc(cx, cy, r, startAngle, startAngle + sliceAngle)
+        ctx.closePath(); ctx.fillStyle = grad; ctx.fill()
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2; ctx.stroke()
+
+        // Label
+        ctx.save(); ctx.translate(cx, cy)
+        ctx.rotate(startAngle + sliceAngle / 2)
+        ctx.textAlign = 'right'; ctx.fillStyle = '#fff'
+        ctx.font = `bold ${Math.max(10, Math.min(13, 120 / segments.length))}px Inter, sans-serif`
+        ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 3
+        const label = seg.label || ''
+        ctx.fillText(label.length > 12 ? label.substring(0, 12) + '…' : label, r - 16, 4)
+        ctx.shadowBlur = 0; ctx.restore()
+        startAngle += sliceAngle
+      })
+
+      // Outer rings
+      for (let ring = 0; ring < 2; ring++) {
+        ctx.beginPath(); ctx.arc(cx, cy, r + 3 + ring * 3, 0, 2 * Math.PI)
+        ctx.strokeStyle = ring === 0 ? '#ffd700' : '#8b6914'
+        ctx.lineWidth = ring === 0 ? 3 : 2; ctx.stroke()
+      }
+      ctx.beginPath(); ctx.arc(cx, cy, 28, 0, 2 * Math.PI)
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2; ctx.stroke()
+    },
+
+    async spinFortuneWheel() {
+      if (this.fwSpinning || !this.activeWheel) return
+      this.fwSpinning = true
+      this.fwResult = null
+      this.fwUseTransition = false
+
+      try {
+        const { data } = await spinFortuneWheel(this.activeWheel.id)
+        this.myCoins = data.coins
+        this.myMana = data.angel_coins
+        const user = JSON.parse(localStorage.getItem('user') || '{}')
+        user.coins = data.coins; user.angel_coins = data.angel_coins
+        localStorage.setItem('user', JSON.stringify(user))
+
+        const winnerIndex = data.segment_index
+        const segments = this.activeWheel.segments
+        const total = segments.reduce((s, seg) => s + (seg.weight || 1), 0)
+
+        let cumAngle = 0
+        for (let i = 0; i < winnerIndex; i++) {
+          cumAngle += ((segments[i].weight || 1) / total) * 360
+        }
+        const segSize = ((segments[winnerIndex].weight || 1) / total) * 360
+        const segCenter = cumAngle + segSize / 2
+        const jitter = (Math.random() - 0.5) * segSize * 0.6
+
+        const baseRotation = this.fwRotation % 360
+        const targetAngle = segCenter + jitter
+        const remainder = (((targetAngle - 270 + baseRotation) % 360) + 360) % 360
+        const fullSpins = data.rotations || 5
+        const totalCCW = fullSpins * 360 + remainder
+
+        void this.$refs.fwCanvas?.offsetHeight
+        this.fwSpinDuration = 4 + Math.random() * 2
+
+        this.$nextTick(() => {
+          this.fwUseTransition = true
+          this.fwRotation = this.fwRotation - totalCCW
+
+          setTimeout(() => {
+            this.fwSpinning = false
+            this.fwUseTransition = false
+            this.fwResult = data
+          }, this.fwSpinDuration * 1000 + 400)
+        })
+      } catch (e) {
+        this.fwSpinning = false
+        alert(e.response?.data?.detail || 'Spin failed')
+      }
+    },
+
+    lightenHex(hex, pct) {
+      const n = parseInt(hex.replace('#', ''), 16)
+      const r = Math.min(255, (n >> 16) + Math.round(255 * pct / 100))
+      const g = Math.min(255, ((n >> 8) & 0xFF) + Math.round(255 * pct / 100))
+      const b = Math.min(255, (n & 0xFF) + Math.round(255 * pct / 100))
+      return `rgb(${r},${g},${b})`
+    },
+    darkenHex(hex, pct) {
+      const n = parseInt(hex.replace('#', ''), 16)
+      const r = Math.max(0, (n >> 16) - Math.round(255 * pct / 100))
+      const g = Math.max(0, ((n >> 8) & 0xFF) - Math.round(255 * pct / 100))
+      const b = Math.max(0, (n & 0xFF) - Math.round(255 * pct / 100))
+      return `rgb(${r},${g},${b})`
     },
   },
 }
@@ -307,8 +435,6 @@ export default {
   box-shadow: 0 6px 24px rgba(212,164,76,0.08);
 }
 
-.lottery-card { border-color: rgba(155,89,182,0.3); }
-.lottery-card:hover { border-color: rgba(155,89,182,0.5); }
 .scroll-card.luk { border-color: rgba(46,204,113,0.25); }
 .scroll-card.str { border-color: rgba(231,76,60,0.25); }
 .scroll-card.def { border-color: rgba(52,152,219,0.25); }
@@ -338,10 +464,6 @@ export default {
   background: linear-gradient(135deg, #b8860b, #d4a44c);
   color: #1c1208; font-weight: 800; font-size: 13px;
   cursor: pointer; transition: all 0.2s;
-}
-.lottery-btn {
-  background: linear-gradient(135deg, #8e44ad, #9b59b6) !important;
-  color: #fff !important;
 }
 .magic-buy:hover:not(:disabled) {
   transform: translateY(-1px);
@@ -391,119 +513,189 @@ export default {
   word-break: break-word;
 }
 
-/* ── Lottery Spin Popup ───────────────────────────── */
-.lottery-overlay {
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.85);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 9999;
-  animation: fadeIn 0.3s ease;
+/* ── Section Headers ── */
+.ms-section {
+  margin-bottom: 28px;
 }
-.lottery-popup {
-  background: linear-gradient(145deg, #1a0a2e, #2c1810, #1a0a2e);
-  border: 3px solid rgba(155,89,182,0.5);
-  border-radius: 24px;
-  padding: 32px 28px;
-  text-align: center;
-  max-width: 340px; width: 90%;
-  box-shadow:
-    0 0 40px rgba(155,89,182,0.3),
-    0 0 80px rgba(155,89,182,0.1),
-    inset 0 0 40px rgba(155,89,182,0.05);
+.ms-section-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(212,164,76,0.12);
 }
-.lottery-title {
+.ms-section-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 2px 6px rgba(212,164,76,0.3));
+}
+.ms-section-title {
   font-family: 'Cinzel', serif;
-  font-size: 22px; font-weight: 800;
-  color: #c39bd3;
-  text-shadow: 0 0 20px rgba(155,89,182,0.5);
-  margin-bottom: 4px;
+  font-size: 16px; font-weight: 800; color: #d4a44c;
+  margin: 0;
+  text-shadow: 0 1px 4px rgba(212,164,76,0.15);
 }
-.lottery-subtitle {
-  font-size: 13px; color: #8b7355;
-  margin-bottom: 24px; font-weight: 600;
-}
-
-.lottery-wheel-wrap {
-  display: flex; align-items: center; justify-content: center;
-  margin: 20px 0 24px;
-}
-.lottery-number {
-  width: 120px; height: 120px;
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'Cinzel', serif;
-  font-size: 64px; font-weight: 900;
-  color: #e8d5b7;
-  background: radial-gradient(circle, rgba(44,24,16,0.9), rgba(26,26,46,0.95));
-  border: 4px solid rgba(155,89,182,0.4);
-  border-radius: 20px;
-  text-shadow: 0 0 20px rgba(212,164,76,0.4);
-  transition: all 0.15s;
-}
-.lottery-number.spinning {
-  animation: numberSpin 0.1s infinite;
-  border-color: rgba(155,89,182,0.7);
-  box-shadow:
-    0 0 30px rgba(155,89,182,0.4),
-    0 0 60px rgba(155,89,182,0.15);
-}
-.lottery-number.reveal {
-  animation: revealBounce 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  border-color: rgba(212,164,76,0.7);
-  font-size: 72px;
-  box-shadow: 0 0 40px rgba(212,164,76,0.4);
-}
-.lottery-number.reveal.is-win {
-  border-color: rgba(46,204,113,0.8);
-  color: #2ecc71;
-  text-shadow: 0 0 30px rgba(46,204,113,0.5);
-  box-shadow: 0 0 50px rgba(46,204,113,0.3);
-}
-.lottery-number.reveal.is-lose {
-  border-color: rgba(231,76,60,0.6);
-  color: #e74c3c;
-  text-shadow: 0 0 30px rgba(231,76,60,0.4);
-  box-shadow: 0 0 50px rgba(231,76,60,0.2);
-}
-
-.lottery-result-text {
-  font-family: 'Cinzel', serif;
-  font-size: 16px; font-weight: 700;
-  margin: 16px 0 20px;
-  animation: fadeIn 0.4s ease 0.2s both;
-}
-.win-text { color: #2ecc71; }
-.lose-text { color: #e74c3c; }
-
-.lottery-close-btn {
-  padding: 10px 28px;
-  border: none; border-radius: 10px;
-  font-weight: 800; font-size: 14px;
-  cursor: pointer; transition: all 0.2s;
-  background: linear-gradient(135deg, #8e44ad, #9b59b6);
-  color: #fff;
-  animation: fadeIn 0.3s ease 0.4s both;
-}
-.lottery-close-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(155,89,182,0.4);
-}
-
-@keyframes numberSpin {
-  0% { transform: scale(1) rotateX(0deg); }
-  25% { transform: scale(1.05) rotateX(5deg); }
-  50% { transform: scale(0.95) rotateX(-5deg); }
-  75% { transform: scale(1.05) rotateX(3deg); }
-  100% { transform: scale(1) rotateX(0deg); }
-}
-
-@keyframes revealBounce {
-  0% { transform: scale(0.5); opacity: 0; }
-  50% { transform: scale(1.3); }
-  100% { transform: scale(1); opacity: 1; }
+.ms-section-sub {
+  font-size: 11px; color: #8b7355; font-weight: 600;
+  font-style: italic; margin: 2px 0 0;
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Fortune Wheel Card ── */
+.fw-card { border-color: rgba(255,215,0,0.25); }
+.fw-card:hover { border-color: rgba(255,215,0,0.5); box-shadow: 0 4px 20px rgba(255,215,0,0.08); }
+.fw-buy-btn {
+  background: linear-gradient(135deg, #8b6914, #d4a44c) !important;
+  color: #fff !important;
+}
+
+/* ── Fortune Wheel Popup ── */
+.fw-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.9);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
+}
+.fw-popup {
+  background: linear-gradient(145deg, #1a0a2e, #0f0a08, #1a0a2e);
+  border: 3px solid rgba(255,215,0,0.4);
+  border-radius: 24px;
+  padding: 32px 28px;
+  text-align: center;
+  max-width: 420px; width: 95%;
+  position: relative;
+  box-shadow:
+    0 0 60px rgba(255,215,0,0.1),
+    0 0 120px rgba(0,0,0,0.5),
+    inset 0 0 40px rgba(255,215,0,0.03);
+}
+.fw-popup-close {
+  position: absolute; top: 12px; right: 16px;
+  background: none; border: none; color: #8b7355;
+  font-size: 20px; cursor: pointer;
+}
+.fw-popup-close:hover { color: #d4a44c; }
+.fw-popup-close:disabled { opacity: 0.3; cursor: not-allowed; }
+.fw-popup-title {
+  font-family: 'Cinzel', serif;
+  font-size: 20px; font-weight: 800;
+  color: #ffd700;
+  text-shadow: 0 0 20px rgba(255,215,0,0.3);
+  margin-bottom: 4px;
+}
+.fw-popup-subtitle {
+  font-size: 13px; color: #8b7355; font-weight: 600;
+  margin-bottom: 20px;
+}
+.fw-popup-wheel-container {
+  position: relative;
+  display: inline-block;
+  margin: 0 auto;
+}
+.fw-popup-glow {
+  position: absolute;
+  top: -12px; left: -12px; right: -12px; bottom: -12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,215,0,0.1);
+  transition: all 0.5s;
+}
+.fw-popup-glow.spinning {
+  border-color: rgba(255,215,0,0.4);
+  box-shadow: 0 0 40px rgba(255,215,0,0.15), 0 0 80px rgba(255,215,0,0.08);
+  animation: fwPulse 0.6s ease-in-out infinite alternate;
+}
+.fw-popup-glow.won {
+  border-color: rgba(255,215,0,0.6);
+  box-shadow: 0 0 60px rgba(255,215,0,0.25);
+}
+@keyframes fwPulse {
+  0% { box-shadow: 0 0 40px rgba(255,215,0,0.15); }
+  100% { box-shadow: 0 0 60px rgba(255,215,0,0.25); }
+}
+.fw-popup-pointer {
+  position: absolute; top: -18px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.7));
+}
+.fw-popup-canvas {
+  display: block; border-radius: 50%;
+  box-shadow:
+    0 0 0 3px rgba(139,105,20,0.5),
+    0 0 30px rgba(0,0,0,0.5);
+}
+.fw-popup-hub {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffd700, #8b6914, #4a3600);
+  border: 3px solid #ffd700;
+  box-shadow: 0 0 12px rgba(255,215,0,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; color: #1a0a00;
+  z-index: 10; pointer-events: none;
+}
+.fw-popup-spin-btn {
+  margin-top: 24px;
+  padding: 14px 48px;
+  background: linear-gradient(180deg, #5a3a0a 0%, #2c1a00 50%, #1a0e00 100%);
+  border: 2px solid #8b6914;
+  color: #ffd700;
+  border-radius: 8px;
+  font-size: 16px; font-weight: 900;
+  font-family: 'Cinzel', serif;
+  cursor: pointer; letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: all 0.3s;
+}
+.fw-popup-spin-btn:hover {
+  border-color: #ffd700;
+  box-shadow: 0 4px 30px rgba(255,215,0,0.2);
+  transform: translateY(-2px);
+}
+.fw-popup-spin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.fw-popup-result {
+  margin-top: 20px;
+  animation: fwResultSlam 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.fw-popup-result-title {
+  font-family: 'Cinzel', serif;
+  font-size: 22px; font-weight: 900;
+  color: #ffd700;
+  text-shadow: 0 0 20px rgba(255,215,0,0.4);
+  margin-bottom: 8px;
+}
+.fw-popup-result-sparks {
+  font-size: 14px; color: #8b6914;
+  letter-spacing: 6px; margin-bottom: 16px;
+  animation: fwSparkle 1.5s ease-in-out infinite;
+}
+.fw-popup-done-btn {
+  padding: 10px 32px;
+  background: linear-gradient(135deg, #8b6914, #d4a44c);
+  border: none; border-radius: 10px;
+  color: #fff; font-weight: 800; font-size: 14px;
+  cursor: pointer; transition: all 0.2s;
+}
+.fw-popup-done-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(212,164,76,0.3);
+}
+@keyframes fwResultSlam {
+  0% { transform: scale(2) rotate(-5deg); opacity: 0; }
+  60% { transform: scale(0.95) rotate(1deg); }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@keyframes fwSparkle {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.result-fade-enter-active { animation: fwResultSlam 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.result-fade-leave-active { opacity: 0; transition: opacity 0.2s; }
 </style>

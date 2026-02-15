@@ -34,7 +34,7 @@ def auto_give_coins_and_angels():
             return
 
         # Get all active staff
-        staff = db.query(User).filter(User.role != UserRole.ADMIN).all()
+        staff = db.query(User).filter(User.role == UserRole.PLAYER).all()
         if not staff:
             logger.info("No active staff found, skipping auto-giver")
             return
@@ -103,7 +103,7 @@ def lucky_draw():
             return
 
         # Get all active staff
-        staff = db.query(User).filter(User.role != UserRole.ADMIN).all()
+        staff = db.query(User).filter(User.role == UserRole.PLAYER).all()
         if not staff:
             logger.info("No active staff for lucky draw")
             return
@@ -186,14 +186,13 @@ def start_scheduler():
         id="lucky_draw",
         replace_existing=True,
     )
-    # Badge Quest evaluation at 01:00 UTC+7 (18:00 UTC)
+    # Badge Quest evaluation every 2 hours
     scheduler.add_job(
         evaluate_badge_quests,
-        "cron",
-        hour=18,
-        minute=0,
+        "interval",
+        hours=2,
         id="badge_quest_eval",
         replace_existing=True,
     )
     scheduler.start()
-    logger.info("✅ Scheduler started — auto coin/angel at 00:01 UTC+7, lucky draw at 12:30 UTC+7, badge quest eval at 01:00 UTC+7")
+    logger.info("✅ Scheduler started — auto coin/angel at 00:01 UTC+7, lucky draw at 12:30 UTC+7, badge quest eval every 2h")

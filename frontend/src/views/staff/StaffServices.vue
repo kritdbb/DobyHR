@@ -4,79 +4,84 @@
     <p class="page-sub">Choose your path, adventurer</p>
 
     <div class="service-grid">
-      <!-- Leave Request -->
+      <!-- Row 1: Leave Request | Expense Request -->
       <router-link to="/staff/leave" class="service-card">
         <div class="icon-wrap">
-          <div class="service-icon">🏨</div>
+          <img src="/icons/leave_request.png" class="service-icon-img" />
           <span v-if="badges.leave" class="notif-badge">{{ badges.leave }}</span>
         </div>
         <span class="service-label">Leave Request</span>
         <span class="service-desc">Request time off</span>
       </router-link>
 
-      <!-- Approval Board -->
+      <router-link to="/staff/expense" class="service-card">
+        <div class="icon-wrap">
+          <img src="/icons/expense_request.png" class="service-icon-img" />
+        </div>
+        <span class="service-label">Expense Request</span>
+        <span class="service-desc">Claim expenses</span>
+      </router-link>
+
+      <!-- Row 2: Approval Board | Coupon Inventory -->
       <router-link to="/staff/approvals" class="service-card">
         <div class="icon-wrap">
-          <div class="service-icon">📜</div>
+          <img src="/icons/approval_board.png" class="service-icon-img" />
           <span v-if="badges.approvals" class="notif-badge">{{ badges.approvals }}</span>
         </div>
         <span class="service-label">Approval Board</span>
         <span class="service-desc">Review requests</span>
       </router-link>
 
-      <!-- Item Shop -->
-      <router-link to="/staff/redeem" class="service-card">
-        <div class="icon-wrap">
-          <div class="service-icon">⚔️🛡️</div>
-        </div>
-        <span class="service-label">Item Shop</span>
-        <span class="service-desc">Gold &amp; Mana ✨</span>
-      </router-link>
-
-      <!-- Magic Shop -->
-      <router-link to="/staff/magic-shop" class="service-card">
-        <div class="icon-wrap">
-          <div class="service-icon">🔮</div>
-        </div>
-        <span class="service-label">Magic Shop</span>
-        <span class="service-desc">Spend Gold on magic</span>
-      </router-link>
-
-      <!-- Coupon Inventory -->
       <router-link to="/staff/coupons" class="service-card">
         <div class="icon-wrap">
-          <div class="service-icon">🎟️</div>
+          <img src="/icons/coupon_inventory.png" class="service-icon-img" />
           <span v-if="badges.coupons" class="notif-badge">{{ badges.coupons }}</span>
         </div>
         <span class="service-label">Coupon Inventory</span>
         <span class="service-desc">Your items</span>
       </router-link>
 
-      <!-- Town People -->
-      <router-link to="/staff/town-people" class="service-card">
+      <!-- Row 3: Item Shop | Magic Shop -->
+      <router-link to="/staff/redeem" class="service-card">
         <div class="icon-wrap">
-          <div class="service-icon">⚔️👥</div>
+          <img src="/icons/item_shop.png" class="service-icon-img" />
         </div>
-        <span class="service-label">Town People</span>
-        <span class="service-desc">Fellow adventurers</span>
+        <span class="service-label">Item Shop</span>
+        <span class="service-desc">Gold &amp; Mana ✨</span>
       </router-link>
 
-      <!-- Step Counter -->
+      <router-link to="/staff/magic-shop" class="service-card">
+        <div class="icon-wrap">
+          <img src="/icons/magic_shop.png" class="service-icon-img" />
+        </div>
+        <span class="service-label">Magic Shop</span>
+        <span class="service-desc">Spend Gold on magic</span>
+      </router-link>
+
+      <!-- Row 4: Character | Step Counter -->
+      <router-link to="/staff/profile" class="service-card">
+        <div class="icon-wrap">
+          <img src="/icons/my_charactor.png" class="service-icon-img" />
+        </div>
+        <span class="service-label">Character</span>
+        <span class="service-desc">Edit your info</span>
+      </router-link>
+
       <router-link to="/staff/fitbit" class="service-card">
         <div class="icon-wrap">
-          <div class="service-icon">🥾</div>
+          <img src="/icons/step_counter.png" class="service-icon-img" />
         </div>
         <span class="service-label">Step Counter</span>
         <span class="service-desc">Track your walks</span>
       </router-link>
 
-      <!-- My Profile -->
-      <router-link to="/staff/profile" class="service-card">
+      <!-- Row 5: Town People -->
+      <router-link to="/staff/town-people" class="service-card">
         <div class="icon-wrap">
-          <div class="service-icon">🛡️</div>
+          <img src="/icons/people.png" class="service-icon-img" />
         </div>
-        <span class="service-label">Character</span>
-        <span class="service-desc">Edit your info</span>
+        <span class="service-label">Town People</span>
+        <span class="service-desc">Fellow adventurers</span>
       </router-link>
 
     </div>
@@ -224,6 +229,21 @@ export default {
 .service-icon--danger {
   background: rgba(192,57,43,0.1);
   border-color: rgba(192,57,43,0.2);
+}
+
+.service-icon-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(212,164,76,0.3);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 0 12px rgba(212,164,76,0.1);
+  transition: all 0.3s ease;
+}
+.service-card:hover .service-icon-img {
+  border-color: #d4a44c;
+  box-shadow: 0 4px 20px rgba(212,164,76,0.35), 0 0 16px rgba(212,164,76,0.2);
+  transform: scale(1.08);
 }
 
 .notif-badge {

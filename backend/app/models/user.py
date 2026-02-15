@@ -6,8 +6,9 @@ from app.core.database import Base
 
 
 class UserRole(str, enum.Enum):
-    ADMIN = "admin"
-    STAFF = "staff"
+    GOD = "god"
+    GM = "gm"
+    PLAYER = "player"
 
 
 class User(Base):
@@ -19,7 +20,7 @@ class User(Base):
     email = Column(String(100), unique=True, index=True, nullable=True)
     phone = Column(String(20), nullable=True)  # เบอร์มือถือ
     hashed_password = Column(String(255), nullable=True)
-    role = Column(SQLAlchemyEnum(UserRole), default=UserRole.STAFF)
+    role = Column(SQLAlchemyEnum(UserRole), default=UserRole.PLAYER)
     image = Column(String(500), nullable=True)  # File path to uploaded image
     department = Column(String(100), nullable=True)  # แผนก
     work_start_time = Column(Time, nullable=True)  # เวลาเริ่มงาน

@@ -9,8 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.database import engine, Base
 from app.core.config import settings
-from app.api.endpoints import company, users, approval, auth, attendance, leaves, rewards, reports, absent_check, approval_pattern, work_requests, badges, fitbit, badge_quests
-from app.models import user as user_model, company as company_model, approval as approval_model, attendance as attendance_model, leave as leave_model, reward as reward_model, approval_pattern as approval_pattern_model, work_request as work_request_model, badge as badge_model, fitbit as fitbit_model, step_rewards as step_rewards_model, badge_quest as badge_quest_model
+from app.api.endpoints import company, users, approval, auth, attendance, leaves, rewards, reports, absent_check, approval_pattern, work_requests, badges, fitbit, badge_quests, fortune_wheel, expenses
+from app.models import user as user_model, company as company_model, approval as approval_model, attendance as attendance_model, leave as leave_model, reward as reward_model, approval_pattern as approval_pattern_model, work_request as work_request_model, badge as badge_model, fitbit as fitbit_model, step_rewards as step_rewards_model, badge_quest as badge_quest_model, fortune_wheel as fortune_wheel_model, expense as expense_model
 from app.core.database import SessionLocal
 from app.core.security import get_password_hash
 from app.scheduler import start_scheduler
@@ -93,6 +93,8 @@ app.include_router(work_requests.router)
 app.include_router(badges.router)
 app.include_router(fitbit.router)
 app.include_router(badge_quests.router)
+app.include_router(fortune_wheel.router)
+app.include_router(expenses.router)
 
 
 @app.on_event("startup")
@@ -108,7 +110,7 @@ def startup_event():
                 surname="User",
                 email="admin@admin.com",
                 hashed_password=get_password_hash("admin"),
-                role=user_model.UserRole.ADMIN,
+                role=user_model.UserRole.GOD,
                 position="System Admin",
                 sick_leave_days=30,
                 business_leave_days=30,

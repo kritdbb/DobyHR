@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+const ADMIN_ROLES = ['god', 'gm']
+
 const routes = [
     {
         path: '/oauth/callback',
@@ -19,80 +21,86 @@ const routes = [
         component: () => import('../views/Login.vue'),
         meta: { layout: 'empty' }
     },
-    // Admin Routes
+    // Admin Routes (God + GM)
     {
         path: '/admin',
         name: 'AdminDashboard',
         component: () => import('../views/admin/AdminDashboard.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, role: 'gm' }
     },
     {
         path: '/company',
         name: 'Company',
         component: () => import('../views/CompanySettings.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, role: 'gm' }
     },
     {
         path: '/users',
         name: 'UserManagement',
         component: () => import('../views/UserManagement.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, role: 'gm' }
     },
     {
         path: '/users/create',
         name: 'CreateUser',
         component: () => import('../views/UserForm.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, role: 'gm' }
     },
     {
         path: '/users/:id/edit',
         name: 'EditUser',
         component: () => import('../views/UserForm.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, role: 'gm' }
     },
     {
         path: '/approval',
         name: 'Approval',
         component: () => import('../views/ApprovalBuilder.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, role: 'gm' }
     },
     {
         path: '/approval-patterns',
         name: 'ApprovalPatterns',
         component: () => import('../views/ApprovalPatterns.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, role: 'gm' }
     },
     {
         path: '/rewards',
         name: 'Rewards',
         component: () => import('../views/admin/Rewards.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, role: 'gm' }
     },
     {
         path: '/verify-redemption',
         name: 'VerifyRedemption',
         component: () => import('../views/admin/RedeemVerify.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, role: 'gm' }
     },
     {
         path: '/reports',
         name: 'Reports',
         component: () => import('../views/admin/Reports.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, role: 'gm' }
     },
     {
         path: '/badges',
         name: 'Badges',
         component: () => import('../views/admin/BadgeManagement.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, role: 'gm' }
     },
     {
         path: '/badge-quests',
         name: 'BadgeQuests',
         component: () => import('../views/admin/BadgeQuests.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, role: 'gm' }
     },
-    // Staff Routes
+    {
+        path: '/fortune-wheel',
+        name: 'FortuneWheel',
+        component: () => import('../views/admin/FortuneWheel.vue'),
+        meta: { requiresAuth: true, role: 'gm' }
+    },
+    // Staff (Player) Routes
     {
         path: '/staff',
         component: () => import('../layouts/StaffLayout.vue'),
@@ -142,8 +150,18 @@ const routes = [
                 path: 'fitbit',
                 component: () => import('../views/staff/FitbitSteps.vue')
             },
+            {
+                path: 'expense',
+                component: () => import('../views/staff/StaffExpenseRequest.vue')
+            },
         ]
-    }
+    },
+    {
+        path: '/expense-management',
+        name: 'ExpenseManagement',
+        component: () => import('../views/admin/ExpenseManagement.vue'),
+        meta: { requiresAuth: true, role: 'gm' }
+    },
 ]
 
 const router = createRouter({
@@ -161,39 +179,39 @@ router.beforeEach((to, from, next) => {
             next({ name: 'Login', query: { redirect: to.fullPath } })
         } else {
             // Role check
-            if (to.meta.role && to.meta.role !== user.role) {
-                // Allow admin to visit staff pages
-                if (to.path.startsWith('/staff') && user.role === 'admin') {
+            if (to.meta.role) {
+                // Admin routes require at least GM level
+                if (ADMIN_ROLES.includes(user.role)) {
                     next()
                     return
                 }
-                // Staff trying to access admin pages → go to staff home
-                if (user.role === 'staff') {
-                    next('/staff/home')
-                    return
-                }
-                // Admin trying to access unknown role pages → go to admin
-                if (user.role === 'admin') {
-                    next('/admin')
-                    return
-                }
-                next({ name: 'Login' })
-            } else {
-                if (to.path === '/' && user.role === 'staff') {
-                    next('/staff/home')
-                    return
-                }
-                if (to.path === '/' && user.role === 'admin') {
-                    next('/admin')
-                    return
-                }
-                next()
+                // Player trying to access admin pages → go to player home
+                next('/staff/home')
+                return
             }
+
+            // Staff pages — allow God, GM, and Player
+            if (to.path.startsWith('/staff')) {
+                next()
+                return
+            }
+
+            // Root redirect
+            if (to.path === '/') {
+                if (ADMIN_ROLES.includes(user.role)) {
+                    next('/admin')
+                } else {
+                    next('/staff/home')
+                }
+                return
+            }
+
+            next()
         }
     } else {
         // If logged in and trying to access login, redirect
         if (to.path === '/login' && token) {
-            if (user.role === 'admin') next('/company')
+            if (ADMIN_ROLES.includes(user.role)) next('/admin')
             else next('/staff/home')
             return
         }

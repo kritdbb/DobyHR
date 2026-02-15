@@ -6,10 +6,13 @@
     <!-- Tabs -->
     <div class="tab-bar">
       <button @click="tab = 'leaves'" :class="['tab-btn', tab === 'leaves' && 'tab-btn--active']">
-        🏨 Rest ({{ pendingLeaves.length }})
+        🏨 Leave ({{ pendingLeaves.length }})
       </button>
       <button @click="tab = 'redemptions'" :class="['tab-btn', tab === 'redemptions' && 'tab-btn--active']">
         🛒 Trade ({{ pendingRedemptions.length }})
+      </button>
+      <button @click="tab = 'expenses'" :class="['tab-btn', tab === 'expenses' && 'tab-btn--active']">
+        💰 Expense ({{ pendingExpenses.length }})
       </button>
     </div>
 
@@ -23,14 +26,14 @@
     <div v-else-if="tab === 'leaves'" class="card-list">
       <div v-if="pendingLeaves.length === 0" class="empty-state">
         <div class="empty-icon">⚔️</div>
-        <p class="empty-text">No pending rest requests</p>
+        <p class="empty-text">No pending leave requests</p>
       </div>
 
       <div v-for="item in pendingLeaves" :key="item.id" class="approval-card approval-card--leave">
         <div class="card-top">
           <div>
             <div class="card-name">{{ item.user_name }}</div>
-            <div class="card-type">{{ item.leave_type }} rest</div>
+            <div class="card-type">{{ item.leave_type }} leave</div>
           </div>
           <span class="badge-pill">pending</span>
         </div>
@@ -44,7 +47,7 @@
     </div>
 
     <!-- Redemption Tab -->
-    <div v-else class="card-list">
+    <div v-else-if="tab === 'redemptions'" class="card-list">
       <div v-if="pendingRedemptions.length === 0" class="empty-state">
         <div class="empty-icon">🛒</div>
         <p class="empty-text">No pending trade requests</p>
@@ -65,6 +68,70 @@
         </div>
       </div>
     </div>
+
+    <!-- Expense Tab -->
+    <div v-else-if="tab === 'expenses'" class="card-list">
+      <div v-if="pendingExpenses.length === 0" class="empty-state">
+        <div class="empty-icon">💰</div>
+        <p class="empty-text">No pending expense requests</p>
+      </div>
+
+      <div v-for="item in pendingExpenses" :key="item.id" class="approval-card approval-card--expense">
+        <div class="card-top">
+          <div>
+            <div class="card-name">{{ item.user_name }}</div>
+            <div class="card-type">{{ item.expense_type === 'GENERAL' ? '📄' : '🚗' }} {{ item.expense_type }} Expense</div>
+          </div>
+          <span class="badge-pill">{{ item.current_step }}/{{ item.total_steps }}</span>
+        </div>
+
+        <div class="card-detail">📅 {{ item.expense_type === 'GENERAL' ? item.expense_date : item.travel_date }}</div>
+        <div class="card-detail" v-if="item.description">💬 {{ item.description }}</div>
+        <div class="card-detail expense-amount">💰 ฿{{ (item.expense_type === 'GENERAL' ? item.amount : item.total_amount).toLocaleString() }}</div>
+
+        <!-- File preview -->
+        <div class="file-attachments">
+          <template v-if="item.expense_type === 'GENERAL' && item.file_path">
+            <div class="attach-thumb" @click="openViewer(item.file_path)">
+              <img v-if="!isPdf(item.file_path)" :src="apiBase + item.file_path" class="thumb-img" />
+              <div v-else class="thumb-pdf">📄 PDF</div>
+            </div>
+          </template>
+          <template v-if="item.expense_type === 'TRAVEL'">
+            <div v-if="item.outbound_image" class="attach-thumb" @click="openViewer(item.outbound_image)">
+              <img :src="apiBase + item.outbound_image" class="thumb-img" />
+              <span class="thumb-label">Out</span>
+            </div>
+            <div v-if="item.return_image" class="attach-thumb" @click="openViewer(item.return_image)">
+              <img :src="apiBase + item.return_image" class="thumb-img" />
+              <span class="thumb-label">Return</span>
+            </div>
+            <div v-for="att in item.attachments" :key="att.id" class="attach-thumb" @click="openViewer(att.file_path)">
+              <img :src="apiBase + att.file_path" class="thumb-img" />
+            </div>
+          </template>
+        </div>
+
+        <div v-if="item.expense_type === 'TRAVEL'" class="travel-detail">
+          <span>🚗 {{ item.vehicle_type }} · {{ item.km_outbound }}km + {{ item.km_return }}km</span>
+          <span v-if="item.other_cost > 0"> · Other: ฿{{ item.other_cost.toLocaleString() }}</span>
+        </div>
+
+        <div class="card-actions">
+          <button @click="handleApproveExpense(item.id)" :disabled="processing" class="btn-approve">✅ Approve</button>
+          <button @click="handleRejectExpense(item.id)" :disabled="processing" class="btn-reject">❌ Reject</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fullscreen Viewer -->
+    <div v-if="viewerOpen" class="viewer-overlay" @click="viewerOpen = false">
+      <button class="viewer-close" @click="viewerOpen = false">✕</button>
+      <div class="viewer-content" @click.stop>
+        <img v-if="!isPdf(viewerSrc)" :src="apiBase + viewerSrc" class="viewer-img" />
+        <iframe v-else :src="apiBase + viewerSrc" class="viewer-pdf"></iframe>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -73,6 +140,7 @@ import {
   getPendingLeaveApprovals, getPendingRedemptionApprovals,
   approveLeave, rejectLeave,
   approveRedemption, rejectRedemption,
+  getPendingExpenseApprovals, approveExpense, rejectExpense,
 } from '../../services/api'
 
 export default {
@@ -85,6 +153,10 @@ export default {
       processing: false,
       pendingLeaves: [],
       pendingRedemptions: [],
+      pendingExpenses: [],
+      viewerOpen: false,
+      viewerSrc: '',
+      apiBase: import.meta.env.VITE_API_URL || '',
     }
   },
   async mounted() { await this.loadData() },
@@ -92,24 +164,26 @@ export default {
     async loadData() {
       this.loading = true
       try {
-        const [lRes, rRes] = await Promise.all([
+        const [lRes, rRes, eRes] = await Promise.all([
           getPendingLeaveApprovals(),
           getPendingRedemptionApprovals(),
+          getPendingExpenseApprovals(),
         ])
         this.pendingLeaves = lRes.data
         this.pendingRedemptions = rRes.data
+        this.pendingExpenses = eRes.data || []
       } catch (e) { console.error(e) }
       finally { this.loading = false }
     },
     async handleApproveLeave(id) {
       this.processing = true
-      try { await approveLeave(id); this.showToast('Rest approved! ⚔️'); await this.loadData() }
+      try { await approveLeave(id); this.showToast('Leave approved! ⚔️'); await this.loadData() }
       catch (e) { this.showToast(e.response?.data?.detail || 'Failed', 'error') }
       finally { this.processing = false }
     },
     async handleRejectLeave(id) {
       this.processing = true
-      try { await rejectLeave(id); this.showToast('Rest denied'); await this.loadData() }
+      try { await rejectLeave(id); this.showToast('Leave denied'); await this.loadData() }
       catch (e) { this.showToast(e.response?.data?.detail || 'Failed', 'error') }
       finally { this.processing = false }
     },
@@ -125,6 +199,20 @@ export default {
       catch (e) { this.showToast(e.response?.data?.detail || 'Failed', 'error') }
       finally { this.processing = false }
     },
+    async handleApproveExpense(id) {
+      this.processing = true
+      try { await approveExpense(id); this.showToast('Expense approved! 💰'); await this.loadData() }
+      catch (e) { this.showToast(e.response?.data?.detail || 'Failed', 'error') }
+      finally { this.processing = false }
+    },
+    async handleRejectExpense(id) {
+      this.processing = true
+      try { await rejectExpense(id); this.showToast('Expense rejected'); await this.loadData() }
+      catch (e) { this.showToast(e.response?.data?.detail || 'Failed', 'error') }
+      finally { this.processing = false }
+    },
+    openViewer(src) { this.viewerSrc = src; this.viewerOpen = true },
+    isPdf(path) { return path && path.toLowerCase().endsWith('.pdf') },
     formatDate(d) { return d ? new Date(d).toLocaleDateString('en-GB') : '' },
     formatDateTime(d) {
       if (!d) return ''
@@ -160,7 +248,7 @@ export default {
   flex: 1;
   padding: 10px 0;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   border: none;
   cursor: pointer;
@@ -184,10 +272,12 @@ export default {
 }
 .approval-card--leave { border-color: #d4a44c; }
 .approval-card--redeem { border-color: #9b59b6; }
+.approval-card--expense { border-color: #27ae60; }
 .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .card-name { font-weight: 700; font-size: 15px; color: #e8d5b7; }
 .card-type { font-size: 12px; color: #d4a44c; font-weight: 700; text-transform: uppercase; }
 .card-detail { font-size: 13px; color: #8b7355; margin-bottom: 4px; }
+.expense-amount { color: #2ecc71; font-weight: 700; }
 .card-actions { display: flex; gap: 10px; margin-top: 14px; }
 .btn-approve {
   flex: 1; padding: 11px 0; border-radius: 8px;
@@ -210,6 +300,26 @@ export default {
   font-size: 10px; font-weight: 800; text-transform: uppercase;
   background: rgba(212,164,76,0.15); color: #d4a44c; border: 1px solid rgba(212,164,76,0.3);
 }
+
+/* File attachments */
+.file-attachments { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.attach-thumb { position: relative; cursor: pointer; border-radius: 8px; overflow: hidden; border: 1px solid rgba(212,164,76,0.2); }
+.thumb-img { width: 64px; height: 64px; object-fit: cover; display: block; }
+.thumb-pdf { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; background: rgba(212,164,76,0.1); font-size: 12px; color: #d4a44c; font-weight: 700; }
+.thumb-label { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.6); color: #fff; font-size: 9px; text-align: center; padding: 1px 0; font-weight: 700; }
+
+.travel-detail { font-size: 12px; color: #8b7355; margin-bottom: 4px; }
+
+/* Fullscreen Viewer */
+.viewer-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.92); z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+}
+.viewer-close { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 20px; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; z-index: 10000; }
+.viewer-content { max-width: 90vw; max-height: 90vh; overflow: auto; }
+.viewer-img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 8px; }
+.viewer-pdf { width: 90vw; height: 90vh; border: none; border-radius: 8px; }
 
 /* Empty / Loading */
 .empty-state {

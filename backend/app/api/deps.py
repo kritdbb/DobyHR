@@ -27,10 +27,20 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
     return user
 
-def get_current_active_admin(current_user: User = Depends(get_current_user)):
-    if current_user.role != UserRole.ADMIN:
+def get_current_gm_or_above(current_user: User = Depends(get_current_user)):
+    """Allow God and GM roles to access admin endpoints."""
+    if current_user.role not in (UserRole.GOD, UserRole.GM):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
             detail="The user doesn't have enough privileges"
+        )
+    return current_user
+
+def get_current_god(current_user: User = Depends(get_current_user)):
+    """Only God role can access these endpoints."""
+    if current_user.role != UserRole.GOD:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only God role can access this"
         )
     return current_user

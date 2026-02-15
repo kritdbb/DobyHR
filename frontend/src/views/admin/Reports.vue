@@ -17,10 +17,13 @@
             💰 Gold Movement
         </button>
         <button :class="['tab', activeTab === 'leaves' ? 'active' : '']" @click="activeTab = 'leaves'">
-            🏨 Rest Summary
+            🏨 Leave Summary
         </button>
         <button :class="['tab', activeTab === 'pending' ? 'active' : '']" @click="activeTab = 'pending'">
             📋 Pending Rests
+        </button>
+        <button :class="['tab', activeTab === 'expenses' ? 'active' : '']" @click="activeTab = 'expenses'">
+            💰 Expenses
         </button>
     </div>
 
@@ -135,7 +138,7 @@
 
     <!-- Leave Summary Table -->
     <div v-if="activeTab === 'leaves'" class="card">
-         <h3>Annual Rest Summary</h3>
+         <h3>Annual Leave Summary</h3>
          <div v-if="loading" class="loading">Loading...</div>
          <div v-else class="table-container">
             <table>
@@ -201,11 +204,92 @@
             </table>
          </div>
     </div>
+
+    <!-- Expense Report Table -->
+    <div v-if="activeTab === 'expenses' && expenseData.length > 0" class="card" style="margin-bottom: 20px;">
+        <h3>💰 Expense Summary</h3>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 12px;">
+            <div class="summary-box">
+                <div class="summary-label">📄 General Expenses</div>
+                <div class="summary-value">฿{{ expenseSummary.general.toLocaleString() }}</div>
+                <div class="summary-count">{{ expenseSummary.generalCount }} items</div>
+            </div>
+            <div class="summary-box">
+                <div class="summary-label">🚗 Travel Expenses</div>
+                <div class="summary-value">฿{{ expenseSummary.travel.toLocaleString() }}</div>
+                <div class="summary-count">{{ expenseSummary.travelCount }} items</div>
+            </div>
+            <div class="summary-box grand">
+                <div class="summary-label">⚔️ Grand Total</div>
+                <div class="summary-value">฿{{ expenseSummary.total.toLocaleString() }}</div>
+                <div class="summary-count">{{ expenseData.length }} items</div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="activeTab === 'expenses'" class="card">
+         <h3>Expense Report</h3>
+         <div v-if="loading" class="loading">Loading...</div>
+         <div v-else class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Adventurer</th>
+                        <th>Type</th>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Files</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="exp in expenseData" :key="exp.id">
+                         <td>{{ exp.user_name }}</td>
+                         <td><span class="status-badge" :style="exp.expense_type === 'GENERAL' ? 'background: rgba(52,152,219,0.1); color: #3498db; border: 1px solid rgba(52,152,219,0.2);' : 'background: rgba(46,204,113,0.1); color: #2ecc71; border: 1px solid rgba(46,204,113,0.2);'">{{ exp.expense_type === 'GENERAL' ? '📄' : '🚗' }} {{ exp.expense_type }}</span></td>
+                         <td>{{ exp.expense_type === 'GENERAL' ? exp.expense_date : exp.travel_date }}</td>
+                         <td>{{ exp.description || (exp.expense_type === 'TRAVEL' ? `${exp.vehicle_type} ${exp.km_outbound}+${exp.km_return}km` : '-') }}</td>
+                         <td style="font-weight: 700;">฿{{ (exp.expense_type === 'GENERAL' ? exp.amount : exp.total_amount).toLocaleString() }}</td>
+                         <td><span class="status-badge" :style="getExpenseStatusColor(exp.status)">{{ exp.status }}</span></td>
+                         <td>
+                            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                <div v-if="exp.file_path" class="report-thumb" @click="openViewer(exp.file_path)">
+                                    <img v-if="!isPdf(exp.file_path)" :src="apiBase + exp.file_path" />
+                                    <span v-else class="pdf-mini">PDF</span>
+                                </div>
+                                <div v-if="exp.outbound_image" class="report-thumb" @click="openViewer(exp.outbound_image)">
+                                    <img :src="apiBase + exp.outbound_image" />
+                                </div>
+                                <div v-if="exp.return_image" class="report-thumb" @click="openViewer(exp.return_image)">
+                                    <img :src="apiBase + exp.return_image" />
+                                </div>
+                                <div v-for="att in exp.attachments" :key="att.id" class="report-thumb" @click="openViewer(att.file_path)">
+                                    <img :src="apiBase + att.file_path" />
+                                </div>
+                            </div>
+                         </td>
+                    </tr>
+                    <tr v-if="expenseData.length === 0">
+                        <td colspan="7" style="text-align: center; color: #8b7355;">No expense records found</td>
+                    </tr>
+                </tbody>
+            </table>
+         </div>
+    </div>
+
+    <!-- Fullscreen Viewer -->
+    <div v-if="viewerOpen" class="viewer-overlay" @click="viewerOpen = false">
+      <button class="viewer-close" @click="viewerOpen = false">✕</button>
+      <div class="viewer-content" @click.stop>
+        <img v-if="!isPdf(viewerSrc)" :src="apiBase + viewerSrc" class="viewer-img" />
+        <iframe v-else :src="apiBase + viewerSrc" class="viewer-pdf"></iframe>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { getAttendanceReport, getCoinReport, getLeaveSummary, getAllLeaves, approveLeave, rejectLeave, getUsers } from '../../services/api'
+import { getAttendanceReport, getCoinReport, getLeaveSummary, getAllLeaves, approveLeave, rejectLeave, getUsers, getExpenseReport } from '../../services/api'
 
 export default {
     inject: ['showToast'],
@@ -224,13 +308,17 @@ export default {
             coinData: [],
             leaveData: [],
             pendingLeaves: [],
+            expenseData: [],
             loading: false,
             attendanceChartData: null,
             leaveChartData: null,
             chartOptions: {
                 responsive: true,
                 maintainAspectRatio: false
-            }
+            },
+            viewerOpen: false,
+            viewerSrc: '',
+            apiBase: import.meta.env.VITE_API_URL || ''
         }
     },
     watch: {
@@ -259,6 +347,19 @@ export default {
             return this.allUsers.filter(u => 
                 `${u.name} ${u.surname}`.toLowerCase().includes(q)
             )
+        },
+        expenseSummary() {
+            let general = 0, travel = 0, generalCount = 0, travelCount = 0
+            this.expenseData.forEach(e => {
+                if (e.expense_type === 'GENERAL') {
+                    general += (e.amount || 0)
+                    generalCount++
+                } else {
+                    travel += (e.total_amount || 0)
+                    travelCount++
+                }
+            })
+            return { general, travel, total: general + travel, generalCount, travelCount }
         }
     },
     methods: {
@@ -317,6 +418,14 @@ export default {
                 else if (this.activeTab === 'pending') {
                     const { data } = await getAllLeaves({ status: 'pending' })
                     this.pendingLeaves = data
+                }
+                else if (this.activeTab === 'expenses') {
+                    const params = {}
+                    if (this.filters.start_date) params.start_date = this.filters.start_date
+                    if (this.filters.end_date) params.end_date = this.filters.end_date
+                    if (this.filters.user_ids.length > 0) params.user_ids = this.filters.user_ids
+                    const { data } = await getExpenseReport(params)
+                    this.expenseData = data
                 }
                 
             } catch (e) {
@@ -440,6 +549,15 @@ export default {
             } catch (e) {
                 this.showToast(e.response?.data?.detail || 'Failed to reject', 'error')
             }
+        },
+        openViewer(src) { this.viewerSrc = src; this.viewerOpen = true },
+        isPdf(path) { return path && path.toLowerCase().endsWith('.pdf') },
+        getExpenseStatusColor(status) {
+            if (status === 'PENDING') return 'background: rgba(230,126,34,0.1); color: #e67e22; border: 1px solid rgba(230,126,34,0.2);'
+            if (status === 'ALL_APPROVED') return 'background: rgba(46,204,113,0.1); color: #2ecc71; border: 1px solid rgba(46,204,113,0.2);'
+            if (status === 'CONFIRMED') return 'background: rgba(52,152,219,0.1); color: #3498db; border: 1px solid rgba(52,152,219,0.2);'
+            if (status === 'REJECTED') return 'background: rgba(192,57,43,0.1); color: #c0392b; border: 1px solid rgba(192,57,43,0.2);'
+            return 'background: rgba(212,164,76,0.1); color: #d4a44c; border: 1px solid rgba(212,164,76,0.2);'
         }
     }
 }
@@ -546,4 +664,32 @@ export default {
 .dropdown-item:hover { background: rgba(212,164,76,0.06); }
 .dropdown-item.selected { background: rgba(212,164,76,0.08); color: #d4a44c; }
 .check { font-size: 14px; }
+
+/* Summary boxes */
+.summary-box {
+  background: rgba(26,26,46,0.6); border: 1px solid rgba(212,164,76,0.15); border-radius: 10px; padding: 14px; text-align: center;
+}
+.summary-box.grand {
+  border-color: rgba(212,164,76,0.4); background: linear-gradient(135deg, rgba(44,24,16,0.8), rgba(26,26,46,0.7));
+}
+.summary-label { font-size: 13px; font-weight: 700; color: #8b7355; margin-bottom: 6px; }
+.summary-value { font-size: 22px; font-weight: 800; color: #d4a44c; font-family: 'Cinzel', serif; }
+.summary-box.grand .summary-value { font-size: 26px; text-shadow: 0 2px 8px rgba(212,164,76,0.3); }
+.summary-count { font-size: 11px; color: #8b7355; margin-top: 4px; font-weight: 600; }
+
+/* Report thumbs */
+.report-thumb { width: 36px; height: 36px; border-radius: 4px; overflow: hidden; cursor: pointer; border: 1px solid rgba(212,164,76,0.2); }
+.report-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.pdf-mini { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(212,164,76,0.1); font-size: 8px; font-weight: 800; color: #d4a44c; }
+
+/* Viewer */
+.viewer-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.92); z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+}
+.viewer-close { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 20px; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; z-index: 10000; }
+.viewer-content { max-width: 90vw; max-height: 90vh; overflow: auto; }
+.viewer-img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 8px; }
+.viewer-pdf { width: 90vw; height: 90vh; border: none; border-radius: 8px; }
 </style>

@@ -253,10 +253,13 @@ export default {
   border-radius: 6px; text-transform: uppercase;
   white-space: nowrap;
 }
-.person-role-tag.admin {
-  background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff;
+.person-role-tag.god {
+  background: linear-gradient(135deg, #b8860b, #d4a44c); color: #1c1208;
 }
-.person-role-tag.staff {
+.person-role-tag.gm {
+  background: linear-gradient(135deg, #2980b9, #3498db); color: #fff;
+}
+.person-role-tag.player {
   background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff;
 }
 .person-role-tag.manager {
@@ -407,20 +410,20 @@ export default {
   text-transform: uppercase; letter-spacing: 1.5px;
   border: 1px solid; position: relative; z-index: 1;
 }
-.rank-plate.admin {
-  background: linear-gradient(135deg, #8b1a1a, #c0392b);
-  border-color: #e74c3c; color: #ffd5d5;
-  box-shadow: 0 0 10px rgba(231,76,60,0.3);
+.rank-plate.god {
+  background: linear-gradient(135deg, #8b6914, #d4a44c);
+  border-color: #ffd700; color: #1c1208;
+  box-shadow: 0 0 10px rgba(212,164,76,0.4);
 }
-.rank-plate.staff {
-  background: linear-gradient(135deg, #1a5c2e, #27ae60);
-  border-color: #2ecc71; color: #d5ffe0;
-  box-shadow: 0 0 10px rgba(46,204,113,0.3);
-}
-.rank-plate.manager {
+.rank-plate.gm {
   background: linear-gradient(135deg, #1a3a5c, #2980b9);
   border-color: #3498db; color: #d5e8ff;
   box-shadow: 0 0 10px rgba(52,152,219,0.3);
+}
+.rank-plate.player {
+  background: linear-gradient(135deg, #1a5c2e, #27ae60);
+  border-color: #2ecc71; color: #d5ffe0;
+  box-shadow: 0 0 10px rgba(46,204,113,0.3);
 }
 
 /* ── Identity ── */

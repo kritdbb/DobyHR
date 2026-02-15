@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import date, datetime, timedelta
 
 from app.core.database import get_db
-from app.api.deps import get_current_active_admin
+from app.api.deps import get_current_gm_or_above
 from app.models.user import User
 from app.models.attendance import Attendance
 from app.models.reward import CoinLog
@@ -58,7 +58,7 @@ def get_attendance_report(
     end_date: Optional[date] = None,
     user_ids: Optional[List[int]] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     query = db.query(Attendance).options(joinedload(Attendance.user))
     
@@ -96,7 +96,7 @@ def get_coin_report(
     end_date: Optional[date] = None,
     user_ids: Optional[List[int]] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     query = db.query(CoinLog).options(joinedload(CoinLog.user))
     
@@ -129,10 +129,10 @@ def get_coin_report(
 @router.get("/leaves", response_model=List[LeaveSummaryItem])
 def get_leave_summary_report(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     # This report summarizes leave usage per user
-    users = db.query(User).filter(User.role != "admin").all() # Maybe include admin? let's exclude for staff report
+    users = db.query(User).all()
     
     report = []
     for user in users:

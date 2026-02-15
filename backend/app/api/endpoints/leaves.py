@@ -9,7 +9,7 @@ from app.models.attendance import Attendance
 from app.models.company import Company
 from app.models.reward import CoinLog
 from app.models.approval import ApprovalFlow, ApprovalStep, ApprovalStepApprover
-from app.api.deps import get_current_user, get_current_active_admin
+from app.api.deps import get_current_user, get_current_gm_or_above
 from pydantic import BaseModel
 import logging
 
@@ -114,7 +114,7 @@ def get_leave_quota(
 def get_all_leaves(
     status: LeaveStatus = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_admin)
+    current_user: User = Depends(get_current_gm_or_above)
 ):
     query = db.query(LeaveRequest).order_by(LeaveRequest.start_date.desc())
     if status:

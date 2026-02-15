@@ -205,7 +205,7 @@
     <!-- Rescue Confirmation Modal -->
     <div v-if="showRescueModal" class="badge-modal-overlay" @click.self="showRescueModal = false">
       <div class="badge-modal rescue-modal">
-        <div class="rescue-modal-icon">💖</div>
+        <div class="rescue-modal-icon"><img src="/rescue-revive.png" class="rescue-revive-img" /></div>
         <h3 class="badge-modal-title">ชุบชีวิตเพื่อน</h3>
         <p class="rescue-modal-text">
           คุณต้องการใช้ <strong>1 Mana</strong> ช่วยชุบชีวิต <strong>{{ rescueTarget?.name }}</strong> ไหม?<br>
@@ -411,7 +411,7 @@
           <!-- Mana Rescue event -->
           <template v-else-if="a.type === 'rescue'">
             <div class="award-announce-badge rescue-icon-circle">
-              <span>🆘</span>
+              <img src="/rescue-revive.png" class="rescue-revive-announce-img" />
             </div>
             <div class="award-announce-body">
               <div class="award-announce-text">
@@ -530,7 +530,7 @@
             <!-- Mana Rescue event (modal) -->
             <template v-else-if="a.type === 'rescue'">
               <div class="award-announce-badge rescue-icon-circle">
-                <span>🆘</span>
+                <img src="/rescue-revive.png" class="rescue-revive-announce-img" />
               </div>
               <div class="award-announce-body">
                 <div class="award-announce-text">
@@ -874,6 +874,8 @@ export default {
 }
 .rescue-highlight { color: #f1c40f; }
 .rescue-by { font-size: 11px; color: #8b7355; margin-top: 2px; font-style: italic; }
+.rescue-revive-img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
+.rescue-revive-announce-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 
 /* ═══ RPG Character Sheet ═══ */
 .char-sheet {

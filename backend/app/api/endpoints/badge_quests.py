@@ -49,7 +49,7 @@ class BadgeQuestUpdate(BaseModel):
 
 @router.get("/condition-types")
 def get_condition_types(
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     """Return available condition types with labels (legacy)."""
     return [
@@ -61,7 +61,7 @@ def get_condition_types(
 @router.get("/fields")
 def get_available_fields(
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     """Return all queryable fields with descriptions and examples."""
     from app.services.badge_quest_evaluator import _ensure_item_fields
@@ -77,7 +77,7 @@ def get_available_fields(
 @router.get("/")
 def list_quests(
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     """List all badge quests with badge details."""
     quests = db.query(BadgeQuest).order_by(BadgeQuest.id.desc()).all()
@@ -111,7 +111,7 @@ def list_quests(
 def create_quest(
     body: BadgeQuestCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     """Create a new badge quest."""
     badge = db.query(Badge).filter(Badge.id == body.badge_id).first()
@@ -151,7 +151,7 @@ def update_quest(
     quest_id: int,
     body: BadgeQuestUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     """Update an existing badge quest."""
     quest = db.query(BadgeQuest).filter(BadgeQuest.id == quest_id).first()
@@ -196,7 +196,7 @@ def update_quest(
 def delete_quest(
     quest_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     """Delete a badge quest."""
     quest = db.query(BadgeQuest).filter(BadgeQuest.id == quest_id).first()
@@ -217,7 +217,7 @@ class PreviewRequest(BaseModel):
 def preview_query(
     body: PreviewRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     """Dry-run a query: returns matching users without awarding anything."""
     v = validate_query(body.query, db)
@@ -254,7 +254,7 @@ def preview_query(
 @router.post("/evaluate")
 def evaluate_all_quests(
     db: Session = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_gm_or_above),
 ):
     """Manually trigger evaluation for all active quests × all users."""
     return _run_evaluation(db)

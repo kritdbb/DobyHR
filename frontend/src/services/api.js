@@ -204,4 +204,24 @@ export const disconnectFitbit = () => api.post('/api/fitbit/disconnect')
 export const getStepGoals = () => api.get('/api/fitbit/goals')
 export const claimStepReward = (rewardType) => api.post(`/api/fitbit/claim-reward?reward_type=${rewardType}`)
 
+// --- Fortune Wheels ---
+export const getFortuneWheels = () => api.get('/api/fortune-wheels/')
+export const createFortuneWheel = (data) => api.post('/api/fortune-wheels/', data)
+export const updateFortuneWheel = (id, data) => api.put(`/api/fortune-wheels/${id}`, data)
+export const deleteFortuneWheel = (id) => api.delete(`/api/fortune-wheels/${id}`)
+export const getActiveFortuneWheels = () => api.get('/api/fortune-wheels/active')
+export const spinFortuneWheel = (id) => api.post(`/api/fortune-wheels/${id}/spin`)
+
+// --- Expenses ---
+export const createGeneralExpense = (formData) => api.post('/api/expenses/general', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+export const createTravelExpense = (formData) => api.post('/api/expenses/travel', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+export const getMyExpenses = () => api.get('/api/expenses/my')
+export const getPendingExpenseApprovals = () => api.get('/api/expenses/pending-approvals')
+export const approveExpense = (id) => api.put(`/api/expenses/${id}/approve`)
+export const rejectExpense = (id) => api.put(`/api/expenses/${id}/reject`)
+export const getAllExpenses = (status) => api.get('/api/expenses/all', { params: status ? { status } : {} })
+export const confirmExpense = (id, body) => api.put(`/api/expenses/${id}/confirm`, body)
+export const adminRejectExpense = (id) => api.put(`/api/expenses/${id}/admin-reject`)
+export const getExpenseReport = (params) => api.get('/api/expenses/report', { params })
+
 export default api

@@ -17,14 +17,15 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 def _build_token_response(user):
     """Shared helper to build a JWT token response for a user."""
+    role_str = user.role.value.lower() if user.role else "player"
     access_token_expires = timedelta(minutes=config.settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = security.create_access_token(
-        data={"sub": str(user.id), "role": user.role}, expires_delta=access_token_expires
+        data={"sub": str(user.id), "role": role_str}, expires_delta=access_token_expires
     )
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "role": user.role,
+        "role": role_str,
         "user_id": user.id,
         "name": user.name,
         "surname": user.surname,

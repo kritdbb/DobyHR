@@ -56,8 +56,9 @@
           <div class="form-group">
             <label>Role</label>
             <select v-model="form.role" class="form-input">
-              <option value="staff">Staff</option>
-              <option value="admin">Admin</option>
+              <option value="player">Player</option>
+              <option value="gm">GM</option>
+              <option value="god">God</option>
             </select>
           </div>
         </div>
@@ -341,7 +342,7 @@ export default {
       saving: false,
       pendingImage: null,
       form: {
-        email: '', password: '', role: 'staff',
+        email: '', password: '', role: 'player',
         name: '', surname: '', image: null, phone: '',
         department: '', work_start_time: '', work_end_time: '',
         position: '',
@@ -428,7 +429,7 @@ export default {
         this.coinBalance = data.coins || 0
         this.angelCoinBalance = data.angel_coins || 0
         this.form = {
-          email: data.email || '', password: '', role: data.role || 'staff',
+          email: data.email || '', password: '', role: data.role || 'player',
           name: data.name || '', surname: data.surname || '',
           image: data.image || null, phone: data.phone || '',
           department: data.department || '',

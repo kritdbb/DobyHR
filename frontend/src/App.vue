@@ -6,14 +6,14 @@
             <div>
                 <div class="p-6 border-b" style="border-color: rgba(212,164,76,0.3);">
                     <h1 style="font-family: 'Cinzel', serif; font-size: 20px; font-weight: 800; color: #d4a44c; text-shadow: 0 0 20px rgba(212,164,76,0.3);">⚔️ Doby Kingdom</h1>
-                    <p style="font-size: 11px; color: #b8860b; font-weight: 600; font-style: italic; margin-top: 4px;">Guild Master's Hall 🏰</p>
+                    <p style="font-size: 11px; color: #b8860b; font-weight: 600; font-style: italic; margin-top: 4px;">{{ userRole === 'god' ? "God's Throne Room 👑" : "Guild Master's Hall 🏰" }}</p>
                 </div>
                 <nav class="flex-1 p-4 space-y-2">
-                    <router-link to="/admin" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
+                    <router-link v-if="userRole === 'god'" to="/admin" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
                         <span class="mr-3 text-lg">🏰</span>
                         <span class="font-semibold">Guild Hall</span>
                     </router-link>
-                    <router-link to="/company" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
+                    <router-link v-if="userRole === 'god'" to="/company" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
                         <span class="mr-3 text-lg">⚙️</span>
                         <span class="font-semibold">Kingdom Settings</span>
                     </router-link>
@@ -21,30 +21,47 @@
                         <span class="mr-3 text-lg">⚔️</span>
                         <span class="font-semibold">Adventurers</span>
                     </router-link>
-                    <router-link to="/approval" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
-                        <span class="mr-3 text-lg">📜</span>
-                        <span class="font-semibold">Approval Lines</span>
-                    </router-link>
                     <router-link to="/approval-patterns" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
                         <span class="mr-3 text-lg">🛡️</span>
                         <span class="font-semibold">Approval Patterns</span>
                     </router-link>
-                    <router-link to="/rewards" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
-                        <span class="mr-3 text-lg">🛒</span>
-                        <span class="font-semibold">Item Shop</span>
+                    <router-link to="/approval" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
+                        <span class="mr-3 text-lg">📜</span>
+                        <span class="font-semibold">Approval Lines</span>
                     </router-link>
                     <router-link to="/verify-redemption" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
                         <span class="mr-3 text-lg">🔮</span>
                         <span class="font-semibold">Verify Trades</span>
                     </router-link>
-                    <router-link to="/badges" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
+                    <router-link to="/expense-management" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
+                        <span class="mr-3 text-lg">💰</span>
+                        <span class="font-semibold">Expense Requests</span>
+                    </router-link>
+
+                    <div class="nav-divider"></div>
+
+                    <router-link v-if="userRole === 'god'" to="/rewards" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
+                        <span class="mr-3 text-lg">🛒</span>
+                        <span class="font-semibold">Item Shop</span>
+                    </router-link>
+                    <router-link v-if="userRole === 'god'" to="/fortune-wheel" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
+                        <span class="mr-3 text-lg">🎡</span>
+                        <span class="font-semibold">Fortune Wheel</span>
+                    </router-link>
+
+                    <div class="nav-divider"></div>
+
+                    <router-link v-if="userRole === 'god'" to="/badges" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
                         <span class="mr-3 text-lg">🏅</span>
                         <span class="font-semibold">Badge Forge</span>
                     </router-link>
-                    <router-link to="/badge-quests" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
+                    <router-link v-if="userRole === 'god'" to="/badge-quests" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
                         <span class="mr-3 text-lg">🎯</span>
                         <span class="font-semibold">Badge Quest</span>
                     </router-link>
+
+                    <div class="nav-divider"></div>
+
                     <router-link to="/reports" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
                         <span class="mr-3 text-lg">📊</span>
                         <span class="font-semibold">Chronicles</span>
@@ -93,10 +110,17 @@ export default {
     }
   },
   computed: {
+    userRole() {
+      const userStr = localStorage.getItem('user')
+      if (!userStr) return 'player'
+      try { return JSON.parse(userStr).role || 'player' }
+      catch { return 'player' }
+    },
     layout() {
         if (this.$route.meta.layout === 'empty') return 'empty'
         if (this.$route.path.startsWith('/staff')) return 'staff'
-        return 'admin'
+        if (['god', 'gm'].includes(this.userRole)) return 'admin'
+        return 'staff'
     }
   },
   methods: {
@@ -127,5 +151,10 @@ export default {
 }
 .bounce-leave-active {
   animation: bounceIn 0.3s ease reverse;
+}
+.nav-divider {
+  height: 1px;
+  margin: 8px 12px;
+  background: rgba(212,164,76,0.15);
 }
 </style>
