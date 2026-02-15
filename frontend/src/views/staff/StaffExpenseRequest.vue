@@ -6,17 +6,17 @@
     <!-- Type Picker -->
     <div v-if="!selectedType" class="type-picker">
       <button class="type-card" @click="selectedType = 'general'">
-        <div class="type-icon">📄</div>
+        <div class="type-icon"><img src="/icons/generalexpense.png" class="type-icon-img" /></div>
         <span class="type-label">General Expense</span>
         <span class="type-desc">Bills, receipts &amp; invoices</span>
       </button>
       <button class="type-card" @click="selectedType = 'travel'">
-        <div class="type-icon">🚗</div>
+        <div class="type-icon"><img src="/icons/travelexpense.png" class="type-icon-img" /></div>
         <span class="type-label">Travel Expense</span>
         <span class="type-desc">Mileage &amp; transport costs</span>
       </button>
       <button class="type-card" @click="selectedType = 'center'">
-        <div class="type-icon">🏢</div>
+        <div class="type-icon"><img src="/icons/centerexpense.png" class="type-icon-img" /></div>
         <span class="type-label">Center Expense</span>
         <span class="type-desc">Shared company costs</span>
       </button>
@@ -449,7 +449,7 @@ export default {
         fd.append('amount', this.centerForm.amount)
         fd.append('file', this.centerForm.file)
         await createCenterExpense(fd)
-        this.showToast('Center expense submitted! ✅', 'success')
+        this.showToast('ระบบได้รับรายการของคุณแล้ว กรุณาอย่าส่งซ้ำ', 'success')
         this.resetCenter()
         this.selectedType = null
         await this.loadHistory()
@@ -473,7 +473,7 @@ export default {
 .center-notice { padding: 10px 14px; border-radius: 10px; background: rgba(52,152,219,0.1); border: 1px solid rgba(52,152,219,0.2); color: #3498db; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
 
 /* Type Picker */
-.type-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+.type-picker { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 24px; }
 .type-card {
   display: flex; flex-direction: column; align-items: center; padding: 28px 16px;
   border-radius: 14px; border: 2px solid rgba(212,164,76,0.2);
@@ -481,7 +481,8 @@ export default {
   color: #e8d5b7; cursor: pointer; transition: all 0.2s;
 }
 .type-card:hover { border-color: #d4a44c; transform: translateY(-3px); box-shadow: 0 8px 28px rgba(212,164,76,0.15); }
-.type-icon { font-size: 36px; margin-bottom: 10px; }
+.type-icon { font-size: 36px; margin-bottom: 8px; }
+.type-icon-img { width: 48px; height: 48px; object-fit: contain; }
 .type-label { font-family: 'Cinzel', serif; font-weight: 700; font-size: 14px; margin-bottom: 4px; }
 .type-desc { font-size: 12px; color: #8b7355; }
 
