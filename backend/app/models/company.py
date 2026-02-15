@@ -43,4 +43,7 @@ class Company(Base):
     step_monthly_luk = Column(Integer, default=0)
     step_monthly_gold = Column(Integer, default=1)
     step_monthly_mana = Column(Integer, default=0)
-
+    # Rescue (Revival Pool)
+    rescue_cost_per_person = Column(Integer, default=1)    # Mana cost per rescuer
+    rescue_required_people = Column(Integer, default=3)    # People needed to revive
+    rescue_gold_on_revive = Column(Integer, default=0)     # Gold given after revival

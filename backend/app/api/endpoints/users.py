@@ -154,55 +154,157 @@ def rescue_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Spend 1 Mana to give +5 Gold to a user with negative coins."""
+    """Revival Pool: contribute Mana to help revive a dead user. Requires multiple people."""
+    from app.models.company import Company
+
     if current_user.id == req.recipient_id:
         raise HTTPException(status_code=400, detail="Cannot rescue yourself")
-
-    if current_user.angel_coins < 1:
-        raise HTTPException(status_code=400, detail="Insufficient Mana (need at least 1)")
 
     recipient = db.query(User).filter(User.id == req.recipient_id).first()
     if not recipient:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if recipient.coins >= 0:
+    if (recipient.coins or 0) >= 0:
         raise HTTPException(status_code=400, detail="This user does not need rescuing (coins >= 0)")
 
-    # Deduct 1 Mana from sender
-    current_user.angel_coins -= 1
+    # Get rescue config
+    company = db.query(Company).first()
+    cost = (company.rescue_cost_per_person if company else 1) or 1
+    required = (company.rescue_required_people if company else 3) or 3
+    gold_on_revive = (company.rescue_gold_on_revive if company else 0) or 0
 
-    # Give +5 Gold to recipient
-    recipient.coins += 5
+    if (current_user.angel_coins or 0) < cost:
+        raise HTTPException(status_code=400, detail=f"Insufficient Mana (need {cost})")
+
+    # Check if this user already contributed to this revival
+    existing_prayer = db.query(CoinLog).filter(
+        CoinLog.user_id == recipient.id,
+        CoinLog.reason.ilike(f"%Revival Prayer from {current_user.name}%"),
+        CoinLog.amount == 0,
+    ).first()
+    if existing_prayer:
+        raise HTTPException(status_code=400, detail="You already contributed to this revival!")
 
     sender_name = f"{current_user.name} {current_user.surname or ''}".strip()
     recipient_name = f"{recipient.name} {recipient.surname or ''}".strip()
 
-    # Log for sender
+    # Deduct Mana from sender
+    current_user.angel_coins -= cost
+
+    # Log sender's contribution
     sender_log = CoinLog(
         user_id=current_user.id,
-        amount=-1,
-        reason=f"💖 Mana Rescue: sent to {recipient_name}",
+        amount=-cost,
+        reason=f"🙏 Revival Contribution for {recipient_name}",
         created_by="System",
     )
     db.add(sender_log)
 
-    # Log for recipient (+5 Gold)
-    recipient_log = CoinLog(
+    # Log prayer on recipient (amount=0, used for counting)
+    prayer_log = CoinLog(
         user_id=recipient.id,
-        amount=5,
-        reason=f"💖 Mana Rescue from {sender_name}",
+        amount=0,
+        reason=f"🙏 Revival Prayer from {sender_name}",
         created_by=sender_name,
     )
-    db.add(recipient_log)
+    db.add(prayer_log)
+    db.flush()
+
+    # Count current prayers for this recipient
+    prayer_count = db.query(CoinLog).filter(
+        CoinLog.user_id == recipient.id,
+        CoinLog.reason.ilike("🙏 Revival Prayer from%"),
+        CoinLog.amount == 0,
+    ).count()
+
+    revived = False
+    if prayer_count >= required:
+        # REVIVE! Set coins to configured amount
+        recipient.coins = gold_on_revive
+
+        # Gather all rescuer names
+        prayer_logs = db.query(CoinLog).filter(
+            CoinLog.user_id == recipient.id,
+            CoinLog.reason.ilike("🙏 Revival Prayer from%"),
+            CoinLog.amount == 0,
+        ).all()
+        rescuer_names = [p.created_by for p in prayer_logs]
+
+        # Delete prayer logs (cleanup)
+        for p in prayer_logs:
+            db.delete(p)
+
+        # Create revival celebration log
+        revival_log = CoinLog(
+            user_id=recipient.id,
+            amount=gold_on_revive,
+            reason=f"💖 Revived by {', '.join(rescuer_names)}!",
+            created_by="Revival Pool",
+        )
+        db.add(revival_log)
+        revived = True
 
     db.commit()
 
+    if revived:
+        return {
+            "message": f"🎉 {recipient_name} has been REVIVED!",
+            "revived": True,
+            "prayer_count": required,
+            "required": required,
+            "rescuers": rescuer_names,
+            "recipient_coins": recipient.coins,
+            "sender_mana": current_user.angel_coins,
+        }
+    else:
+        return {
+            "message": f"🙏 Prayer sent! {prayer_count}/{required} needed to revive {recipient_name}",
+            "revived": False,
+            "prayer_count": prayer_count,
+            "required": required,
+            "recipient_name": recipient_name,
+            "sender_mana": current_user.angel_coins,
+        }
+
+
+@router.get("/rescue/pool/{user_id}")
+def get_rescue_pool(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get the current revival pool status for a dead user."""
+    from app.models.company import Company
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    company = db.query(Company).first()
+    required = (company.rescue_required_people if company else 3) or 3
+    cost = (company.rescue_cost_per_person if company else 1) or 1
+
+    if (user.coins or 0) >= 0:
+        return {"is_dead": False, "prayer_count": 0, "required": required, "contributors": [], "cost": cost}
+
+    prayers = db.query(CoinLog).filter(
+        CoinLog.user_id == user_id,
+        CoinLog.reason.ilike("🙏 Revival Prayer from%"),
+        CoinLog.amount == 0,
+    ).all()
+
+    contributors = [p.created_by for p in prayers]
+    already_contributed = any(
+        current_user.name in c for c in contributors
+    )
+
     return {
-        "message": f"Rescued {recipient_name}! +5 Gold",
-        "sender_mana": current_user.angel_coins,
-        "recipient_coins": recipient.coins,
-        "recipient_name": recipient_name,
-        "sender_name": sender_name,
+        "is_dead": True,
+        "prayer_count": len(prayers),
+        "required": required,
+        "cost": cost,
+        "contributors": contributors,
+        "already_contributed": already_contributed,
     }
 
 

@@ -35,6 +35,9 @@ class CompanyBase(BaseModel):
     step_monthly_luk: Optional[int] = 0
     step_monthly_gold: Optional[int] = 1
     step_monthly_mana: Optional[int] = 0
+    rescue_cost_per_person: Optional[int] = 1
+    rescue_required_people: Optional[int] = 3
+    rescue_gold_on_revive: Optional[int] = 0
 
 
 class CompanyUpdate(BaseModel):
@@ -70,6 +73,9 @@ class CompanyUpdate(BaseModel):
     step_monthly_luk: Optional[int] = None
     step_monthly_gold: Optional[int] = None
     step_monthly_mana: Optional[int] = None
+    rescue_cost_per_person: Optional[int] = None
+    rescue_required_people: Optional[int] = None
+    rescue_gold_on_revive: Optional[int] = None
 
 
 class CompanyResponse(CompanyBase):

@@ -184,20 +184,25 @@
       </router-link>
     </div>
 
-    <!-- 💖 ชุบทีคับ: Mana Rescue -->
+    <!-- 💖 ชุบทีคับ: Revival Pool -->
     <div v-if="negativeUsers.length > 0" class="section rescue-section">
-      <h2 class="section-title">🆘 Rescue - ชุบชีวิตเพื่อน</h2>
+      <h2 class="section-title">🆘 Revival Pool - รวมพลังชุบชีวิต</h2>
       <div v-for="u in negativeUsers" :key="'rescue-'+u.id" class="rescue-card">
         <div class="rescue-portrait">
           <img v-if="u.image" :src="u.image" class="rescue-img" />
           <span v-else class="rescue-fb">{{ u.name.charAt(0) }}</span>
         </div>
         <div class="rescue-body">
-          <div class="rescue-text">⚠️ <strong>{{ u.name }}</strong> กำลังติดลบ <span class="rescue-debt">{{ u.coins }} Gold</span>!</div>
-          <div class="rescue-sub">ช่วยส่ง Mana ให้หน่อย! ทุก Mana ที่ส่งไป จะช่วย +5 Gold</div>
+          <div class="rescue-text">💀 <strong>{{ u.name }}</strong> ถูกลงทัณฑ์ <span class="rescue-debt">{{ u.coins }} Gold</span></div>
+          <div v-if="u.pool" class="rescue-pool-bar">
+            <div class="rescue-pool-fill" :style="{width: Math.min(100, (u.pool.prayer_count / u.pool.required) * 100) + '%'}"></div>
+            <span class="rescue-pool-label">🙏 {{ u.pool.prayer_count }}/{{ u.pool.required }} คน</span>
+          </div>
+          <div v-if="u.pool && u.pool.contributors.length" class="rescue-contributors">{{ u.pool.contributors.join(', ') }}</div>
+          <div class="rescue-sub">ร่วมสวดภาวนาชุบชีวิต! ใช้ {{ u.pool?.cost || 1 }} Mana ต่อคน</div>
         </div>
-        <button class="rescue-btn" @click="openRescueConfirm(u)" :disabled="myAngelCoins < 1">
-          💖 ชุบชีวิต
+        <button class="rescue-btn" @click="openRescueConfirm(u)" :disabled="myAngelCoins < (u.pool?.cost || 1) || u.pool?.already_contributed">
+          {{ u.pool?.already_contributed ? '✅ สวดแล้ว' : '🙏 สวดภาวนา' }}
         </button>
       </div>
     </div>
@@ -206,16 +211,16 @@
     <div v-if="showRescueModal" class="badge-modal-overlay" @click.self="showRescueModal = false">
       <div class="badge-modal rescue-modal">
         <div class="rescue-modal-icon"><img src="/rescue-revive.png" class="rescue-revive-img" /></div>
-        <h3 class="badge-modal-title">ชุบชีวิตเพื่อน</h3>
+        <h3 class="badge-modal-title">🙏 สวดภาวนาชุบชีวิต</h3>
         <p class="rescue-modal-text">
-          คุณต้องการใช้ <strong>1 Mana</strong> ช่วยชุบชีวิต <strong>{{ rescueTarget?.name }}</strong> ไหม?<br>
-          Mana จะมีผล <strong class="rescue-gold">+5 Gold</strong> ให้กับเพื่อนที่ติดลบ
+          คุณต้องการใช้ <strong>{{ rescueTarget?.pool?.cost || 1 }} Mana</strong> ร่วมชุบชีวิต <strong>{{ rescueTarget?.name }}</strong> ไหม?<br>
+          ต้องการอีก <strong class="rescue-gold">{{ (rescueTarget?.pool?.required || 3) - (rescueTarget?.pool?.prayer_count || 0) }} คน</strong> ถึงจะชุบชีวิตสำเร็จ!
         </p>
         <div class="rescue-modal-balance">✨ Mana ของคุณ: {{ myAngelCoins }}</div>
         <div class="rescue-modal-actions">
           <button class="btn-cancel" @click="showRescueModal = false">ยกเลิก</button>
           <button class="rescue-confirm-btn" @click="performRescue" :disabled="rescuing">
-            {{ rescuing ? 'กำลังชุบชีวิต...' : '💖 ยืนยัน ชุบชีวิต' }}
+            {{ rescuing ? 'กำลังสวดภาวนา...' : '🙏 ยืนยัน สวดภาวนา' }}
           </button>
         </div>
       </div>
@@ -694,7 +699,15 @@ export default {
         // Load negative-coin users for rescue
         try {
           const negRes = await api.get('/api/users/negative-coins')
-          this.negativeUsers = negRes.data || []
+          const users = negRes.data || []
+          // Fetch pool status for each dead user
+          for (const u of users) {
+            try {
+              const poolRes = await api.get(`/api/users/rescue/pool/${u.id}`)
+              u.pool = poolRes.data
+            } catch (ep) { u.pool = null }
+          }
+          this.negativeUsers = users
         } catch (e2) { this.negativeUsers = [] }
       } catch (e) {
         this.myBadges = []
@@ -764,12 +777,16 @@ export default {
       this.rescuing = true
       try {
         const res = await api.post('/api/users/rescue', { recipient_id: this.rescueTarget.id })
-        this.showToast(`💖 ชุบชีวิต ${res.data.recipient_name} สำเร็จ! Gold +5`)
+        if (res.data.revived) {
+          this.showToast(`🎉 ${this.rescueTarget.name} ได้รับการชุบชีวิตแล้ว! รวมพลัง ${res.data.rescuers?.join(', ')}`)
+        } else {
+          this.showToast(`🙏 สวดภาวนาสำเร็จ! ${res.data.prayer_count}/${res.data.required} คน`)
+        }
         this.showRescueModal = false
         this.rescueTarget = null
         await this.loadData()
       } catch (e) {
-        this.showToast(e.response?.data?.detail || 'ชุบชีวิตไม่สำเร็จ', 'error')
+        this.showToast(e.response?.data?.detail || 'สวดภาวนาไม่สำเร็จ', 'error')
       } finally {
         this.rescuing = false
       }
@@ -836,6 +853,22 @@ export default {
 .rescue-text { font-size: 13px; color: #e8d5b7; line-height: 1.4; }
 .rescue-debt { color: #e74c3c; font-weight: 700; }
 .rescue-sub { font-size: 11px; color: #8b7355; margin-top: 2px; }
+.rescue-pool-bar {
+  position: relative; height: 18px; border-radius: 9px; margin-top: 6px;
+  background: rgba(255,255,255,0.08); overflow: hidden;
+}
+.rescue-pool-fill {
+  height: 100%; border-radius: 9px; transition: width 0.4s ease;
+  background: linear-gradient(90deg, #e74c3c, #f39c12, #2ecc71);
+}
+.rescue-pool-label {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.rescue-contributors {
+  font-size: 10px; color: #d4a44c; margin-top: 3px; font-style: italic;
+}
 .rescue-btn {
   flex-shrink: 0; background: linear-gradient(135deg, #e74c3c, #c0392b);
   color: #fff; border: none; padding: 8px 16px; border-radius: 10px;

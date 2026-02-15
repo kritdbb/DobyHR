@@ -242,6 +242,29 @@
           <input v-model.number="form.step_monthly_mana" class="form-input" type="number" min="0" />
         </div>
       </div>
+
+      <!-- Rescue (Revival Pool) -->
+      <div class="card-header" style="margin-top: 24px; border-top: 1px solid rgba(212,164,76,0.1); padding-top: 24px;">
+        <span class="card-title">💖 Revival Pool (Rescue)</span>
+      </div>
+      <p class="section-desc">When a guild member's Gold drops below 0, they are considered "dead". Fellow members can contribute Mana to revive them.</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Mana Cost per Person</label>
+          <input v-model.number="form.rescue_cost_per_person" class="form-input" type="number" placeholder="1" min="1" />
+          <p style="font-size: 12px; color: #8b7355; margin-top: 4px;">Mana each rescuer must spend.</p>
+        </div>
+        <div class="form-group">
+          <label>Required People</label>
+          <input v-model.number="form.rescue_required_people" class="form-input" type="number" placeholder="3" min="1" />
+          <p style="font-size: 12px; color: #8b7355; margin-top: 4px;">How many people must contribute to revive.</p>
+        </div>
+        <div class="form-group">
+          <label>Gold on Revive</label>
+          <input v-model.number="form.rescue_gold_on_revive" class="form-input" type="number" placeholder="0" min="0" />
+          <p style="font-size: 12px; color: #8b7355; margin-top: 4px;">Gold given to the revived member (0 = reset to zero).</p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -282,6 +305,9 @@ export default {
         step_monthly_luk: 0,
         step_monthly_gold: 1,
         step_monthly_mana: 0,
+        rescue_cost_per_person: 1,
+        rescue_required_people: 3,
+        rescue_gold_on_revive: 0,
       },
       autoCoinDays: [],
       autoAngelDays: [],
@@ -344,6 +370,9 @@ export default {
           step_monthly_luk: data.step_monthly_luk ?? 0,
           step_monthly_gold: data.step_monthly_gold ?? 1,
           step_monthly_mana: data.step_monthly_mana ?? 0,
+          rescue_cost_per_person: data.rescue_cost_per_person ?? 1,
+          rescue_required_people: data.rescue_required_people ?? 3,
+          rescue_gold_on_revive: data.rescue_gold_on_revive ?? 0,
         }
         this.autoCoinDays = data.auto_coin_day ? data.auto_coin_day.split(',').map(d => d.trim().toLowerCase()) : []
         this.autoAngelDays = data.auto_angel_day ? data.auto_angel_day.split(',').map(d => d.trim().toLowerCase()) : []
@@ -387,6 +416,9 @@ export default {
           step_monthly_luk: this.form.step_monthly_luk,
           step_monthly_gold: this.form.step_monthly_gold,
           step_monthly_mana: this.form.step_monthly_mana,
+          rescue_cost_per_person: this.form.rescue_cost_per_person,
+          rescue_required_people: this.form.rescue_required_people,
+          rescue_gold_on_revive: this.form.rescue_gold_on_revive,
         })
         this.showToast('Kingdom settings updated!')
       } catch (e) {

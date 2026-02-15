@@ -176,50 +176,22 @@ def buy_magic_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    """Buy a magic item from the shop. All items cost 1 Gold."""
-    valid_items = ["magic_lottery", "scroll_of_luck", "scroll_of_strength", "scroll_of_defense", "title_scroll"]
+    """Buy a magic item from the shop. Scrolls cost 20 Gold."""
+    valid_items = ["scroll_of_luck", "scroll_of_strength", "scroll_of_defense", "title_scroll"]
     if item_type not in valid_items:
         raise HTTPException(status_code=400, detail=f"Invalid item. Must be one of: {valid_items}")
 
-    if (current_user.coins or 0) < 1:
-        raise HTTPException(status_code=400, detail="Not enough Gold!")
+    if (current_user.coins or 0) < 20:
+        raise HTTPException(status_code=400, detail="Not enough Gold! (need 20)")
 
     result = {}
     user_name = f"{current_user.name} {current_user.surname or ''}".strip()
 
-    if item_type == "magic_lottery":
-        if (current_user.coins or 0) < 3:
-            raise HTTPException(status_code=400, detail="Not enough Gold! Magic Lottery costs 3 Gold.")
-        # Limit: 1 per day per person (UTC+7)
-        from datetime import datetime, timedelta, timezone
-        tz7 = timezone(timedelta(hours=7))
-        now = datetime.now(tz7)
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).replace(tzinfo=None)
-        already_played = db.query(CoinLog).filter(
-            CoinLog.user_id == current_user.id,
-            CoinLog.reason.ilike("%Magic Lottery%"),
-            CoinLog.created_at >= today_start,
-        ).first()
-        if already_played:
-            raise HTTPException(status_code=400, detail="You already played Magic Lottery today! Come back tomorrow 🎲")
-        current_user.coins -= 3
-        won = _random.randint(-6, 8)
-        gained = max(0, won)  # Can't have negative coins
-        current_user.coins += gained
-        log = CoinLog(
-            user_id=current_user.id,
-            amount=won - 3,
-            reason=f"🎲 Magic Lottery! Spent 3 Gold, result: {won} Gold",
-            created_by="Magic Shop"
-        )
-        db.add(log)
-        result = {"item": "Magic Lottery", "won": won, "net": won - 3, "coins": current_user.coins}
-
-    elif item_type == "scroll_of_luck":
-        current_user.coins -= 1
+    if item_type == "scroll_of_luck":
+        current_user.coins -= 20
         current_user.base_luk = (current_user.base_luk or 10) + 1
         log = CoinLog(
-            user_id=current_user.id, amount=-1,
+            user_id=current_user.id, amount=-20,
             reason=f"📜 Scroll of Luck — LUK +1 (now {current_user.base_luk})",
             created_by="Magic Shop"
         )
@@ -227,10 +199,10 @@ def buy_magic_item(
         result = {"item": "Scroll of Luck", "stat": "LUK", "new_value": current_user.base_luk, "coins": current_user.coins}
 
     elif item_type == "scroll_of_strength":
-        current_user.coins -= 1
+        current_user.coins -= 20
         current_user.base_str = (current_user.base_str or 10) + 1
         log = CoinLog(
-            user_id=current_user.id, amount=-1,
+            user_id=current_user.id, amount=-20,
             reason=f"📜 Scroll of Strength — STR +1 (now {current_user.base_str})",
             created_by="Magic Shop"
         )
@@ -238,10 +210,10 @@ def buy_magic_item(
         result = {"item": "Scroll of Strength", "stat": "STR", "new_value": current_user.base_str, "coins": current_user.coins}
 
     elif item_type == "scroll_of_defense":
-        current_user.coins -= 1
+        current_user.coins -= 20
         current_user.base_def = (current_user.base_def or 10) + 1
         log = CoinLog(
-            user_id=current_user.id, amount=-1,
+            user_id=current_user.id, amount=-20,
             reason=f"📜 Scroll of Defense — DEF +1 (now {current_user.base_def})",
             created_by="Magic Shop"
         )
@@ -252,10 +224,10 @@ def buy_magic_item(
         if not status_text or not status_text.strip():
             raise HTTPException(status_code=400, detail="Please enter your status text!")
         status_text = status_text.strip()[:70]
-        current_user.coins -= 1
+        current_user.coins -= 20
         current_user.status_text = status_text
         log = CoinLog(
-            user_id=current_user.id, amount=-1,
+            user_id=current_user.id, amount=-20,
             reason=f"📜 Title Scroll — Status: \"{status_text}\"",
             created_by="Magic Shop"
         )

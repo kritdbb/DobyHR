@@ -21,8 +21,8 @@
           <div class="magic-icon">🍀</div>
           <div class="magic-name">Scroll of Luck</div>
           <div class="magic-desc">Permanently gain +1 LUK</div>
-          <div class="magic-cost">Cost: 💰 1</div>
-          <button class="magic-buy" :disabled="buying || myCoins < 1" @click="buy('scroll_of_luck')">
+          <div class="magic-cost">Cost: 💰 20</div>
+          <button class="magic-buy" :disabled="buying || myCoins < 20" @click="buy('scroll_of_luck')">
             {{ buying === 'scroll_of_luck' ? 'Learning...' : 'Buy Scroll' }}
           </button>
           <div v-if="lastResult && lastResult.item === 'Scroll of Luck'" class="magic-result win">
@@ -34,8 +34,8 @@
           <div class="magic-icon">⚔️</div>
           <div class="magic-name">Scroll of Strength</div>
           <div class="magic-desc">Permanently gain +1 STR</div>
-          <div class="magic-cost">Cost: 💰 1</div>
-          <button class="magic-buy" :disabled="buying || myCoins < 1" @click="buy('scroll_of_strength')">
+          <div class="magic-cost">Cost: 💰 20</div>
+          <button class="magic-buy" :disabled="buying || myCoins < 20" @click="buy('scroll_of_strength')">
             {{ buying === 'scroll_of_strength' ? 'Learning...' : 'Buy Scroll' }}
           </button>
           <div v-if="lastResult && lastResult.item === 'Scroll of Strength'" class="magic-result win">
@@ -47,8 +47,8 @@
           <div class="magic-icon">🛡️</div>
           <div class="magic-name">Scroll of Defense</div>
           <div class="magic-desc">Permanently gain +1 DEF</div>
-          <div class="magic-cost">Cost: 💰 1</div>
-          <button class="magic-buy" :disabled="buying || myCoins < 1" @click="buy('scroll_of_defense')">
+          <div class="magic-cost">Cost: 💰 20</div>
+          <button class="magic-buy" :disabled="buying || myCoins < 20" @click="buy('scroll_of_defense')">
             {{ buying === 'scroll_of_defense' ? 'Learning...' : 'Buy Scroll' }}
           </button>
           <div v-if="lastResult && lastResult.item === 'Scroll of Defense'" class="magic-result win">
@@ -72,7 +72,7 @@
           <div class="magic-icon">📜</div>
           <div class="magic-name">Title Scroll</div>
           <div class="magic-desc">Write your own status (70 chars)</div>
-          <div class="magic-cost">Cost: 💰 1</div>
+          <div class="magic-cost">Cost: 💰 20</div>
           <div class="title-input-wrap">
             <input
               v-model="titleText"
@@ -84,7 +84,7 @@
             />
             <span class="title-counter">{{ titleText.length }}/70</span>
           </div>
-          <button class="magic-buy title-btn" :disabled="buying || myCoins < 1 || !titleText.trim()" @click="buyTitle">
+          <button class="magic-buy title-btn" :disabled="buying || myCoins < 20 || !titleText.trim()" @click="buyTitle">
             {{ buying === 'title_scroll' ? 'Writing...' : '📜 Set Status' }}
           </button>
           <div v-if="currentStatus" class="title-current">💬 {{ currentStatus }}</div>
@@ -203,7 +203,7 @@ export default {
 
 
     async buy(itemType) {
-      if (this.myCoins < 1) return
+      if (this.myCoins < 20) return
       this.buying = itemType
       this.lastResult = null
       try {
@@ -222,7 +222,7 @@ export default {
     },
 
     async buyTitle() {
-      if (!this.titleText.trim() || this.myCoins < 1 || this.buying) return
+      if (!this.titleText.trim() || this.myCoins < 20 || this.buying) return
       this.buying = 'title_scroll'
       this.lastResult = null
       try {

@@ -24,8 +24,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger("hr-api")
 
-# Create all tables
-Base.metadata.create_all(bind=engine)
+# Create all tables (with retry)
+for _attempt in range(10):
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Database tables ready")
+        break
+    except Exception as _e:
+        logger.warning(f"⏳ create_all failed (attempt {_attempt+1}/10): {_e}")
+        time.sleep(3)
 
 app = FastAPI(title="HR System API", version="1.0.0")
 
