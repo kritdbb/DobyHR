@@ -1,18 +1,20 @@
 """
-Notification helpers – email, Google Chat webhook & Google Chat DM.
+Notification helpers – email & Google Chat webhooks.
+
+Two webhook channels:
+  • Town Crier  → GOOGLE_CHAT_WEBHOOK_URL      (badge awards, mana gifts, etc.)
+  • Approvals   → GOOGLE_CHAT_APPROVAL_WEBHOOK (leave/expense/reward requests)
 
 All run in background threads so endpoint latency is unaffected.
-If credentials / URLs are not configured the helpers silently no-op.
+If URLs / credentials are not configured the helpers silently no-op.
 """
 
-import json
 import logging
-import os
 import smtplib
 import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import List, Optional
+from typing import List
 
 import httpx
 from sqlalchemy.orm import Session
@@ -34,9 +36,8 @@ def _webhook_configured() -> bool:
     return bool(settings.GOOGLE_CHAT_WEBHOOK_URL)
 
 
-def _chat_dm_configured() -> bool:
-    path = settings.GOOGLE_CHAT_SA_KEY_FILE
-    return bool(path and os.path.isfile(path))
+def _approval_webhook_configured() -> bool:
+    return bool(settings.GOOGLE_CHAT_APPROVAL_WEBHOOK)
 
 
 # ── Approver lookup ───────────────────────────────────────
@@ -124,140 +125,37 @@ def notify_approvers_by_email(
     ).start()
 
 
-# ── Google Chat Webhook ───────────────────────────────────
+# ── Google Chat Webhook – Town Crier ──────────────────────
 
-def _send_webhook_sync(text: str):
+def _send_webhook_sync(url: str, text: str):
     """Blocking POST – called from a background thread."""
     try:
-        r = httpx.post(
-            settings.GOOGLE_CHAT_WEBHOOK_URL,
-            json={"text": text},
-            timeout=10,
-        )
+        r = httpx.post(url, json={"text": text}, timeout=10)
         logger.info(f"🔔 Webhook sent ({r.status_code})")
     except Exception as e:
         logger.error(f"🔔 Webhook failed: {e}")
 
 
 def send_town_crier_webhook(text: str):
-    """Fire-and-forget Google Chat message."""
+    """Fire-and-forget Google Chat message to Town Crier space."""
     if not _webhook_configured():
         return
     threading.Thread(
         target=_send_webhook_sync,
-        args=(text,),
+        args=(settings.GOOGLE_CHAT_WEBHOOK_URL, text),
         daemon=True,
     ).start()
 
 
-# ── Google Chat DM (Service Account) ─────────────────────
+# ── Google Chat Webhook – Approvals ───────────────────────
 
-_CHAT_API = "https://chat.googleapis.com/v1"
-_CHAT_SCOPE = "https://www.googleapis.com/auth/chat.bot"
-
-
-def _get_chat_access_token() -> Optional[str]:
-    """Get an access token from the service account key file."""
-    try:
-        from google.oauth2 import service_account as sa
-        creds = sa.Credentials.from_service_account_file(
-            settings.GOOGLE_CHAT_SA_KEY_FILE,
-            scopes=[_CHAT_SCOPE],
-        )
-        creds.refresh(httpx_request_adapter())
-        return creds.token
-    except Exception as e:
-        logger.error(f"💬 Chat DM — failed to get access token: {e}")
-        return None
-
-
-class httpx_request_adapter:
-    """Minimal adapter so google-auth can use httpx instead of requests."""
-
-    def __call__(self, request):
-        resp = httpx.request(
-            method=request.method,
-            url=request.url,
-            headers=dict(request.headers),
-            content=request.body,
-            timeout=10,
-        )
-        request.response = self  # google-auth checks request.response
-        self.status = resp.status_code
-        self.headers = dict(resp.headers)
-        self.data = resp.content
-        return self
-
-
-def _find_or_create_dm_space(token: str, user_email: str) -> Optional[str]:
-    """
-    Set up a DM space between the Chat app and a user.
-    Returns the space `name` (e.g. 'spaces/AAAA...').
-    If DM already exists Google returns the existing space.
-    """
-    try:
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        }
-        body = {
-            "space": {"spaceType": "DIRECT_MESSAGE"},
-            "memberships": [
-                {"member": {"name": f"users/{user_email}", "type": "HUMAN"}}
-            ],
-        }
-        r = httpx.post(
-            f"{_CHAT_API}/spaces:setup",
-            headers=headers,
-            json=body,
-            timeout=15,
-        )
-        if r.status_code in (200, 409):
-            data = r.json()
-            return data.get("name")
-        logger.error(f"💬 spaces:setup failed ({r.status_code}): {r.text}")
-        return None
-    except Exception as e:
-        logger.error(f"💬 spaces:setup error: {e}")
-        return None
-
-
-def _send_chat_dm_sync(user_email: str, text: str):
-    """Blocking DM send – called from a background thread."""
-    token = _get_chat_access_token()
-    if not token:
-        return
-
-    space_name = _find_or_create_dm_space(token, user_email)
-    if not space_name:
-        return
-
-    try:
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        }
-        r = httpx.post(
-            f"{_CHAT_API}/{space_name}/messages",
-            headers=headers,
-            json={"text": text},
-            timeout=10,
-        )
-        if r.status_code == 200:
-            logger.info(f"💬 Chat DM sent to {user_email}")
-        else:
-            logger.error(f"💬 Chat DM failed ({r.status_code}): {r.text}")
-    except Exception as e:
-        logger.error(f"💬 Chat DM error: {e}")
-
-
-def send_chat_dm(user_email: str, text: str):
-    """Fire-and-forget Chat DM to a single user."""
-    if not _chat_dm_configured():
+def send_approval_webhook(text: str):
+    """Fire-and-forget Google Chat message to Approvals space."""
+    if not _approval_webhook_configured():
         return
     threading.Thread(
-        target=_send_chat_dm_sync,
-        args=(user_email, text),
+        target=_send_webhook_sync,
+        args=(settings.GOOGLE_CHAT_APPROVAL_WEBHOOK, text),
         daemon=True,
     ).start()
 
@@ -271,17 +169,14 @@ def notify_approvers(
     approvers: List[User],
 ):
     """
-    Notify approvers via the best available channel:
-      1. Google Chat DM  (if service account configured)
-      2. Email           (if SMTP configured)
-    Both are tried if both are configured.
+    Notify approvers via all configured channels:
+      1. Google Chat Webhook (approval space)
+      2. Email (SMTP)
     """
-    # Chat DM
-    if _chat_dm_configured():
-        text = f"🏰 *Approval Required*\n*{requester_name}* submitted a *{request_type}*.\n\n{detail}\n\nPlease log in to DobyHR to review."
-        for u in approvers:
-            if u.email:
-                send_chat_dm(u.email, text)
+    # Webhook to approval space
+    approver_names = ", ".join(f"{u.name} {u.surname or ''}".strip() for u in approvers)
+    text = f"🏰 *Approval Required*\n*{requester_name}* submitted a *{request_type}*.\n\n{detail}\n\nApprovers: {approver_names}"
+    send_approval_webhook(text)
 
-    # Email fallback / additional
+    # Email
     notify_approvers_by_email(requester_name, request_type, detail, approvers)

@@ -22,11 +22,9 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
     SMTP_FROM: str = os.getenv("SMTP_FROM", "")
 
-    # Google Chat Webhook
+    # Google Chat Webhooks
     GOOGLE_CHAT_WEBHOOK_URL: str = os.getenv("GOOGLE_CHAT_WEBHOOK_URL", "")
-
-    # Google Chat DM (Service Account)
-    GOOGLE_CHAT_SA_KEY_FILE: str = os.getenv("GOOGLE_CHAT_SA_KEY_FILE", "")
+    GOOGLE_CHAT_APPROVAL_WEBHOOK: str = os.getenv("GOOGLE_CHAT_APPROVAL_WEBHOOK", "")
 
     class Config:
         env_file = ".env"
