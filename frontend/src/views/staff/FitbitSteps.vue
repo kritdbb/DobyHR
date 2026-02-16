@@ -395,7 +395,7 @@ export default {
   },
   async mounted() {
     const user = JSON.parse(localStorage.getItem('user') || '{}')
-    this.myId = user.id
+    this.myId = user.user_id || user.id
 
     const code = this.$route.query.code
     if (code) {

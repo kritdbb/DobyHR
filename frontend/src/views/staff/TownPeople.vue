@@ -197,7 +197,7 @@ export default {
       people: [],
       loading: true,
       selectedPerson: null,
-      currentUserId: user.id,
+      currentUserId: user.user_id || user.id,
       myMana: 0,
       showGiftForm: false,
       giftAmount: null,
