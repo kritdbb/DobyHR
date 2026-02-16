@@ -96,7 +96,7 @@ def approve_work_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Approve a work request. Grants on-time coins to the user."""
+    """Approve a work request. Grants coins based on actual check-in time."""
     wr = db.query(WorkRequest).filter(WorkRequest.id == request_id).first()
     if not wr:
         raise HTTPException(status_code=404, detail="Work request not found")
@@ -105,29 +105,72 @@ def approve_work_request(
 
     wr.status = WorkRequestStatus.APPROVED
 
-    # Grant coins (same as on-time check-in)
     user = db.query(User).filter(User.id == wr.user_id).first()
     company = db.query(Company).first()
 
-    coin_change = 0
-    if company and company.coin_on_time:
-        coin_change = company.coin_on_time
-        user.coins += coin_change
+    # Get the original attendance record to determine check-in time
+    attendance = db.query(Attendance).filter(Attendance.id == wr.attendance_id).first() if wr.attendance_id else None
 
+    coin_change = 0
+    coin_reason = ""
+    status = "present"
+
+    if attendance:
+        # Use original check-in timestamp to determine on-time / late / absent
+        checkin_local = attendance.timestamp + timedelta(hours=7)
+        checkin_time = checkin_local.time()
+
+        from datetime import time as dt_time
+        start = user.work_start_time or dt_time(9, 0)
+        start_minutes = start.hour * 60 + start.minute
+        checkin_minutes = checkin_time.hour * 60 + checkin_time.minute
+        diff = checkin_minutes - start_minutes
+
+        if diff > 60:
+            status = "absent"
+        elif diff > 0:
+            status = "late"
+
+        # Update attendance status
+        attendance.status = status
+
+        # Coin logic
+        if company:
+            if status == "absent":
+                if company.coin_absent_penalty:
+                    coin_change = -company.coin_absent_penalty
+                    coin_reason = "Absent (remote request approved, >1hr late)"
+            elif status == "late":
+                if company.coin_late_penalty:
+                    coin_change = -company.coin_late_penalty
+                    coin_reason = "Late (remote request approved)"
+            else:
+                if company.coin_on_time:
+                    coin_change = company.coin_on_time
+                    coin_reason = "On-time (remote request approved)"
+    else:
+        # No attendance record — just grant on-time coins
+        if company and company.coin_on_time:
+            coin_change = company.coin_on_time
+            coin_reason = "Work Request approved"
+
+    if coin_change != 0 and user:
+        user.coins += coin_change
         log = CoinLog(
             user_id=user.id,
             amount=coin_change,
-            reason="Work Request approved (non-working day)",
+            reason=coin_reason,
             created_by=f"{current_user.name} {current_user.surname}",
         )
         db.add(log)
 
     db.commit()
 
-    logger.info(f"✅ Work Request #{request_id} approved for {user.name} {user.surname} (+{coin_change} coins)")
+    logger.info(f"✅ Work Request #{request_id} approved for {user.name} {user.surname} (status={status}, coins={coin_change})")
     return {
-        "message": f"Work Request approved. {user.name} received {coin_change} coins.",
+        "message": f"Work Request approved ({status}). {user.name} received {coin_change} coins.",
         "coin_change": coin_change,
+        "status": status,
     }
 
 
@@ -137,7 +180,7 @@ def reject_work_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Reject a work request."""
+    """Reject a work request. Employee can still GPS check-in."""
     wr = db.query(WorkRequest).filter(WorkRequest.id == request_id).first()
     if not wr:
         raise HTTPException(status_code=404, detail="Work request not found")
@@ -145,7 +188,15 @@ def reject_work_request(
         raise HTTPException(status_code=400, detail=f"Already {wr.status.value}")
 
     wr.status = WorkRequestStatus.REJECTED
+
+    # Mark the attendance record as 'rejected' so it's not counted as a valid check-in
+    # but also doesn't block a new GPS check-in
+    if wr.attendance_id:
+        attendance = db.query(Attendance).filter(Attendance.id == wr.attendance_id).first()
+        if attendance:
+            attendance.status = "rejected"
+
     db.commit()
 
-    logger.info(f"❌ Work Request #{request_id} rejected")
-    return {"message": "Work Request rejected."}
+    logger.info(f"❌ Work Request #{request_id} rejected — employee can still GPS check-in")
+    return {"message": "Work Request rejected. Employee can still check in via GPS."}

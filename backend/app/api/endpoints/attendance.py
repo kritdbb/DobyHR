@@ -48,7 +48,8 @@ def get_today_status(
     existing = db.query(Attendance).filter(
         Attendance.user_id == current_user.id,
         Attendance.timestamp >= day_start_utc,
-        Attendance.timestamp <= day_end_utc
+        Attendance.timestamp <= day_end_utc,
+        Attendance.status.in_(["present", "late", "absent"])
     ).first()
 
     if existing:
@@ -80,14 +81,15 @@ def check_in(
         if day_code not in user_working_days:
             is_working_day = False
     
-    # 2. Check for duplicate check-in today
+    # 2. Check for duplicate check-in today (ignore remote_request/work_request/rejected)
     day_start_utc = datetime.combine(today_local, datetime.min.time()) - timedelta(hours=7)
     day_end_utc = datetime.combine(today_local, datetime.max.time()) - timedelta(hours=7)
     
     existing = db.query(Attendance).filter(
         Attendance.user_id == current_user.id,
         Attendance.timestamp >= day_start_utc,
-        Attendance.timestamp <= day_end_utc
+        Attendance.timestamp <= day_end_utc,
+        Attendance.status.in_(["present", "late", "absent"])
     ).first()
     
     if existing:

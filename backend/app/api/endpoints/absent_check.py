@@ -10,6 +10,7 @@ from app.models.attendance import Attendance
 from app.models.leave import LeaveRequest, LeaveStatus
 from app.models.company import Company
 from app.models.reward import CoinLog
+from app.models.work_request import WorkRequest, WorkRequestStatus
 
 router = APIRouter(prefix="/api/admin", tags=["Admin Tools"])
 
@@ -64,10 +65,23 @@ def process_absent_penalties(
         attendance = db.query(Attendance).filter(
             Attendance.user_id == user.id,
             Attendance.timestamp >= day_start_utc,
-            Attendance.timestamp <= day_end_utc
+            Attendance.timestamp <= day_end_utc,
+            Attendance.status.in_(["present", "late", "absent"])
         ).first()
         
         if attendance:
+            skipped_checked_in += 1
+            continue
+        
+        # 2b. Skip if user has pending remote/work request
+        pending_request = db.query(WorkRequest).filter(
+            WorkRequest.user_id == user.id,
+            WorkRequest.status == WorkRequestStatus.PENDING,
+            WorkRequest.created_at >= day_start_utc,
+            WorkRequest.created_at <= day_end_utc
+        ).first()
+        
+        if pending_request:
             skipped_checked_in += 1
             continue
         

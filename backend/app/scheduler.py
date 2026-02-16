@@ -164,7 +164,7 @@ def evaluate_badge_quests():
 
 
 def auto_process_absent_penalties():
-    """Run daily at 23:00 UTC+7: deduct coins from users who didn't check in today."""
+    """Run daily at 12:00 UTC+7 (noon): deduct coins from users who didn't check in today."""
     db = SessionLocal()
     try:
         now_local = datetime.utcnow() + timedelta(hours=7)
@@ -179,6 +179,7 @@ def auto_process_absent_penalties():
 
         from app.models.attendance import Attendance
         from app.models.leave import LeaveRequest, LeaveStatus
+        from app.models.work_request import WorkRequest, WorkRequestStatus
 
         penalty_amount = company.coin_absent_penalty
         staff = db.query(User).filter(User.role == UserRole.PLAYER).all()
@@ -192,15 +193,26 @@ def auto_process_absent_penalties():
             if today_code not in user_working_days:
                 continue
 
-            # Check if user checked in today
+            # Check if user checked in today with a valid status
             day_start_utc = datetime.combine(target_date, datetime.min.time()) - timedelta(hours=7)
             day_end_utc = datetime.combine(target_date, datetime.max.time()) - timedelta(hours=7)
             attendance = db.query(Attendance).filter(
                 Attendance.user_id == user.id,
                 Attendance.timestamp >= day_start_utc,
-                Attendance.timestamp <= day_end_utc
+                Attendance.timestamp <= day_end_utc,
+                Attendance.status.in_(["present", "late", "absent"])
             ).first()
             if attendance:
+                continue
+
+            # Skip users with pending remote/work requests (not yet decided)
+            pending_request = db.query(WorkRequest).filter(
+                WorkRequest.user_id == user.id,
+                WorkRequest.status == WorkRequestStatus.PENDING,
+                WorkRequest.created_at >= day_start_utc,
+                WorkRequest.created_at <= day_end_utc
+            ).first()
+            if pending_request:
                 continue
 
             # Check if user has approved leave
@@ -271,11 +283,11 @@ def start_scheduler():
         id="badge_quest_eval",
         replace_existing=True,
     )
-    # Auto absent penalties at 23:00 UTC+7 (16:00 UTC)
+    # Auto absent penalties at 12:00 UTC+7 (05:00 UTC) — noon check
     scheduler.add_job(
         auto_process_absent_penalties,
         "cron",
-        hour=16,
+        hour=5,
         minute=0,
         id="auto_absent_penalty",
         replace_existing=True,
