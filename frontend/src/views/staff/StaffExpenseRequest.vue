@@ -33,8 +33,11 @@
             <span>Tap or drag to upload</span>
           </div>
           <div v-else class="file-preview">
-            <img v-if="generalForm.filePreview && !generalForm.isPdf" :src="generalForm.filePreview" class="preview-img" />
-            <div v-else class="pdf-badge">📄 {{ generalForm.file.name }}</div>
+            <img v-if="generalForm.filePreview && !generalForm.isPdf" :src="generalForm.filePreview" class="preview-img" @click.stop="openPreview(generalForm.filePreview, 'image')" />
+            <div v-else class="pdf-badge" @click.stop="openPreview(generalForm.file, 'pdf')">
+              📄 {{ generalForm.file.name }}
+              <span class="preview-hint">tap to preview</span>
+            </div>
             <button class="remove-btn" @click.stop="removeGeneralFile">✕</button>
           </div>
         </div>
@@ -80,8 +83,11 @@
           @drop.prevent="onDropCenter"
         >
           <template v-if="centerForm.file">
-            <img v-if="!centerForm.isPdf" :src="centerForm.filePreview" class="file-preview" />
-            <div v-else class="pdf-badge">📎 {{ centerForm.file.name }}</div>
+            <img v-if="!centerForm.isPdf" :src="centerForm.filePreview" class="file-preview" @click.stop="openPreview(centerForm.filePreview, 'image')" />
+            <div v-else class="pdf-badge" @click.stop="openPreview(centerForm.file, 'pdf')">
+              📎 {{ centerForm.file.name }}
+              <span class="preview-hint">tap to preview</span>
+            </div>
             <button class="remove-btn" @click.stop="removeCenterFile">✕</button>
           </template>
           <template v-else>
@@ -156,7 +162,7 @@
             <input ref="outImg" type="file" accept="image/*" style="display:none" @change="onOutboundImg" />
             <div v-if="!travelForm.outboundPreview" class="drop-text"><span>📎 Upload</span></div>
             <div v-else class="file-preview">
-              <img :src="travelForm.outboundPreview" class="preview-img" />
+              <img :src="travelForm.outboundPreview" class="preview-img" @click.stop="openPreview(travelForm.outboundPreview, 'image')" />
               <button class="remove-btn" @click.stop="travelForm.outboundFile=null;travelForm.outboundPreview=null">✕</button>
             </div>
           </div>
@@ -167,7 +173,7 @@
             <input ref="retImg" type="file" accept="image/*" style="display:none" @change="onReturnImg" />
             <div v-if="!travelForm.returnPreview" class="drop-text"><span>📎 Upload</span></div>
             <div v-else class="file-preview">
-              <img :src="travelForm.returnPreview" class="preview-img" />
+              <img :src="travelForm.returnPreview" class="preview-img" @click.stop="openPreview(travelForm.returnPreview, 'image')" />
               <button class="remove-btn" @click.stop="travelForm.returnFile=null;travelForm.returnPreview=null">✕</button>
             </div>
           </div>
@@ -187,7 +193,7 @@
           <div v-if="travelForm.otherFiles.length === 0" class="drop-text"><span class="drop-icon">📎</span><span>Tap to upload receipts</span></div>
           <div v-else class="multi-preview">
             <div v-for="(f, i) in travelForm.otherPreviews" :key="i" class="mini-thumb">
-              <img :src="f" class="preview-img" />
+              <img :src="f" class="preview-img" @click.stop="openPreview(f, 'image')" />
               <button class="remove-btn mini" @click.stop="removeOtherFile(i)">✕</button>
             </div>
             <div class="add-more" @click.stop="$refs.otherFiles.click()">+</div>
@@ -233,6 +239,29 @@
         </div>
       </div>
     </div>
+
+    <!-- Full-screen Preview Modal -->
+    <teleport to="body">
+      <div v-if="previewModal.show" class="preview-overlay" @click="closePreview">
+        <div class="preview-toolbar">
+          <button v-if="previewModal.type === 'image'" class="preview-btn" @click.stop="zoomIn">🔍+</button>
+          <button v-if="previewModal.type === 'image'" class="preview-btn" @click.stop="zoomOut">🔍−</button>
+          <button v-if="previewModal.type === 'image'" class="preview-btn" @click.stop="resetZoom">↺</button>
+          <button class="preview-btn close" @click.stop="closePreview">✕</button>
+        </div>
+        <div class="preview-body" @click.stop>
+          <!-- Image preview with zoom -->
+          <div v-if="previewModal.type === 'image'" class="image-container"
+            @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd"
+            @wheel.prevent="onWheel">
+            <img :src="previewModal.src" class="preview-full-img"
+              :style="{ transform: `scale(${previewModal.zoom}) translate(${previewModal.panX}px, ${previewModal.panY}px)` }" />
+          </div>
+          <!-- PDF preview -->
+          <iframe v-else-if="previewModal.type === 'pdf'" :src="previewModal.src" class="preview-pdf-frame" />
+        </div>
+      </div>
+    </teleport>
   </div>
 </template>
 
@@ -276,6 +305,17 @@ export default {
         date: new Date().toISOString().slice(0, 10),
         description: '',
         amount: null,
+      },
+      previewModal: {
+        show: false,
+        type: 'image',
+        src: null,
+        zoom: 1,
+        panX: 0,
+        panY: 0,
+        lastDist: 0,
+        lastPan: { x: 0, y: 0 },
+        isPanning: false,
       },
     }
   },
@@ -464,6 +504,67 @@ export default {
     resetCenter() {
       this.centerForm = { file: null, filePreview: null, isPdf: false, date: new Date().toISOString().slice(0, 10), description: '', amount: null }
     },
+
+    // Preview modal
+    openPreview(src, type) {
+      if (type === 'pdf' && src instanceof File) {
+        this.previewModal.src = URL.createObjectURL(src)
+      } else {
+        this.previewModal.src = src
+      }
+      this.previewModal.type = type
+      this.previewModal.zoom = 1
+      this.previewModal.panX = 0
+      this.previewModal.panY = 0
+      this.previewModal.show = true
+      document.body.style.overflow = 'hidden'
+    },
+    closePreview() {
+      if (this.previewModal.type === 'pdf' && this.previewModal.src) {
+        URL.revokeObjectURL(this.previewModal.src)
+      }
+      this.previewModal.show = false
+      this.previewModal.src = null
+      document.body.style.overflow = ''
+    },
+    zoomIn() { this.previewModal.zoom = Math.min(this.previewModal.zoom + 0.3, 5) },
+    zoomOut() { this.previewModal.zoom = Math.max(this.previewModal.zoom - 0.3, 0.5) },
+    resetZoom() { this.previewModal.zoom = 1; this.previewModal.panX = 0; this.previewModal.panY = 0 },
+    onWheel(e) {
+      if (e.deltaY < 0) this.zoomIn()
+      else this.zoomOut()
+    },
+    onTouchStart(e) {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        this.previewModal.lastDist = Math.sqrt(dx * dx + dy * dy)
+      } else if (e.touches.length === 1 && this.previewModal.zoom > 1) {
+        this.previewModal.isPanning = true
+        this.previewModal.lastPan = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      }
+    },
+    onTouchMove(e) {
+      if (e.touches.length === 2) {
+        e.preventDefault()
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        const scale = dist / this.previewModal.lastDist
+        this.previewModal.zoom = Math.min(Math.max(this.previewModal.zoom * scale, 0.5), 5)
+        this.previewModal.lastDist = dist
+      } else if (e.touches.length === 1 && this.previewModal.isPanning) {
+        e.preventDefault()
+        const dx = e.touches[0].clientX - this.previewModal.lastPan.x
+        const dy = e.touches[0].clientY - this.previewModal.lastPan.y
+        this.previewModal.panX += dx / this.previewModal.zoom
+        this.previewModal.panY += dy / this.previewModal.zoom
+        this.previewModal.lastPan = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      }
+    },
+    onTouchEnd() {
+      this.previewModal.isPanning = false
+    },
   },
 }
 </script>
@@ -584,4 +685,47 @@ export default {
 .status-badge.all_approved { background: rgba(46,204,113,0.2); color: #2ecc71; }
 .status-badge.confirmed { background: rgba(52,152,219,0.2); color: #3498db; }
 .status-badge.rejected { background: rgba(192,57,43,0.2); color: #c0392b; }
+
+/* Preview Hint */
+.preview-hint { display: block; font-size: 10px; color: #8b7355; font-weight: 400; margin-top: 2px; }
+.preview-img { cursor: zoom-in; }
+
+/* Preview Overlay */
+.preview-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.92); backdrop-filter: blur(8px);
+  display: flex; flex-direction: column;
+  animation: fadeIn 0.2s ease;
+}
+.preview-toolbar {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 12px 16px; flex-shrink: 0;
+}
+.preview-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(212,164,76,0.2); border: 1px solid rgba(212,164,76,0.4);
+  color: #d4a44c; font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.preview-btn:hover { background: rgba(212,164,76,0.35); }
+.preview-btn.close { background: rgba(192,57,43,0.3); border-color: rgba(192,57,43,0.5); color: #fff; font-size: 18px; }
+.preview-body {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; padding: 0 16px 16px;
+}
+.image-container {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; touch-action: none;
+}
+.preview-full-img {
+  max-width: 100%; max-height: 100%; object-fit: contain;
+  transition: transform 0.1s ease;
+  user-select: none; -webkit-user-drag: none;
+}
+.preview-pdf-frame {
+  width: 100%; height: 100%; border: none; border-radius: 8px;
+  background: #fff;
+}
 </style>
