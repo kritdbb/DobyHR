@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 
 
 class CompanyBase(BaseModel):
@@ -38,6 +38,13 @@ class CompanyBase(BaseModel):
     rescue_cost_per_person: Optional[int] = 1
     rescue_required_people: Optional[int] = 3
     rescue_gold_on_revive: Optional[int] = 0
+    # Face Recognition
+    face_rtsp_urls: Optional[str] = None
+    face_confidence_threshold: Optional[float] = 0.5
+    face_min_consecutive_frames: Optional[int] = 20
+    face_min_face_height: Optional[int] = 50
+    face_start_time: Optional[str] = "06:00"
+    face_end_time: Optional[str] = "10:30"
 
 
 class CompanyUpdate(BaseModel):
@@ -76,6 +83,13 @@ class CompanyUpdate(BaseModel):
     rescue_cost_per_person: Optional[int] = None
     rescue_required_people: Optional[int] = None
     rescue_gold_on_revive: Optional[int] = None
+    # Face Recognition
+    face_rtsp_urls: Optional[str] = None
+    face_confidence_threshold: Optional[float] = None
+    face_min_consecutive_frames: Optional[int] = None
+    face_min_face_height: Optional[int] = None
+    face_start_time: Optional[str] = None
+    face_end_time: Optional[str] = None
 
 
 class CompanyResponse(CompanyBase):

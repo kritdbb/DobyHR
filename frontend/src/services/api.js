@@ -99,6 +99,17 @@ export const getUserAttendance = (id) => api.get(`/api/users/${id}/attendance`)
 export const getUserLeaves = (id) => api.get(`/api/users/${id}/leaves`)
 export const getUserRedemptions = (id) => api.get(`/api/users/${id}/redemptions`)
 
+// === User Face Images ===
+export const getUserFaceImages = (userId) => api.get(`/api/users/${userId}/face-images`)
+export const uploadUserFaceImage = (userId, file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post(`/api/users/${userId}/face-images`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    })
+}
+export const deleteUserFaceImage = (userId, imageId) => api.delete(`/api/users/${userId}/face-images/${imageId}`)
+
 // === Approval Flows ===
 export const getApprovalFlows = () => api.get('/api/approval-flows/')
 export const getApprovalFlow = (id) => api.get(`/api/approval-flows/${id}`)

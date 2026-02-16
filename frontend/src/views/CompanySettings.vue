@@ -265,6 +265,64 @@
           <p style="font-size: 12px; color: #8b7355; margin-top: 4px;">Gold given to the revived member (0 = reset to zero).</p>
         </div>
       </div>
+
+      <!-- CCTV Face Recognition -->
+      <div class="card-header" style="margin-top: 24px; border-top: 1px solid rgba(212,164,76,0.1); padding-top: 24px;">
+        <span class="card-title">📹 CCTV Face Recognition</span>
+      </div>
+      <p class="section-desc">Configure RTSP cameras for automatic face check-in.</p>
+      <div style="margin-bottom: 16px;">
+        <label style="font-size: 13px; font-weight: 600; color: #8b7355;">RTSP Cameras</label>
+        <div v-for="(url, idx) in rtspUrls" :key="idx" style="margin-top: 10px; padding: 12px; background: rgba(26,20,15,0.3); border-radius: 8px; border: 1px solid rgba(212,164,76,0.1);">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="font-size: 12px; color: #d4a44c; font-weight: 600; min-width: 24px;">{{ idx + 1 }}.</span>
+            <input v-model="rtspUrls[idx]" class="form-input" placeholder="rtsp://user:pass@192.168.1.10:554/stream" style="flex: 1;" />
+            <button v-if="testingCamera !== idx" @click="startTest(idx)" class="btn btn-primary" style="padding: 6px 14px; font-size: 12px; white-space: nowrap;" :disabled="!rtspUrls[idx]">
+              ▶ Test
+            </button>
+            <button v-else @click="stopTest()" class="btn btn-secondary" style="padding: 6px 14px; font-size: 12px; white-space: nowrap; background: rgba(231,76,60,0.15); color: #e74c3c; border-color: rgba(231,76,60,0.3);">
+              ■ Stop
+            </button>
+            <button @click="removeCamera(idx)" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;">✕</button>
+          </div>
+          <!-- MJPEG Stream preview -->
+          <div v-if="testingCamera === idx" style="margin-top: 10px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(212,164,76,0.2); position: relative;">
+            <div style="position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.6); color: #e74c3c; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 5px; z-index: 1;">
+              <span style="width: 6px; height: 6px; background: #e74c3c; border-radius: 50; display: inline-block; animation: blink 1s infinite;"></span> LIVE
+            </div>
+            <img :src="streamUrl" style="width: 100%; display: block; background: #111;" @error="onStreamError" />
+          </div>
+        </div>
+        <button @click="rtspUrls.push('')" class="btn btn-secondary" style="margin-top: 8px; font-size: 12px; padding: 5px 12px;">
+          + Add Camera
+        </button>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Confidence Threshold</label>
+          <input v-model.number="form.face_confidence_threshold" class="form-input" type="number" step="0.01" min="0" max="1" />
+          <p style="font-size: 12px; color: #8b7355; margin-top: 4px;">Min similarity score (0.0–1.0). Default: 0.5</p>
+        </div>
+        <div class="form-group">
+          <label>Consecutive Frames</label>
+          <input v-model.number="form.face_min_consecutive_frames" class="form-input" type="number" min="1" />
+          <p style="font-size: 12px; color: #8b7355; margin-top: 4px;">Frames face must be visible. Default: 20</p>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Min Face Height (px)</label>
+          <input v-model.number="form.face_min_face_height" class="form-input" type="number" min="10" />
+        </div>
+        <div class="form-group">
+          <label>Active Start Time</label>
+          <input v-model="form.face_start_time" class="form-input" type="time" />
+        </div>
+        <div class="form-group">
+          <label>Active End Time</label>
+          <input v-model="form.face_end_time" class="form-input" type="time" />
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -308,7 +366,13 @@ export default {
         rescue_cost_per_person: 1,
         rescue_required_people: 3,
         rescue_gold_on_revive: 0,
+        face_confidence_threshold: 0.5,
+        face_min_consecutive_frames: 20,
+        face_min_face_height: 50,
+        face_start_time: '06:00',
+        face_end_time: '10:30',
       },
+      rtspUrls: [],
       autoCoinDays: [],
       autoAngelDays: [],
       luckyDrawDays: [],
@@ -322,6 +386,8 @@ export default {
         { code: 'sun', label: 'Sun' },
       ],
       saving: false,
+      testingCamera: null,
+      streamUrl: '',
     }
   },
   async mounted() {
@@ -373,7 +439,16 @@ export default {
           rescue_cost_per_person: data.rescue_cost_per_person ?? 1,
           rescue_required_people: data.rescue_required_people ?? 3,
           rescue_gold_on_revive: data.rescue_gold_on_revive ?? 0,
+          face_confidence_threshold: data.face_confidence_threshold ?? 0.5,
+          face_min_consecutive_frames: data.face_min_consecutive_frames ?? 20,
+          face_min_face_height: data.face_min_face_height ?? 50,
+          face_start_time: data.face_start_time || '06:00',
+          face_end_time: data.face_end_time || '10:30',
         }
+        // RTSP URLs
+        try {
+          this.rtspUrls = data.face_rtsp_urls ? JSON.parse(data.face_rtsp_urls) : []
+        } catch { this.rtspUrls = [] }
         this.autoCoinDays = data.auto_coin_day ? data.auto_coin_day.split(',').map(d => d.trim().toLowerCase()) : []
         this.autoAngelDays = data.auto_angel_day ? data.auto_angel_day.split(',').map(d => d.trim().toLowerCase()) : []
         this.luckyDrawDays = data.lucky_draw_day ? data.lucky_draw_day.split(',').map(d => d.trim().toLowerCase()) : []
@@ -419,6 +494,12 @@ export default {
           rescue_cost_per_person: this.form.rescue_cost_per_person,
           rescue_required_people: this.form.rescue_required_people,
           rescue_gold_on_revive: this.form.rescue_gold_on_revive,
+          face_rtsp_urls: JSON.stringify(this.rtspUrls.filter(u => u.trim())),
+          face_confidence_threshold: this.form.face_confidence_threshold,
+          face_min_consecutive_frames: this.form.face_min_consecutive_frames,
+          face_min_face_height: this.form.face_min_face_height,
+          face_start_time: this.form.face_start_time,
+          face_end_time: this.form.face_end_time,
         })
         this.showToast('Kingdom settings updated!')
       } catch (e) {
@@ -437,6 +518,26 @@ export default {
       } catch (e) {
         this.showToast('Failed to upload crest', 'error')
       }
+    },
+    startTest(idx) {
+      const url = this.rtspUrls[idx]
+      if (!url) return
+      const token = localStorage.getItem('token')
+      const base = import.meta.env.VITE_API_URL || ''
+      this.streamUrl = `${base}/api/face/test-stream?rtsp_url=${encodeURIComponent(url)}&token=${encodeURIComponent(token)}`
+      this.testingCamera = idx
+    },
+    stopTest() {
+      this.streamUrl = ''
+      this.testingCamera = null
+    },
+    removeCamera(idx) {
+      if (this.testingCamera === idx) this.stopTest()
+      this.rtspUrls.splice(idx, 1)
+    },
+    onStreamError() {
+      this.showToast('Stream connection failed', 'error')
+      this.stopTest()
     },
   },
 }
@@ -476,5 +577,10 @@ export default {
   background: linear-gradient(135deg, #b8860b, #d4a44c);
   color: #1c1208;
   border-color: transparent;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 </style>

@@ -702,3 +702,115 @@ def get_staff_list(
         for u in users
     ]
 
+
+# ═══════ Face Image Endpoints ═══════
+
+from app.models.face_image import UserFaceImage
+
+@router.get("/{user_id}/face-images")
+def get_user_face_images(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List all face images for a user."""
+    images = db.query(UserFaceImage).filter(UserFaceImage.user_id == user_id).all()
+    return [
+        {
+            "id": img.id,
+            "user_id": img.user_id,
+            "image_path": img.image_path,
+            "created_at": img.created_at,
+        }
+        for img in images
+    ]
+
+
+@router.post("/{user_id}/face-images")
+def upload_user_face_image(
+    user_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_gm_or_above)
+):
+    """Upload a face image for a user (max 2). Triggers FAISS index rebuild."""
+    # Check user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check max 2 face images
+    existing_count = db.query(UserFaceImage).filter(UserFaceImage.user_id == user_id).count()
+    if existing_count >= 2:
+        raise HTTPException(status_code=400, detail="Maximum 2 face images allowed. Delete an existing one first.")
+
+    # Save file
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"face_{user_id}_{uuid.uuid4().hex[:8]}{ext}"
+    upload_dir = os.path.join(settings.UPLOAD_DIR, "face_images")
+    os.makedirs(upload_dir, exist_ok=True)
+    filepath = os.path.join(upload_dir, filename)
+    with open(filepath, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    face_img = UserFaceImage(
+        user_id=user_id,
+        image_path=f"/uploads/face_images/{filename}",
+    )
+    db.add(face_img)
+    db.commit()
+    db.refresh(face_img)
+
+    # Trigger FAISS rebuild in background
+    _trigger_faiss_rebuild()
+
+    return {
+        "id": face_img.id,
+        "user_id": face_img.user_id,
+        "image_path": face_img.image_path,
+        "created_at": face_img.created_at,
+    }
+
+
+@router.delete("/{user_id}/face-images/{image_id}")
+def delete_user_face_image(
+    user_id: int,
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_gm_or_above)
+):
+    """Delete a face image. Triggers FAISS index rebuild."""
+    face_img = db.query(UserFaceImage).filter(
+        UserFaceImage.id == image_id,
+        UserFaceImage.user_id == user_id
+    ).first()
+    if not face_img:
+        raise HTTPException(status_code=404, detail="Face image not found")
+
+    # Delete file from disk
+    full_path = os.path.join(settings.UPLOAD_DIR, face_img.image_path.lstrip("/uploads/"))
+    if os.path.exists(full_path):
+        os.remove(full_path)
+
+    db.delete(face_img)
+    db.commit()
+
+    # Trigger FAISS rebuild in background
+    _trigger_faiss_rebuild()
+
+    return {"message": "Face image deleted"}
+
+
+def _trigger_faiss_rebuild():
+    """Trigger FAISS index rebuild in a background thread."""
+    import threading
+    import logging
+    logger = logging.getLogger("hr-api")
+    def _rebuild():
+        try:
+            from app.services.face_service import rebuild_index
+            rebuild_index()
+        except Exception as e:
+            logger.error(f"❌ FAISS rebuild failed: {e}")
+    threading.Thread(target=_rebuild, daemon=True).start()
+    logger.info("🔄 FAISS rebuild triggered in background")

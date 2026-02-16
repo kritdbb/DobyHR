@@ -238,6 +238,13 @@ scheduler = BackgroundScheduler()
 
 def start_scheduler():
     """Start the background scheduler."""
+    # Load FAISS index at startup
+    try:
+        from app.services.face_service import load_index
+        load_index()
+    except Exception as e:
+        logger.warning(f"⚠️ FAISS index load skipped: {e}")
+
     # Auto coin/angel giver at 00:01 UTC+7 (17:01 UTC)
     scheduler.add_job(
         auto_give_coins_and_angels,
@@ -273,5 +280,23 @@ def start_scheduler():
         id="auto_absent_penalty",
         replace_existing=True,
     )
+    # Face Recognition check-in worker — every 60 seconds
+    # The worker itself checks the time window (06:00–10:30 UTC+7) and exits if outside
+    scheduler.add_job(
+        _run_face_recognition,
+        "interval",
+        seconds=60,
+        id="face_recognition_worker",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("✅ Scheduler started — auto coin/angel at 00:01 UTC+7, lucky draw at 12:30 UTC+7, absent penalty at 23:00 UTC+7, badge quest eval every 2h")
+    logger.info("✅ Scheduler started — auto coin/angel at 00:01, lucky draw at 12:30, absent penalty at 23:00, face recognition check, badge quest eval every 2h")
+
+
+def _run_face_recognition():
+    """Wrapper to run the face check-in worker safely."""
+    try:
+        from app.services.face_checkin_worker import run
+        run()
+    except Exception as e:
+        logger.error(f"❌ Face recognition worker error: {e}")

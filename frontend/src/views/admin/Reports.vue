@@ -93,7 +93,17 @@
                         <td>{{ formatDate(item.timestamp) }}</td>
                         <td>{{ item.user_name }}</td>
                         <td><span class="status-badge" :style="getStatusColor(item.status)">{{ item.status }}</span></td>
-                        <td>Checked in</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span v-if="item.check_in_method === 'face'">📸 Face</span>
+                                <span v-else>📍 GPS</span>
+                                <img v-if="item.face_image_path" :src="apiBase + item.face_image_path"
+                                     style="width: 32px; height: 32px; border-radius: 4px; object-fit: cover; border: 1px solid rgba(212,164,76,0.3);" />
+                                <span v-if="item.face_confidence" style="font-size: 11px; color: #8b7355;">
+                                    {{ (item.face_confidence * 100).toFixed(1) }}%
+                                </span>
+                            </div>
+                        </td>
                     </tr>
                     <tr v-if="attendanceData.length === 0">
                         <td colspan="4" style="text-align: center; color: #8b7355;">No records found</td>

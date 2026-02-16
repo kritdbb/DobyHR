@@ -13,3 +13,9 @@ apscheduler
 google-auth
 requests
 httpx
+# Face Recognition
+opencv-python-headless
+insightface
+onnxruntime
+faiss-cpu
+numpy

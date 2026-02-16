@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy import Column, Integer, String, Float, Text
 from app.core.database import Base
 
 
@@ -47,3 +47,10 @@ class Company(Base):
     rescue_cost_per_person = Column(Integer, default=1)    # Mana cost per rescuer
     rescue_required_people = Column(Integer, default=3)    # People needed to revive
     rescue_gold_on_revive = Column(Integer, default=0)     # Gold given after revival
+    # Face Recognition (CCTV Check-in)
+    face_rtsp_urls = Column(Text, nullable=True)           # JSON array of RTSP URLs
+    face_confidence_threshold = Column(Float, default=0.5) # Min cosine similarity
+    face_min_consecutive_frames = Column(Integer, default=20)  # Consecutive frames required
+    face_min_face_height = Column(Integer, default=50)     # Minimum face height in px
+    face_start_time = Column(String(5), default="06:00")   # HH:MM start
+    face_end_time = Column(String(5), default="10:30")     # HH:MM end

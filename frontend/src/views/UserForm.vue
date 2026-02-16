@@ -121,6 +121,25 @@
           </div>
         </div>
 
+        <!-- Face Images (edit mode only) -->
+        <div v-if="isEdit" style="margin-top: 16px; margin-bottom: 20px;">
+          <label style="font-size: 13px; font-weight: 600; color: #8b7355; text-transform: uppercase; letter-spacing: 0.05em;">📸 Face Recognition Photos</label>
+          <p style="font-size: 11px; color: #999; margin: 4px 0 10px;">Upload up to 2 clear frontal face photos for CCTV auto check-in</p>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start;">
+            <div v-for="fi in faceImages" :key="fi.id" style="position: relative;">
+              <img :src="apiBase + fi.image_path" style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover; border: 2px solid rgba(212,164,76,0.3);" />
+              <button @click="deleteFaceImage(fi.id)" style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: #e74c3c; color: white; border: none; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+            </div>
+            <div v-if="faceImages.length < 2" class="logo-upload-area" style="width: 80px; height: 80px;" @click="$refs.faceInput.click()">
+              <div class="upload-placeholder">
+                <span class="icon" style="font-size: 18px;">📷</span>
+                <span style="font-size: 10px;">Add Face</span>
+              </div>
+            </div>
+          </div>
+          <input ref="faceInput" type="file" accept="image/*" @change="handleFaceImageUpload" style="display: none;" />
+        </div>
+
         <!-- Actions -->
         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(212,164,76,0.1);">
           <router-link to="/users" class="btn btn-secondary">Cancel</router-link>
@@ -331,7 +350,10 @@ import {
   getUser, createUser, updateUser, uploadUserImage,
   getUserAttendance, getUserLeaves, getUserRedemptions, getUserCoinLogs,
   adjustUserCoins, grantAngelCoins, getUserAngelCoinLogs,
+  getUserFaceImages, uploadUserFaceImage, deleteUserFaceImage,
 } from '../services/api'
+
+const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 export default {
   inject: ['showToast'],
@@ -362,6 +384,8 @@ export default {
       redemptionList: [],
       coinBalance: 0,
       angelCoinBalance: 0,
+      faceImages: [],
+      apiBase: API_BASE,
       centerTab: 'checkin',
       showAdjustModal: false,
       adjustForm: { amount: null, reason: '' },
@@ -412,6 +436,7 @@ export default {
       this.userId = parseInt(id)
       await this.loadUser()
       this.loadSideData()
+      this.loadFaceImages()
     }
   },
   methods: {
@@ -463,6 +488,34 @@ export default {
         this.angelCoinLogs = angelRes.data
       } catch (e) {
         console.error('Side data load error:', e)
+      }
+    },
+    async loadFaceImages() {
+      try {
+        const { data } = await getUserFaceImages(this.userId)
+        this.faceImages = data
+      } catch (e) { console.error('Face images load error:', e) }
+    },
+    async handleFaceImageUpload(event) {
+      const file = event.target.files[0]
+      if (!file) return
+      try {
+        await uploadUserFaceImage(this.userId, file)
+        this.showToast('Face image uploaded! 📸')
+        await this.loadFaceImages()
+      } catch (e) {
+        this.showToast(e.response?.data?.detail || 'Upload failed', 'error')
+      }
+      event.target.value = ''
+    },
+    async deleteFaceImage(imageId) {
+      if (!confirm('Remove this face image?')) return
+      try {
+        await deleteUserFaceImage(this.userId, imageId)
+        this.showToast('Face image removed')
+        await this.loadFaceImages()
+      } catch (e) {
+        this.showToast('Delete failed', 'error')
       }
     },
     handleImageUpload(event) {

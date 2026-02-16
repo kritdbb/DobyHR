@@ -9,8 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.database import engine, Base
 from app.core.config import settings
-from app.api.endpoints import company, users, approval, auth, attendance, leaves, rewards, reports, absent_check, approval_pattern, work_requests, badges, fitbit, badge_quests, fortune_wheel, expenses
-from app.models import user as user_model, company as company_model, approval as approval_model, attendance as attendance_model, leave as leave_model, reward as reward_model, approval_pattern as approval_pattern_model, work_request as work_request_model, badge as badge_model, fitbit as fitbit_model, step_rewards as step_rewards_model, badge_quest as badge_quest_model, fortune_wheel as fortune_wheel_model, expense as expense_model
+from app.api.endpoints import company, users, approval, auth, attendance, leaves, rewards, reports, absent_check, approval_pattern, work_requests, badges, fitbit, badge_quests, fortune_wheel, expenses, face_test
+from app.models import user as user_model, company as company_model, approval as approval_model, attendance as attendance_model, leave as leave_model, reward as reward_model, approval_pattern as approval_pattern_model, work_request as work_request_model, badge as badge_model, fitbit as fitbit_model, step_rewards as step_rewards_model, badge_quest as badge_quest_model, fortune_wheel as fortune_wheel_model, expense as expense_model, face_image as face_image_model
 from app.core.database import SessionLocal
 from app.core.security import get_password_hash
 from app.scheduler import start_scheduler
@@ -55,6 +55,18 @@ def auto_migrate():
         "ALTER TYPE expensetype ADD VALUE IF NOT EXISTS 'CENTER'",
         # ── Fortune Wheel icon ──
         "ALTER TABLE fortune_wheels ADD COLUMN IF NOT EXISTS icon_image VARCHAR(500)",
+        # ── Face Recognition ──
+        "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS check_in_method VARCHAR(20) DEFAULT 'gps'",
+        "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS face_image_path VARCHAR(500)",
+        "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS face_confidence FLOAT",
+        "ALTER TABLE attendance ALTER COLUMN latitude DROP NOT NULL",
+        "ALTER TABLE attendance ALTER COLUMN longitude DROP NOT NULL",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS face_rtsp_urls TEXT",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS face_confidence_threshold FLOAT DEFAULT 0.5",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS face_min_consecutive_frames INTEGER DEFAULT 20",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS face_min_face_height INTEGER DEFAULT 50",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS face_start_time VARCHAR(5) DEFAULT '06:00'",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS face_end_time VARCHAR(5) DEFAULT '10:30'",
     ]
     try:
         with engine.connect() as conn:
@@ -136,6 +148,7 @@ app.include_router(fitbit.router)
 app.include_router(badge_quests.router)
 app.include_router(fortune_wheel.router)
 app.include_router(expenses.router)
+app.include_router(face_test.router)
 
 
 @app.on_event("startup")

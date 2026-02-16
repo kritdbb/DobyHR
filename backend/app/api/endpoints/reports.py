@@ -22,7 +22,9 @@ class AttendanceReportItem(BaseModel):
     user_name: str
     timestamp: datetime
     status: str
-    # late? distance?
+    check_in_method: Optional[str] = "gps"
+    face_image_path: Optional[str] = None
+    face_confidence: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -87,7 +89,10 @@ def get_attendance_report(
             "user_id": r.user_id,
             "user_name": f"{r.user.name} {r.user.surname}" if r.user else "Unknown",
             "timestamp": local_ts,
-            "status": r.status
+            "status": r.status,
+            "check_in_method": r.check_in_method or "gps",
+            "face_image_path": r.face_image_path,
+            "face_confidence": r.face_confidence,
         })
     return report
 
