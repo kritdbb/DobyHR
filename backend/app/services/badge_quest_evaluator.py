@@ -60,17 +60,26 @@ def _resolve_total_steps(user_id: int, db: Session) -> int:
 
 
 def _resolve_mana_received(user_id: int, db: Session) -> int:
+    from sqlalchemy import or_
     return (
         db.query(func.count(CoinLog.id))
-        .filter(CoinLog.user_id == user_id, CoinLog.reason.ilike("%Received Angel Coins%"))
+        .filter(CoinLog.user_id == user_id, or_(
+            CoinLog.reason.ilike("%Received Angel Coins%"),
+            CoinLog.reason.ilike("%Received Gold from%"),
+            CoinLog.reason.ilike("%Received Mana from%"),
+        ))
         .scalar()
     )
 
 
 def _resolve_mana_sent(user_id: int, db: Session) -> int:
+    from sqlalchemy import or_
     return (
         db.query(func.count(CoinLog.id))
-        .filter(CoinLog.user_id == user_id, CoinLog.reason.ilike("%Sent Angel Coins%"))
+        .filter(CoinLog.user_id == user_id, or_(
+            CoinLog.reason.ilike("%Sent%Angel Coins%"),
+            CoinLog.reason.ilike("%Sent%Mana as%"),
+        ))
         .scalar()
     )
 

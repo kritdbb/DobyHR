@@ -398,9 +398,15 @@ def get_recent_awards(
             })
 
     # Mana (Angel Coin) transfers — only "Received" entries
+    # Matches both old format ("Received Angel Coins from ...") and new ("Received Gold/Mana from ...")
+    from sqlalchemy import or_
     mana_logs = (
         db.query(CoinLog)
-        .filter(CoinLog.reason.ilike("%Received Angel Coins%"))
+        .filter(or_(
+            CoinLog.reason.ilike("%Received Angel Coins%"),
+            CoinLog.reason.ilike("%Received Gold from%"),
+            CoinLog.reason.ilike("%Received Mana from%"),
+        ))
         .order_by(CoinLog.created_at.desc())
         .limit(limit)
         .all()
@@ -408,14 +414,15 @@ def get_recent_awards(
     for ml in mana_logs:
         user = db.query(User).filter(User.id == ml.user_id).first()
         if user:
-            # Extract message from reason (format: "... from Name Surname: message")
+            # Extract comment from reason
+            # Old: "🪽 Received Angel Coins from Name Surname: comment"
+            # New: "🪽 Received Gold from Name Surname: comment"
             message = ""
-            if ml.reason and ": " in ml.reason:
-                parts = ml.reason.split(": ", 1)
-                if len(parts) > 1:
-                    # The first ": " after sender name is the comment
-                    # Reason format: "🪽 Received Angel Coins from Name Surname: comment"
-                    message = parts[1]
+            reason = ml.reason or ""
+            if " from " in reason:
+                after_from = reason.split(" from ", 1)[1]
+                if ": " in after_from:
+                    message = after_from.split(": ", 1)[1]
             events.append({
                 "id": f"mana-{ml.id}",
                 "type": "mana",

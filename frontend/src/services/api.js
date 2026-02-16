@@ -179,6 +179,7 @@ export const getStaffList = () => api.get('/api/users/staff/list')
 export const getAttendanceReport = (params) => api.get('/api/reports/attendance', { params })
 export const getCoinReport = (params) => api.get('/api/reports/coins', { params })
 export const getLeaveSummary = () => api.get('/api/reports/leaves')
+export const getManaGiftReport = (params) => api.get('/api/reports/mana-gifts', { params })
 
 // --- Work Requests ---
 export const getPendingWorkRequests = () => api.get('/api/work-requests/pending-approvals')

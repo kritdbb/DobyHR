@@ -176,3 +176,109 @@ def get_leave_summary_report(
         })
         
     return report
+
+
+@router.get("/mana-gifts")
+def get_mana_gift_report(
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_gm_or_above)
+):
+    """Mana gifting statistics: per-user sent/received and transaction list."""
+    from sqlalchemy import func, case
+
+    # Build date filters
+    filters = [CoinLog.reason.ilike("%Sent%Mana%to%")]
+    if start_date:
+        filters.append(CoinLog.created_at >= datetime.combine(start_date, datetime.min.time()))
+    if end_date:
+        filters.append(CoinLog.created_at <= datetime.combine(end_date, datetime.max.time()))
+
+    # Get all "Sent" logs (sender side — amount is negative)
+    sent_logs = (
+        db.query(CoinLog)
+        .options(joinedload(CoinLog.user))
+        .filter(*filters)
+        .order_by(CoinLog.created_at.desc())
+        .all()
+    )
+
+    # Build per-user summary
+    user_stats = {}
+    transactions = []
+
+    for log in sent_logs:
+        sender_id = log.user_id
+        sender_name = f"{log.user.name} {log.user.surname}" if log.user else "Unknown"
+        amount = abs(log.amount)
+        local_ts = log.created_at + timedelta(hours=7) if log.created_at else log.created_at
+
+        # Parse recipient and delivery type from reason
+        # Format: "🪽 Sent X Mana as Gold/Mana to Name Surname: comment"
+        reason = log.reason or ""
+        delivery_type = "gold"
+        if "as Mana to" in reason:
+            delivery_type = "mana"
+        elif "as Gold to" in reason:
+            delivery_type = "gold"
+
+        # Extract recipient name (after "to ")
+        recipient_name = ""
+        if " to " in reason:
+            after_to = reason.split(" to ", 1)[1]
+            recipient_name = after_to.split(":")[0].strip()
+
+        # Extract comment
+        comment = ""
+        if ": " in reason and reason.count(":") > 0:
+            parts = reason.split(": ", 1)
+            if len(parts) > 1:
+                # The comment is after the last ": "
+                after_to_part = reason.split(" to ", 1)[1] if " to " in reason else ""
+                if ": " in after_to_part:
+                    comment = after_to_part.split(": ", 1)[1]
+
+        # Sender stats
+        if sender_id not in user_stats:
+            user_stats[sender_id] = {"user_id": sender_id, "user_name": sender_name, "total_sent": 0, "total_received": 0, "send_count": 0, "receive_count": 0}
+        user_stats[sender_id]["total_sent"] += amount
+        user_stats[sender_id]["send_count"] += 1
+
+        transactions.append({
+            "sender_id": sender_id,
+            "sender_name": sender_name,
+            "recipient_name": recipient_name,
+            "amount": amount,
+            "delivery_type": delivery_type,
+            "comment": comment,
+            "timestamp": local_ts,
+        })
+
+    # Now get received logs for per-user received stats
+    recv_filters = [CoinLog.reason.ilike("%Received%from%")]
+    if start_date:
+        recv_filters.append(CoinLog.created_at >= datetime.combine(start_date, datetime.min.time()))
+    if end_date:
+        recv_filters.append(CoinLog.created_at <= datetime.combine(end_date, datetime.max.time()))
+
+    recv_logs = (
+        db.query(CoinLog)
+        .options(joinedload(CoinLog.user))
+        .filter(*recv_filters)
+        .all()
+    )
+
+    for log in recv_logs:
+        uid = log.user_id
+        uname = f"{log.user.name} {log.user.surname}" if log.user else "Unknown"
+        if uid not in user_stats:
+            user_stats[uid] = {"user_id": uid, "user_name": uname, "total_sent": 0, "total_received": 0, "send_count": 0, "receive_count": 0}
+        user_stats[uid]["total_received"] += abs(log.amount)
+        user_stats[uid]["receive_count"] += 1
+
+    return {
+        "summary": sorted(user_stats.values(), key=lambda x: x["total_sent"], reverse=True),
+        "transactions": transactions,
+    }
+

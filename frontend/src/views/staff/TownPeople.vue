@@ -122,6 +122,38 @@
           </div>
         </div>
 
+        <!-- Gift Mana Button (hide for self) -->
+        <button v-if="selectedPerson.id !== currentUserId && !showGiftForm" class="gift-mana-btn" @click="showGiftForm = true">
+          ✨ Gift Mana
+        </button>
+
+        <!-- Gift Mana Form -->
+        <div v-if="showGiftForm" class="gift-form">
+          <div class="gift-form-title">✨ Gift Mana to {{ selectedPerson.name }}</div>
+          <div class="gift-field">
+            <label>Amount</label>
+            <input v-model.number="giftAmount" type="number" min="1" class="gift-input" placeholder="0" />
+            <div class="gift-balance">Your Mana: {{ myMana }}</div>
+          </div>
+          <div class="gift-field">
+            <label>Comment</label>
+            <input v-model="giftComment" type="text" class="gift-input" placeholder="Say something nice..." />
+          </div>
+          <div class="gift-field">
+            <label>Deliver as</label>
+            <div class="delivery-toggle">
+              <button :class="['dt-btn', giftDeliveryType === 'gold' ? 'active gold' : '']" @click="giftDeliveryType = 'gold'">💰 Gold</button>
+              <button :class="['dt-btn', giftDeliveryType === 'mana' ? 'active mana' : '']" @click="giftDeliveryType = 'mana'">✨ Mana</button>
+            </div>
+          </div>
+          <div class="gift-actions">
+            <button class="gift-cancel" @click="resetGift()">Cancel</button>
+            <button class="gift-confirm" :disabled="!giftAmount || giftAmount <= 0 || giftAmount > myMana || giftSending" @click="confirmGift()">
+              {{ giftSending ? 'Sending...' : '✨ Confirm' }}
+            </button>
+          </div>
+        </div>
+
         <div class="sheet-divider"></div>
 
         <!-- Equipment -->
@@ -154,26 +186,75 @@
 </template>
 
 <script>
-import { getTownPeople } from '../../services/api'
+import { getTownPeople, sendAngelCoins } from '../../services/api'
 
 export default {
   name: 'TownPeople',
+  inject: ['showToast'],
   data() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
     return {
       people: [],
       loading: true,
       selectedPerson: null,
+      currentUserId: user.id,
+      myMana: 0,
+      showGiftForm: false,
+      giftAmount: null,
+      giftComment: '',
+      giftDeliveryType: 'gold',
+      giftSending: false,
     }
   },
   async mounted() {
     try {
       const { data } = await getTownPeople()
       this.people = data
+      // Load my current mana from the list
+      const me = data.find(p => p.id === this.currentUserId)
+      if (me) this.myMana = me.angel_coins || 0
     } catch (e) {
       console.error('Failed to load town people', e)
     } finally {
       this.loading = false
     }
+  },
+  watch: {
+    selectedPerson() { this.resetGift() },
+  },
+  methods: {
+    resetGift() {
+      this.showGiftForm = false
+      this.giftAmount = null
+      this.giftComment = ''
+      this.giftDeliveryType = 'gold'
+    },
+    async confirmGift() {
+      this.giftSending = true
+      try {
+        const res = await sendAngelCoins({
+          recipient_id: this.selectedPerson.id,
+          amount: this.giftAmount,
+          comment: this.giftComment,
+          delivery_type: this.giftDeliveryType,
+        })
+        this.myMana = res.data.sender_mana
+        this.showToast(res.data.message, 'success')
+        this.resetGift()
+        // Refresh people list
+        const { data } = await getTownPeople()
+        this.people = data
+        // Update selected person
+        if (this.selectedPerson) {
+          const updated = data.find(p => p.id === this.selectedPerson.id)
+          if (updated) this.selectedPerson = updated
+        }
+      } catch (e) {
+        this.showToast(e.response?.data?.detail || 'Failed to send', 'error')
+      } finally {
+        this.giftSending = false
+      }
+    },
   },
 }
 </script>
@@ -586,5 +667,89 @@ export default {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* ── Gift Mana ── */
+.gift-mana-btn {
+  display: block; width: 100%; margin-top: 12px;
+  padding: 10px; border-radius: 8px; border: 2px solid rgba(155,89,182,0.4);
+  background: linear-gradient(135deg, rgba(155,89,182,0.12), rgba(155,89,182,0.06));
+  color: #c39bd3; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.gift-mana-btn:hover {
+  border-color: rgba(155,89,182,0.7);
+  background: linear-gradient(135deg, rgba(155,89,182,0.2), rgba(155,89,182,0.1));
+  box-shadow: 0 0 16px rgba(155,89,182,0.15);
+}
+
+.gift-form {
+  margin-top: 12px; padding: 14px;
+  border-radius: 10px; border: 1px solid rgba(155,89,182,0.25);
+  background: linear-gradient(145deg, rgba(155,89,182,0.06), rgba(0,0,0,0.2));
+}
+.gift-form-title {
+  font-family: 'Cinzel', serif; font-size: 13px; font-weight: 700;
+  color: #c39bd3; margin-bottom: 12px; text-align: center;
+}
+.gift-field { margin-bottom: 10px; }
+.gift-field label {
+  display: block; font-size: 11px; font-weight: 700;
+  color: #8b7355; margin-bottom: 4px; text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.gift-input {
+  width: 100%; padding: 8px 10px; border-radius: 6px;
+  border: 1px solid rgba(212,164,76,0.2);
+  background: rgba(0,0,0,0.3); color: #e8d5b7;
+  font-size: 14px; font-weight: 600; outline: none;
+  box-sizing: border-box;
+}
+.gift-input:focus { border-color: rgba(155,89,182,0.5); }
+.gift-input::placeholder { color: #6b5a3e; }
+.gift-balance {
+  font-size: 10px; color: #9b59b6; font-weight: 600; margin-top: 3px;
+}
+
+.delivery-toggle { display: flex; gap: 8px; }
+.dt-btn {
+  flex: 1; padding: 8px;
+  border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.2); color: #8b7355;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: all 0.15s;
+}
+.dt-btn.active.gold {
+  border-color: rgba(212,164,76,0.5);
+  background: rgba(212,164,76,0.12);
+  color: #d4a44c;
+  box-shadow: 0 0 8px rgba(212,164,76,0.15);
+}
+.dt-btn.active.mana {
+  border-color: rgba(155,89,182,0.5);
+  background: rgba(155,89,182,0.12);
+  color: #c39bd3;
+  box-shadow: 0 0 8px rgba(155,89,182,0.15);
+}
+
+.gift-actions { display: flex; gap: 8px; margin-top: 14px; }
+.gift-cancel {
+  flex: 1; padding: 8px; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.2); color: #8b7355;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.gift-confirm {
+  flex: 2; padding: 8px; border-radius: 6px;
+  border: 1px solid rgba(155,89,182,0.4);
+  background: linear-gradient(135deg, #7b2d8e, #9b59b6);
+  color: #fff; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.gift-confirm:disabled {
+  opacity: 0.4; cursor: not-allowed;
+}
+.gift-confirm:hover:not(:disabled) {
+  box-shadow: 0 0 16px rgba(155,89,182,0.3);
 }
 </style>

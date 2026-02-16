@@ -596,6 +596,7 @@ class AngelCoinSendRequest(BaseModel):
     recipient_id: int
     amount: int
     comment: str = ""
+    delivery_type: str = "gold"  # "gold" or "mana"
 
 
 @router.post("/{user_id}/angel-coins", response_model=UserResponse)
@@ -633,42 +634,49 @@ def send_angel_coins(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Staff sends angel coins to another staff. Converts to real coins for the receiver."""
+    """Staff sends mana to another staff. Delivery as gold or mana (1:1)."""
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
     
-    if current_user.id == req.recipient_id:
-        raise HTTPException(status_code=400, detail="Cannot send Angel Coins to yourself")
+    if req.delivery_type not in ("gold", "mana"):
+        raise HTTPException(status_code=400, detail="delivery_type must be 'gold' or 'mana'")
     
-    if current_user.angel_coins < req.amount:
-        raise HTTPException(status_code=400, detail="Insufficient Angel Coins")
+    if current_user.id == req.recipient_id:
+        raise HTTPException(status_code=400, detail="Cannot send Mana to yourself")
+    
+    if (current_user.angel_coins or 0) < req.amount:
+        raise HTTPException(status_code=400, detail="Insufficient Mana")
     
     recipient = db.query(User).filter(User.id == req.recipient_id).first()
     if not recipient:
         raise HTTPException(status_code=404, detail="Recipient not found")
     
-    # Deduct angel coins from sender
-    current_user.angel_coins -= req.amount
+    # Deduct mana from sender
+    current_user.angel_coins = (current_user.angel_coins or 0) - req.amount
     
-    # Add real coins to recipient
-    recipient.coins += req.amount
+    # Deliver to recipient as gold or mana
+    delivery_label = "Gold" if req.delivery_type == "gold" else "Mana"
+    if req.delivery_type == "gold":
+        recipient.coins = (recipient.coins or 0) + req.amount
+    else:
+        recipient.angel_coins = (recipient.angel_coins or 0) + req.amount
     
     comment_text = f": {req.comment}" if req.comment else ""
     
-    # Log for sender (negative to show deduction)
+    # Log for sender (negative — mana deduction)
     sender_log = CoinLog(
         user_id=current_user.id,
         amount=-req.amount,
-        reason=f"🪽 Sent {req.amount} Angel Coins to {recipient.name} {recipient.surname}{comment_text}",
+        reason=f"🪽 Sent {req.amount} Mana as {delivery_label} to {recipient.name} {recipient.surname}{comment_text}",
         created_by="System"
     )
     db.add(sender_log)
     
-    # Log for recipient (real coins)
+    # Log for recipient
     recipient_log = CoinLog(
         user_id=recipient.id,
         amount=req.amount,
-        reason=f"🪽 Received Angel Coins from {current_user.name} {current_user.surname}{comment_text}",
+        reason=f"🪽 Received {delivery_label} from {current_user.name} {current_user.surname}{comment_text}",
         created_by=f"{current_user.name} {current_user.surname}"
     )
     db.add(recipient_log)
@@ -676,9 +684,11 @@ def send_angel_coins(
     db.commit()
     
     return {
-        "message": f"Sent {req.amount} Angel Coins to {recipient.name} {recipient.surname}",
-        "sender_angel_coins": current_user.angel_coins,
-        "recipient_coins": recipient.coins
+        "message": f"Sent {req.amount} Mana as {delivery_label} to {recipient.name} {recipient.surname}",
+        "sender_mana": current_user.angel_coins,
+        "delivery_type": req.delivery_type,
+        "recipient_coins": recipient.coins,
+        "recipient_mana": recipient.angel_coins,
     }
 
 

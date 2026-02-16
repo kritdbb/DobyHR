@@ -25,6 +25,9 @@
         <button :class="['tab', activeTab === 'expenses' ? 'active' : '']" @click="activeTab = 'expenses'">
             💰 Expenses
         </button>
+        <button :class="['tab', activeTab === 'mana' ? 'active' : '']" @click="activeTab = 'mana'">
+            ✨ Mana Gifts
+        </button>
     </div>
 
     <!-- Filters -->
@@ -287,6 +290,65 @@
          </div>
     </div>
 
+    <!-- Mana Gift Report -->
+    <div v-if="activeTab === 'mana' && manaReport.summary.length > 0" class="card" style="margin-bottom: 20px;">
+        <h3>✨ Mana Gift Summary</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Adventurer</th>
+                        <th>Sent</th>
+                        <th>Received</th>
+                        <th># Sent</th>
+                        <th># Received</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="s in manaReport.summary" :key="s.user_id">
+                        <td>{{ s.user_name }}</td>
+                        <td style="color: #e74c3c; font-weight: 700;">{{ s.total_sent }}</td>
+                        <td style="color: #2ecc71; font-weight: 700;">{{ s.total_received }}</td>
+                        <td>{{ s.send_count }}</td>
+                        <td>{{ s.receive_count }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div v-if="activeTab === 'mana'" class="card">
+        <h3>Mana Gift Transactions</h3>
+        <div v-if="loading" class="loading">Loading...</div>
+        <div v-else class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Amount</th>
+                        <th>As</th>
+                        <th>Comment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(t, i) in manaReport.transactions" :key="i">
+                        <td>{{ formatDate(t.timestamp) }}</td>
+                        <td>{{ t.sender_name }}</td>
+                        <td>{{ t.recipient_name }}</td>
+                        <td style="font-weight: 700;">{{ t.amount }}</td>
+                        <td><span class="status-badge" :style="t.delivery_type === 'gold' ? 'background: rgba(212,164,76,0.1); color: #d4a44c; border: 1px solid rgba(212,164,76,0.2);' : 'background: rgba(155,89,182,0.1); color: #9b59b6; border: 1px solid rgba(155,89,182,0.2);'">{{ t.delivery_type === 'gold' ? '💰 Gold' : '✨ Mana' }}</span></td>
+                        <td>{{ t.comment || '-' }}</td>
+                    </tr>
+                    <tr v-if="manaReport.transactions.length === 0">
+                        <td colspan="6" style="text-align: center; color: #8b7355;">No mana gifts found</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- Fullscreen Viewer -->
     <div v-if="viewerOpen" class="viewer-overlay" @click="viewerOpen = false">
       <button class="viewer-close" @click="viewerOpen = false">✕</button>
@@ -299,7 +361,7 @@
 </template>
 
 <script>
-import { getAttendanceReport, getCoinReport, getLeaveSummary, getAllLeaves, approveLeave, rejectLeave, getUsers, getExpenseReport } from '../../services/api'
+import { getAttendanceReport, getCoinReport, getLeaveSummary, getAllLeaves, approveLeave, rejectLeave, getUsers, getExpenseReport, getManaGiftReport } from '../../services/api'
 
 export default {
     inject: ['showToast'],
@@ -319,6 +381,7 @@ export default {
             leaveData: [],
             pendingLeaves: [],
             expenseData: [],
+            manaReport: { summary: [], transactions: [] },
             loading: false,
             attendanceChartData: null,
             leaveChartData: null,
@@ -436,6 +499,13 @@ export default {
                     if (this.filters.user_ids.length > 0) params.user_ids = this.filters.user_ids
                     const { data } = await getExpenseReport(params)
                     this.expenseData = data
+                }
+                else if (this.activeTab === 'mana') {
+                    const params = {}
+                    if (this.filters.start_date) params.start_date = this.filters.start_date
+                    if (this.filters.end_date) params.end_date = this.filters.end_date
+                    const { data } = await getManaGiftReport(params)
+                    this.manaReport = data
                 }
                 
             } catch (e) {
