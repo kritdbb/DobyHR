@@ -273,11 +273,11 @@
       <p class="section-desc">Configure RTSP cameras for automatic face check-in.</p>
       <div style="margin-bottom: 16px;">
         <label style="font-size: 13px; font-weight: 600; color: #8b7355;">RTSP Cameras</label>
-        <div v-for="(url, idx) in rtspUrls" :key="idx" style="margin-top: 10px; padding: 12px; background: rgba(26,20,15,0.3); border-radius: 8px; border: 1px solid rgba(212,164,76,0.1);">
+        <div v-for="(cam, idx) in rtspCameras" :key="idx" style="margin-top: 10px; padding: 12px; background: rgba(26,20,15,0.3); border-radius: 8px; border: 1px solid rgba(212,164,76,0.1);">
           <div style="display: flex; gap: 8px; align-items: center;">
             <span style="font-size: 12px; color: #d4a44c; font-weight: 600; min-width: 24px;">{{ idx + 1 }}.</span>
-            <input v-model="rtspUrls[idx]" class="form-input" placeholder="rtsp://user:pass@192.168.1.10:554/stream" style="flex: 1;" />
-            <button v-if="testingCamera !== idx" @click="startTest(idx)" class="btn btn-primary" style="padding: 6px 14px; font-size: 12px; white-space: nowrap;" :disabled="!rtspUrls[idx]">
+            <input v-model="cam.url" class="form-input" placeholder="rtsp://192.168.1.10:554/stream" style="flex: 1;" />
+            <button v-if="testingCamera !== idx" @click="startTest(idx)" class="btn btn-primary" style="padding: 6px 14px; font-size: 12px; white-space: nowrap;" :disabled="!cam.url">
               ▶ Test
             </button>
             <button v-else @click="stopTest()" class="btn btn-secondary" style="padding: 6px 14px; font-size: 12px; white-space: nowrap; background: rgba(231,76,60,0.15); color: #e74c3c; border-color: rgba(231,76,60,0.3);">
@@ -285,15 +285,19 @@
             </button>
             <button @click="removeCamera(idx)" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;">✕</button>
           </div>
+          <div style="display: flex; gap: 8px; margin-top: 8px; padding-left: 32px;">
+            <input v-model="cam.username" class="form-input" placeholder="Username" style="flex: 1; font-size: 12px; padding: 6px 10px;" />
+            <input v-model="cam.password" class="form-input" type="password" placeholder="Password" style="flex: 1; font-size: 12px; padding: 6px 10px;" />
+          </div>
           <!-- MJPEG Stream preview -->
           <div v-if="testingCamera === idx" style="margin-top: 10px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(212,164,76,0.2); position: relative;">
             <div style="position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.6); color: #e74c3c; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 5px; z-index: 1;">
-              <span style="width: 6px; height: 6px; background: #e74c3c; border-radius: 50; display: inline-block; animation: blink 1s infinite;"></span> LIVE
+              <span style="width: 6px; height: 6px; background: #e74c3c; border-radius: 50%; display: inline-block; animation: blink 1s infinite;"></span> LIVE
             </div>
             <img :src="streamUrl" style="width: 100%; display: block; background: #111;" @error="onStreamError" />
           </div>
         </div>
-        <button @click="rtspUrls.push('')" class="btn btn-secondary" style="margin-top: 8px; font-size: 12px; padding: 5px 12px;">
+        <button @click="rtspCameras.push({ url: '', username: '', password: '' })" class="btn btn-secondary" style="margin-top: 8px; font-size: 12px; padding: 5px 12px;">
           + Add Camera
         </button>
       </div>
@@ -372,7 +376,7 @@ export default {
         face_start_time: '06:00',
         face_end_time: '10:30',
       },
-      rtspUrls: [],
+      rtspCameras: [],
       autoCoinDays: [],
       autoAngelDays: [],
       luckyDrawDays: [],
@@ -445,10 +449,16 @@ export default {
           face_start_time: data.face_start_time || '06:00',
           face_end_time: data.face_end_time || '10:30',
         }
-        // RTSP URLs
+        // RTSP cameras
         try {
-          this.rtspUrls = data.face_rtsp_urls ? JSON.parse(data.face_rtsp_urls) : []
-        } catch { this.rtspUrls = [] }
+          const parsed = data.face_rtsp_urls ? JSON.parse(data.face_rtsp_urls) : []
+          // Backwards compat: convert old string array to object array
+          this.rtspCameras = parsed.map(item =>
+            typeof item === 'string'
+              ? { url: item, username: '', password: '' }
+              : { url: item.url || '', username: item.username || '', password: item.password || '' }
+          )
+        } catch { this.rtspCameras = [] }
         this.autoCoinDays = data.auto_coin_day ? data.auto_coin_day.split(',').map(d => d.trim().toLowerCase()) : []
         this.autoAngelDays = data.auto_angel_day ? data.auto_angel_day.split(',').map(d => d.trim().toLowerCase()) : []
         this.luckyDrawDays = data.lucky_draw_day ? data.lucky_draw_day.split(',').map(d => d.trim().toLowerCase()) : []
@@ -494,7 +504,7 @@ export default {
           rescue_cost_per_person: this.form.rescue_cost_per_person,
           rescue_required_people: this.form.rescue_required_people,
           rescue_gold_on_revive: this.form.rescue_gold_on_revive,
-          face_rtsp_urls: JSON.stringify(this.rtspUrls.filter(u => u.trim())),
+          face_rtsp_urls: JSON.stringify(this.rtspCameras.filter(c => c.url.trim())),
           face_confidence_threshold: this.form.face_confidence_threshold,
           face_min_consecutive_frames: this.form.face_min_consecutive_frames,
           face_min_face_height: this.form.face_min_face_height,
@@ -520,11 +530,17 @@ export default {
       }
     },
     startTest(idx) {
-      const url = this.rtspUrls[idx]
-      if (!url) return
+      const cam = this.rtspCameras[idx]
+      if (!cam || !cam.url) return
+      // Build full RTSP URL with credentials
+      let fullUrl = cam.url
+      if (cam.username && cam.url.startsWith('rtsp://')) {
+        const cred = cam.password ? `${cam.username}:${cam.password}` : cam.username
+        fullUrl = 'rtsp://' + cred + '@' + cam.url.slice(7)
+      }
       const token = localStorage.getItem('token')
       const base = import.meta.env.VITE_API_URL || ''
-      this.streamUrl = `${base}/api/face/test-stream?rtsp_url=${encodeURIComponent(url)}&token=${encodeURIComponent(token)}`
+      this.streamUrl = `${base}/api/face/test-stream?rtsp_url=${encodeURIComponent(fullUrl)}&token=${encodeURIComponent(token)}`
       this.testingCamera = idx
     },
     stopTest() {
@@ -533,7 +549,7 @@ export default {
     },
     removeCamera(idx) {
       if (this.testingCamera === idx) this.stopTest()
-      this.rtspUrls.splice(idx, 1)
+      this.rtspCameras.splice(idx, 1)
     },
     onStreamError() {
       this.showToast('Stream connection failed', 'error')

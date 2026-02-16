@@ -394,16 +394,38 @@ def run():
         if current_minutes < start_minutes or current_minutes > end_minutes:
             return  # Outside time window
 
-        # Get RTSP URLs
+        # Get RTSP cameras (supports both old string[] and new object[] format)
         rtsp_urls_raw = company.face_rtsp_urls
         if not rtsp_urls_raw:
             return
 
         try:
-            rtsp_urls = json.loads(rtsp_urls_raw)
-            if not isinstance(rtsp_urls, list) or len(rtsp_urls) == 0:
+            cameras_raw = json.loads(rtsp_urls_raw)
+            if not isinstance(cameras_raw, list) or len(cameras_raw) == 0:
                 return
         except (json.JSONDecodeError, TypeError):
+            return
+
+        # Build full RTSP URLs with credentials
+        rtsp_urls = []
+        for item in cameras_raw:
+            if isinstance(item, str):
+                # Old format: plain URL string
+                url = item.strip()
+            elif isinstance(item, dict):
+                # New format: {url, username, password}
+                url = (item.get("url") or "").strip()
+                username = (item.get("username") or "").strip()
+                password = (item.get("password") or "").strip()
+                if username and url.startswith("rtsp://"):
+                    cred = f"{username}:{password}" if password else username
+                    url = f"rtsp://{cred}@{url[7:]}"
+            else:
+                continue
+            if url:
+                rtsp_urls.append(url)
+
+        if not rtsp_urls:
             return
 
         # Load FAISS index if not loaded
@@ -425,14 +447,11 @@ def run():
 
         _worker_threads = []
         for idx, url in enumerate(rtsp_urls):
-            url = url.strip()
-            if not url:
-                continue
             t = threading.Thread(
                 target=_process_rtsp_stream,
                 args=(url, idx, settings),
                 daemon=True,
-                name=f"face-stream-{idx}"
+                name=f"face-stream-{idx}",
             )
             t.start()
             _worker_threads.append(t)
