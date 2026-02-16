@@ -67,6 +67,9 @@ def auto_migrate():
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS face_min_face_height INTEGER DEFAULT 50",
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS face_start_time VARCHAR(5) DEFAULT '06:00'",
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS face_end_time VARCHAR(5) DEFAULT '10:30'",
+        # ── Cosmetic System ──
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS magic_background VARCHAR(500)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS circle_artifact VARCHAR(50)",
     ]
     try:
         with engine.connect() as conn:

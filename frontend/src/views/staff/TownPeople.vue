@@ -12,9 +12,12 @@
     </div>
 
     <div v-else class="people-grid">
-      <div v-for="p in people" :key="p.id" class="person-card" @click="selectedPerson = p">
+      <div v-for="p in people" :key="p.id" class="person-card" @click="selectedPerson = p"
+        :style="p.magic_background ? { backgroundImage: 'linear-gradient(rgba(17,10,30,0.65), rgba(17,10,30,0.8)), url(' + apiBase + p.magic_background + ')', backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
         <!-- Portrait -->
         <div class="person-portrait">
+          <img v-if="p.circle_artifact && hasArtifactImage(p.circle_artifact)" :src="'/artifacts/' + p.circle_artifact + '.png'" class="person-artifact-ring-img" />
+          <div v-else-if="p.circle_artifact" class="person-artifact-ring" :style="{ borderColor: getArtifactColor(p.circle_artifact), boxShadow: '0 0 14px ' + getArtifactColor(p.circle_artifact) + '66' }"></div>
           <img v-if="p.image" :src="p.image" class="person-img" />
           <div v-else class="person-placeholder">{{ (p.name || '?').charAt(0) }}</div>
           <span class="person-role-tag" :class="p.role">{{ p.role }}</span>
@@ -53,7 +56,7 @@
 
     <!-- ═══════ RPG Character Sheet Modal ═══════ -->
     <div v-if="selectedPerson" class="modal-overlay" @click.self="selectedPerson = null">
-      <div class="char-sheet">
+      <div class="char-sheet" :style="selectedPerson.magic_background ? { backgroundImage: 'linear-gradient(rgba(17,10,30,0.55), rgba(17,10,30,0.75)), url(' + apiBase + selectedPerson.magic_background + ')', backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
         <button class="sheet-close" @click="selectedPerson = null">✕</button>
 
         <!-- Decorative corners -->
@@ -63,6 +66,9 @@
         <!-- Portrait -->
         <div class="portrait-frame">
           <div class="portrait-glow"></div>
+          <img v-if="selectedPerson.circle_artifact && hasArtifactImage(selectedPerson.circle_artifact)" :src="'/artifacts/' + selectedPerson.circle_artifact + '.png'" class="portrait-artifact-ring-img" />
+          <div v-else-if="selectedPerson.circle_artifact" class="portrait-artifact-ring"
+            :style="{ borderColor: getArtifactColor(selectedPerson.circle_artifact), boxShadow: '0 0 24px ' + getArtifactColor(selectedPerson.circle_artifact) + '55' }"></div>
           <div class="portrait-ring">
             <img v-if="selectedPerson.image" :src="selectedPerson.image" class="portrait-img" />
             <div v-else class="portrait-ph">{{ (selectedPerson.name || '?').charAt(0) }}</div>
@@ -204,6 +210,7 @@ export default {
       giftComment: '',
       giftDeliveryType: 'gold',
       giftSending: false,
+      apiBase: import.meta.env.VITE_API_URL || '',
     }
   },
   async mounted() {
@@ -267,6 +274,20 @@ export default {
         this.giftSending = false
       }
     },
+    getArtifactColor(artifactId) {
+      const COLORS = {
+        artifact_01: '#ffd700', artifact_02: '#a8d8ea', artifact_03: '#2ecc71', artifact_04: '#e74c3c',
+        artifact_05: '#3498db', artifact_06: '#9b59b6', artifact_07: '#cd7f32', artifact_08: '#00a86b',
+        artifact_09: '#2c3e50', artifact_10: '#f39c12', artifact_11: '#e67e22', artifact_12: '#f1c40f',
+        artifact_13: '#bdc3c7', artifact_14: '#c0392b', artifact_15: '#1abc9c', artifact_16: '#8e44ad',
+        artifact_17: '#d4a44c', artifact_18: '#ecf0f1', artifact_19: '#7b241c', artifact_20: '#ff6b6b',
+      }
+      return COLORS[artifactId] || '#d4a44c'
+    },
+    hasArtifactImage(id) {
+      const AVAILABLE = ['artifact_01','artifact_02','artifact_03','artifact_04','artifact_05','artifact_06','artifact_07','artifact_08','artifact_09','artifact_10','artifact_11','artifact_12','artifact_13','artifact_14','artifact_15','artifact_16','artifact_17','artifact_18','artifact_19','artifact_20']
+      return AVAILABLE.includes(id)
+    },
   },
 }
 </script>
@@ -329,16 +350,40 @@ export default {
 /* Portrait */
 .person-portrait {
   position: relative; margin-bottom: 10px;
+  width: 74px; height: 74px;
+  display: flex; align-items: center; justify-content: center;
+}
+.person-artifact-ring {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 74px; height: 74px; border-radius: 50%;
+  border: 3px solid; pointer-events: none; overflow: hidden;
+  z-index: 0;
+  animation: artifactGlow 3s ease-in-out infinite;
+}
+.person-artifact-ring-img {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 74px; height: 74px; border-radius: 50%;
+  object-fit: cover; pointer-events: none; overflow: hidden;
+  aspect-ratio: 1 / 1; z-index: 0;
+  animation: artifactGlow 3s ease-in-out infinite;
+}
+@keyframes artifactGlow {
+  0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
 }
 .person-img {
-  width: 56px; height: 56px; border-radius: 50%;
+  width: 52px; height: 52px; border-radius: 50%;
   object-fit: cover; border: 2px solid rgba(212,164,76,0.3);
+  position: relative; z-index: 1;
 }
 .person-placeholder {
-  width: 56px; height: 56px; border-radius: 50%;
+  width: 52px; height: 52px; border-radius: 50%;
   background: linear-gradient(135deg, #b8860b, #d4a44c);
   display: flex; align-items: center; justify-content: center;
-  font-size: 22px; font-weight: 800; color: #1c1208;
+  position: relative; z-index: 1;
+  font-size: 20px; font-weight: 800; color: #1c1208;
 }
 .person-role-tag {
   position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
@@ -477,8 +522,8 @@ export default {
 }
 .portrait-glow {
   position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -55%);
-  width: 120px; height: 120px; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  width: 160px; height: 160px; border-radius: 50%;
   background: radial-gradient(circle, rgba(212,164,76,0.12) 0%, transparent 70%);
   pointer-events: none;
 }
@@ -487,6 +532,25 @@ export default {
   border: 3px solid #d4a44c;
   box-shadow: 0 0 20px rgba(212,164,76,0.25), inset 0 0 16px rgba(0,0,0,0.4);
   overflow: hidden; position: relative; z-index: 1;
+}
+.portrait-artifact-ring {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, calc(-50% - 13px));
+  width: 120px; height: 120px; border-radius: 50%;
+  border: 4px solid; pointer-events: none; z-index: 0; overflow: hidden;
+  animation: portraitArtifactGlow 3s ease-in-out infinite;
+}
+.portrait-artifact-ring-img {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, calc(-50% - 13px));
+  width: 120px; height: 120px; border-radius: 50%;
+  object-fit: cover; pointer-events: none; z-index: 0; overflow: hidden;
+  aspect-ratio: 1 / 1;
+  animation: portraitArtifactGlow 3s ease-in-out infinite;
+}
+@keyframes portraitArtifactGlow {
+  0%, 100% { opacity: 0.7; transform: translate(-50%, calc(-50% - 13px)) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, calc(-50% - 13px)) scale(1.06); }
 }
 .portrait-img {
   width: 100%; height: 100%; object-fit: cover;

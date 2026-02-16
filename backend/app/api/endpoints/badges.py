@@ -112,6 +112,42 @@ def update_badge(
     )
 
 
+# ── Circle Artifact Catalog ───────────────────────────
+
+CIRCLE_ARTIFACT_CATALOG = [
+    {"id": "artifact_01", "name": "Golden Ornate Frame",      "price": 2,  "rarity": "common",    "color": "#ffd700"},
+    {"id": "artifact_02", "name": "Silver Ice Crystal",       "price": 2,  "rarity": "common",    "color": "#a8d8ea"},
+    {"id": "artifact_03", "name": "Emerald Vine Wreath",      "price": 3,  "rarity": "common",    "color": "#2ecc71"},
+    {"id": "artifact_04", "name": "Ruby Flame Circle",        "price": 3,  "rarity": "common",    "color": "#e74c3c"},
+    {"id": "artifact_05", "name": "Sapphire Water Ripple",    "price": 3,  "rarity": "uncommon",  "color": "#3498db"},
+    {"id": "artifact_06", "name": "Amethyst Mystic Runes",    "price": 4,  "rarity": "uncommon",  "color": "#9b59b6"},
+    {"id": "artifact_07", "name": "Bronze Dragon Coil",       "price": 4,  "rarity": "uncommon",  "color": "#cd7f32"},
+    {"id": "artifact_08", "name": "Jade Serpent Ring",        "price": 4,  "rarity": "uncommon",  "color": "#00a86b"},
+    {"id": "artifact_09", "name": "Obsidian Shadow Aura",     "price": 5,  "rarity": "rare",      "color": "#2c3e50"},
+    {"id": "artifact_10", "name": "Celestial Star Halo",      "price": 5,  "rarity": "rare",      "color": "#f39c12"},
+    {"id": "artifact_11", "name": "Phoenix Feather Crown",    "price": 5,  "rarity": "rare",      "color": "#e67e22"},
+    {"id": "artifact_12", "name": "Thunderbolt Arc",          "price": 6,  "rarity": "rare",      "color": "#f1c40f"},
+    {"id": "artifact_13", "name": "Moonlight Crescent",       "price": 6,  "rarity": "epic",      "color": "#bdc3c7"},
+    {"id": "artifact_14", "name": "Blood Moon Eclipse",       "price": 6,  "rarity": "epic",      "color": "#c0392b"},
+    {"id": "artifact_15", "name": "Crystal Prism",            "price": 7,  "rarity": "epic",      "color": "#1abc9c"},
+    {"id": "artifact_16", "name": "Void Portal Swirl",        "price": 7,  "rarity": "epic",      "color": "#8e44ad"},
+    {"id": "artifact_17", "name": "Ancient Tome Seal",        "price": 8,  "rarity": "legendary", "color": "#d4a44c"},
+    {"id": "artifact_18", "name": "Divine Angel Wings",       "price": 8,  "rarity": "legendary", "color": "#ecf0f1"},
+    {"id": "artifact_19", "name": "Demon King Crown",         "price": 9,  "rarity": "legendary", "color": "#7b241c"},
+    {"id": "artifact_20", "name": "Rainbow Aurora",           "price": 10, "rarity": "mythic",    "color": "#ff6b6b"},
+]
+
+_ARTIFACT_MAP = {a["id"]: a for a in CIRCLE_ARTIFACT_CATALOG}
+
+
+@router.get("/artifacts/catalog")
+def get_artifact_catalog(
+    current_user: User = Depends(deps.get_current_user),
+):
+    """Return the list of purchasable circle artifacts."""
+    return CIRCLE_ARTIFACT_CATALOG
+
+
 # ── Town People (staff directory with stats) ──────────
 
 @router.get("/town-people")
@@ -161,6 +197,8 @@ def get_town_people(
             },
             "badges": badge_list,
             "status_text": u.status_text or "",
+            "magic_background": u.magic_background or "",
+            "circle_artifact": u.circle_artifact or "",
         })
     return results
 
@@ -173,19 +211,42 @@ import random as _random
 def buy_magic_item(
     item_type: str,
     status_text: str = None,
+    artifact_id: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    """Buy a magic item from the shop. Scrolls cost 20 Gold."""
-    valid_items = ["scroll_of_luck", "scroll_of_strength", "scroll_of_defense", "title_scroll"]
+    """Buy a magic item from the shop. Scrolls cost 20 Gold. Artifacts cost Mana."""
+    valid_items = ["scroll_of_luck", "scroll_of_strength", "scroll_of_defense", "title_scroll", "circle_artifact"]
     if item_type not in valid_items:
         raise HTTPException(status_code=400, detail=f"Invalid item. Must be one of: {valid_items}")
 
-    if (current_user.coins or 0) < 20:
-        raise HTTPException(status_code=400, detail="Not enough Gold! (need 20)")
-
     result = {}
     user_name = f"{current_user.name} {current_user.surname or ''}".strip()
+
+    # ── Circle Artifact (uses Mana) ──
+    if item_type == "circle_artifact":
+        if not artifact_id:
+            raise HTTPException(status_code=400, detail="Please specify artifact_id")
+        artifact = _ARTIFACT_MAP.get(artifact_id)
+        if not artifact:
+            raise HTTPException(status_code=400, detail=f"Unknown artifact: {artifact_id}")
+        price = artifact["price"]
+        if (current_user.angel_coins or 0) < price:
+            raise HTTPException(status_code=400, detail=f"Not enough Mana! Need {price}, have {current_user.angel_coins or 0}")
+        current_user.angel_coins -= price
+        current_user.circle_artifact = artifact_id
+        db.commit()
+        return {
+            "item": "Circle Artifact",
+            "artifact_id": artifact_id,
+            "artifact_name": artifact["name"],
+            "coins": current_user.coins,
+            "angel_coins": current_user.angel_coins,
+        }
+
+    # ── Gold-based items (scrolls, title) ──
+    if (current_user.coins or 0) < 20:
+        raise HTTPException(status_code=400, detail="Not enough Gold! (need 20)")
 
     if item_type == "scroll_of_luck":
         current_user.coins -= 20
@@ -220,19 +281,23 @@ def buy_magic_item(
         db.add(log)
         result = {"item": "Scroll of Defense", "stat": "DEF", "new_value": current_user.base_def, "coins": current_user.coins}
 
-    elif item_type == "title_scroll":
+    # ── Title Scroll (uses Mana) ──
+    if item_type == "title_scroll":
         if not status_text or not status_text.strip():
             raise HTTPException(status_code=400, detail="Please enter your status text!")
+        TITLE_COST = 2
+        if (current_user.angel_coins or 0) < TITLE_COST:
+            raise HTTPException(status_code=400, detail=f"Not enough Mana! Need {TITLE_COST}")
         status_text = status_text.strip()[:70]
-        current_user.coins -= 20
+        current_user.angel_coins -= TITLE_COST
         current_user.status_text = status_text
-        log = CoinLog(
-            user_id=current_user.id, amount=-20,
-            reason=f"📜 Title Scroll — Status: \"{status_text}\"",
-            created_by="Magic Shop"
-        )
-        db.add(log)
-        result = {"item": "Title Scroll", "status_text": status_text, "coins": current_user.coins}
+        db.commit()
+        return {
+            "item": "Title Scroll",
+            "status_text": status_text,
+            "coins": current_user.coins,
+            "angel_coins": current_user.angel_coins,
+        }
 
     db.commit()
     return result

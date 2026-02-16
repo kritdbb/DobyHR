@@ -203,7 +203,9 @@ export const getMyStats = () => api.get('/api/badges/stats/me')
 export const getUserStats = (userId) => api.get(`/api/badges/stats/${userId}`)
 export const getRecentBadgeAwards = (limit = 50) => api.get(`/api/badges/awards/recent?limit=${limit}`)
 export const getTownPeople = () => api.get('/api/badges/town-people')
-export const buyMagicItem = (itemType, params = {}) => api.post(`/api/badges/magic-shop/buy?item_type=${itemType}${params.status_text ? '&status_text=' + encodeURIComponent(params.status_text) : ''}`)
+export const buyMagicItem = (itemType, params = {}) => api.post(`/api/badges/magic-shop/buy?item_type=${itemType}${params.status_text ? '&status_text=' + encodeURIComponent(params.status_text) : ''}${params.artifact_id ? '&artifact_id=' + encodeURIComponent(params.artifact_id) : ''}`)
+export const getArtifactCatalog = () => api.get('/api/badges/artifacts/catalog')
+export const uploadMagicBackground = (formData) => api.post('/api/users/me/background', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 
 // --- Fitbit ---
 export const getFitbitAuthUrl = () => api.get('/api/fitbit/authorize')

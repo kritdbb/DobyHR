@@ -1,7 +1,7 @@
 <template>
   <div class="staff-page">
     <!-- ═══════ RPG Character Sheet ═══════ -->
-    <div class="char-sheet">
+    <div class="char-sheet" :style="charSheetBgStyle">
       <!-- Decorative corners -->
       <div class="corner tl"></div><div class="corner tr"></div>
       <div class="corner bl"></div><div class="corner br"></div>
@@ -10,6 +10,7 @@
       <div class="cs-profile-row">
         <div class="cs-portrait">
           <div class="cs-portrait-glow"></div>
+          <img v-if="userArtifact" :src="'/artifacts/' + userArtifact + '.png'" class="cs-artifact-ring-img" />
           <div class="cs-portrait-ring">
             <img v-if="userImage" :src="userImage" class="cs-portrait-img" />
             <div v-else class="cs-portrait-ph">{{ userName.charAt(0) || '?' }}</div>
@@ -598,6 +599,8 @@ export default {
       userImage: '',
       userPosition: '',
       userStatus: '',
+      userArtifact: '',
+      userBackground: '',
       pendingLeaves: [],
       pendingRedemptions: [],
       pendingWorkRequests: [],
@@ -635,6 +638,8 @@ export default {
       this.userImage = u.image || ''
       this.userPosition = u.position || ''
       this.userStatus = u.status_text || ''
+      this.userArtifact = u.circle_artifact || ''
+      this.userBackground = u.magic_background || ''
     }
     await this.loadData()
     this.loadFitbit()  // fire-and-forget, won't block page
@@ -677,7 +682,11 @@ export default {
               stored.name = userRes.data.name
               stored.surname = userRes.data.surname
               stored.position = userRes.data.position
+              stored.circle_artifact = userRes.data.circle_artifact || ''
+              stored.magic_background = userRes.data.magic_background || ''
               localStorage.setItem('user', JSON.stringify(stored))
+              this.userArtifact = userRes.data.circle_artifact || ''
+              this.userBackground = userRes.data.magic_background || ''
             }
           } catch (e) {
             this.coinLogs = []
@@ -793,6 +802,14 @@ export default {
     },
   },
   computed: {
+    charSheetBgStyle() {
+      if (!this.userBackground) return {}
+      const apiBase = import.meta.env.VITE_API_URL || ''
+      return {
+        backgroundImage: `linear-gradient(rgba(17,10,30,0.65), rgba(17,10,30,0.8)), url(${apiBase + this.userBackground})`,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+      }
+    },
     dailyMaxTarget() {
       const d2 = this.stepGoals.daily2_goal
       const maxTarget = (d2 && d2.enabled && d2.target > 0) ? Math.max(this.stepGoals.daily_goal?.target || 0, d2.target) : (this.stepGoals.daily_goal?.target || 1)
@@ -952,6 +969,18 @@ export default {
   width: 110px; height: 110px; border-radius: 50%;
   background: radial-gradient(circle, rgba(212,164,76,0.12) 0%, transparent 70%);
   pointer-events: none;
+}
+.cs-artifact-ring-img {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100px; height: 100px; border-radius: 50%;
+  object-fit: cover; pointer-events: none; overflow: hidden;
+  aspect-ratio: 1 / 1; z-index: 0;
+  animation: csArtifactGlow 3s ease-in-out infinite;
+}
+@keyframes csArtifactGlow {
+  0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
 }
 .cs-portrait-ring {
   width: 80px; height: 80px; border-radius: 50%;

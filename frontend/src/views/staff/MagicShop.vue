@@ -16,77 +16,17 @@
           <p class="ms-section-sub">Enhance your stats permanently</p>
         </div>
       </div>
-      <div class="magic-grid">
-        <div class="magic-card scroll-card luk" style="background-image: url('/icons/scroll_luck.png')">
-          <div class="magic-name">Scroll of Luck</div>
-          <div class="magic-desc">Permanently gain +1 LUK</div>
-          <div class="magic-cost">Cost: 💰 20</div>
-          <button class="magic-buy" :disabled="buying || myCoins < 20" @click="buy('scroll_of_luck')">
-            {{ buying === 'scroll_of_luck' ? 'Learning...' : 'Buy Scroll' }}
+      <div class="scroll-row">
+        <div class="scroll-item" v-for="s in scrollTypes" :key="s.type">
+          <div class="scroll-icon">{{ s.icon }}</div>
+          <div class="scroll-name">{{ s.name }}</div>
+          <div class="scroll-desc">+1 {{ s.stat }}</div>
+          <div class="scroll-cost">💰 20</div>
+          <button class="magic-buy" :disabled="buying || myCoins < 20" @click="confirmScroll(s)">
+            {{ buying === s.type ? 'Learning...' : 'Buy' }}
           </button>
-          <div v-if="lastResult && lastResult.item === 'Scroll of Luck'" class="magic-result win">
-            🍀 LUK is now {{ lastResult.new_value }}!
-          </div>
-        </div>
-
-        <div class="magic-card scroll-card str" style="background-image: url('/icons/scroll_strength.png')">
-          <div class="magic-name">Scroll of Strength</div>
-          <div class="magic-desc">Permanently gain +1 STR</div>
-          <div class="magic-cost">Cost: 💰 20</div>
-          <button class="magic-buy" :disabled="buying || myCoins < 20" @click="buy('scroll_of_strength')">
-            {{ buying === 'scroll_of_strength' ? 'Learning...' : 'Buy Scroll' }}
-          </button>
-          <div v-if="lastResult && lastResult.item === 'Scroll of Strength'" class="magic-result win">
-            ⚔️ STR is now {{ lastResult.new_value }}!
-          </div>
-        </div>
-
-        <div class="magic-card scroll-card def" style="background-image: url('/icons/scroll_defense.png')">
-          <div class="magic-name">Scroll of Defense</div>
-          <div class="magic-desc">Permanently gain +1 DEF</div>
-          <div class="magic-cost">Cost: 💰 20</div>
-          <button class="magic-buy" :disabled="buying || myCoins < 20" @click="buy('scroll_of_defense')">
-            {{ buying === 'scroll_of_defense' ? 'Learning...' : 'Buy Scroll' }}
-          </button>
-          <div v-if="lastResult && lastResult.item === 'Scroll of Defense'" class="magic-result win">
-            🛡️ DEF is now {{ lastResult.new_value }}!
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ═══ Section 2: Custom Workshop ═══ -->
-    <div class="ms-section">
-      <div class="ms-section-header">
-        <span class="ms-section-icon">⚗️</span>
-        <div>
-          <h2 class="ms-section-title">Custom Workshop</h2>
-          <p class="ms-section-sub">Craft your own identity</p>
-        </div>
-      </div>
-      <div class="magic-grid">
-        <div class="magic-card scroll-card title">
-          <div class="magic-icon">📜</div>
-          <div class="magic-name">Title Scroll</div>
-          <div class="magic-desc">Write your own status (70 chars)</div>
-          <div class="magic-cost">Cost: 💰 20</div>
-          <div class="title-input-wrap">
-            <input
-              v-model="titleText"
-              type="text"
-              maxlength="70"
-              placeholder="Enter your status..."
-              class="title-input"
-              :disabled="buying"
-            />
-            <span class="title-counter">{{ titleText.length }}/70</span>
-          </div>
-          <button class="magic-buy title-btn" :disabled="buying || myCoins < 20 || !titleText.trim()" @click="buyTitle">
-            {{ buying === 'title_scroll' ? 'Writing...' : '📜 Set Status' }}
-          </button>
-          <div v-if="currentStatus" class="title-current">💬 {{ currentStatus }}</div>
-          <div v-if="lastResult && lastResult.item === 'Title Scroll'" class="magic-result win">
-            ✨ Status updated!
+          <div v-if="lastResult && lastResult.item === s.name" class="magic-result win">
+            {{ s.icon }} {{ s.stat }} → {{ lastResult.new_value }}!
           </div>
         </div>
       </div>
@@ -111,6 +51,118 @@
           <button class="magic-buy fw-buy-btn" :disabled="buying || (fw.currency === 'gold' ? myCoins < fw.price : myMana < fw.price)" @click="openWheelPopup(fw)">
             🎡 Spin!
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Section 4: Cosmetics ═══ -->
+    <div class="ms-section">
+      <div class="ms-section-header">
+        <span class="ms-section-icon">🎨</span>
+        <div>
+          <h2 class="ms-section-title">Cosmetics</h2>
+          <p class="ms-section-sub">Customize your appearance in Town People</p>
+        </div>
+      </div>
+
+      <!-- ██ DEMO CARD ██ -->
+      <div class="demo-card-wrap">
+        <div class="demo-card" :style="demoBgStyle">
+          <div class="person-portrait">
+            <img v-if="demoArtifactImg" :src="demoArtifactImg" class="demo-artifact-ring-img" />
+            <div v-else-if="demoArtifact" class="demo-artifact-ring-css" :style="{ borderColor: demoArtifactColor, boxShadow: '0 0 18px ' + demoArtifactColor + '66' }"></div>
+            <img v-if="myImage" :src="myImage" class="person-img" />
+            <div v-else class="person-placeholder">{{ (myName || '?').charAt(0) }}</div>
+            <span class="person-role-tag" :class="myRole">{{ myRole }}</span>
+          </div>
+          <div class="person-name">{{ myName.split(' ')[0] || '' }}</div>
+          <div class="person-surname">{{ myName.split(' ').slice(1).join(' ') || '' }}</div>
+          <div class="person-position">{{ myPosition }}</div>
+          <div v-if="demoStatus" class="person-status">"{{ demoStatus }}"</div>
+          <div class="person-stats">
+            <span class="ps str">⚔️ {{ myStats.str }}</span>
+            <span class="ps def">🛡️ {{ myStats.def }}</span>
+            <span class="ps luk">🍀 {{ myStats.luk }}</span>
+          </div>
+          <div class="person-badges" v-if="myBadges.length">
+            <div v-for="b in myBadges.slice(0,5)" :key="b.id" class="pb-circle" :title="b.name">
+              <img v-if="b.image" :src="b.image" class="pb-img" />
+              <span v-else>🏅</span>
+            </div>
+          </div>
+          <div class="person-currency">
+            <span class="cur gold">💰 {{ myCoins }}</span>
+            <span class="cur mana">✨ {{ myMana }}</span>
+          </div>
+        </div>
+        <div class="demo-label">👆 Live Preview</div>
+      </div>
+
+      <!-- Row: Title Scroll + Background -->
+      <div class="cosm-row">
+        <div class="cosm-panel">
+          <div class="cosm-sub-header">📜 Title Scroll <span class="cosm-price">✨ 2 Mana</span></div>
+          <div class="cosm-panel-body">
+            <div class="title-input-wrap">
+              <input v-model="titleText" type="text" maxlength="70" placeholder="Enter your status..." class="title-input" :disabled="buying" />
+              <span class="title-counter">{{ titleText.length }}/70</span>
+            </div>
+            <button class="magic-buy cosm-buy" :disabled="buying || myMana < 2 || !titleText.trim()" @click="confirmBuyTitle">
+              {{ buying === 'title_scroll' ? 'Writing...' : '📜 Set Status (✨2)' }}
+            </button>
+            <div v-if="currentStatus" class="title-current">💬 Current: "{{ currentStatus }}"</div>
+            <div v-if="lastResult && lastResult.item === 'Title Scroll'" class="magic-result win">✨ Status updated!</div>
+          </div>
+        </div>
+        <div class="cosm-panel">
+          <div class="cosm-sub-header">🖼️ Background <span class="cosm-price">✨ 2 Mana / change</span></div>
+          <div class="cosm-panel-body">
+            <label class="cosm-file-label">
+              📂 Choose Image
+              <input type="file" accept="image/*" class="cosm-file-input" @change="onBgFileChange" :disabled="buyingCosmetic" />
+            </label>
+            <button v-if="bgFile" class="magic-buy cosm-buy" :disabled="buyingCosmetic || myMana < 2" @click="confirmUploadBackground">
+              {{ buyingCosmetic === 'bg' ? 'Uploading...' : '🖼️ Set Background (✨2)' }}
+            </button>
+            <div v-if="currentBg && !bgFile" class="title-current">✓ Background active</div>
+            <div v-if="bgResult" class="magic-result win">✨ Background updated!</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Circle Artifacts -->
+      <div class="cosm-sub-header" style="margin-top:18px;">💎 Artifacts <span class="cosm-price">Tap to preview → Buy to equip</span></div>
+      <div v-if="artifactCatalog.length" class="artifact-grid">
+        <div v-for="a in artifactCatalog" :key="a.id"
+          class="artifact-card" :class="[a.rarity, { equipped: equippedArtifact === a.id, previewing: previewArtifact === a.id }]"
+          :style="{ '--art-color': a.color }"
+          @click="previewArtifactOnDemo(a)">
+          <div class="artifact-ring" :style="{ borderColor: a.color, boxShadow: '0 0 12px ' + a.color + '44' }">
+            <img v-if="hasArtifactImage(a.id)" :src="'/artifacts/' + a.id + '.png'" class="artifact-img" />
+            <div v-else class="artifact-inner" :style="{ background: 'radial-gradient(circle, ' + a.color + '33, transparent)' }"></div>
+          </div>
+          <div class="artifact-name">{{ a.name }}</div>
+          <div class="artifact-rarity">{{ a.rarity }}</div>
+          <div v-if="equippedArtifact === a.id" class="artifact-equipped-badge">✦ Equipped</div>
+          <button v-else class="artifact-buy-btn" :disabled="buyingCosmetic || myMana < a.price"
+            @click.stop="confirmBuyArtifact(a)">
+            {{ buyingCosmetic === a.id ? 'Equipping...' : '✨ ' + a.price + ' Mana' }}
+          </button>
+        </div>
+      </div>
+      <div v-else class="cosm-loading">Loading artifacts...</div>
+    </div>
+
+    <!-- ═══ Confirm Popup ═══ -->
+    <div v-if="confirmPopup" class="confirm-overlay" @click.self="confirmPopup = null">
+      <div class="confirm-box">
+        <div class="confirm-icon">{{ confirmPopup.icon }}</div>
+        <div class="confirm-title">{{ confirmPopup.title }}</div>
+        <div class="confirm-desc">{{ confirmPopup.desc }}</div>
+        <div class="confirm-cost">{{ confirmPopup.costLabel }}</div>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" @click="confirmPopup = null">Cancel</button>
+          <button class="confirm-ok" @click="confirmPopup.action()">{{ confirmPopup.okText || 'Confirm' }}</button>
         </div>
       </div>
     </div>
@@ -151,7 +203,7 @@
 </template>
 
 <script>
-import { buyMagicItem, getActiveFortuneWheels, spinFortuneWheel } from '../../services/api'
+import { buyMagicItem, getActiveFortuneWheels, spinFortuneWheel, getArtifactCatalog, uploadMagicBackground } from '../../services/api'
 
 export default {
   name: 'MagicShop',
@@ -163,6 +215,12 @@ export default {
       apiBase: import.meta.env.VITE_API_URL || '',
       titleText: '',
       currentStatus: '',
+      // Scroll Emporium
+      scrollTypes: [
+        { type: 'scroll_of_luck', name: 'Scroll of Luck', stat: 'LUK', icon: '🍀' },
+        { type: 'scroll_of_strength', name: 'Scroll of Strength', stat: 'STR', icon: '⚔️' },
+        { type: 'scroll_of_defense', name: 'Scroll of Defense', stat: 'DEF', icon: '🛡️' },
+      ],
       // Fortune Wheels
       fortuneWheels: [],
       myMana: 0,
@@ -174,6 +232,24 @@ export default {
       fwRotation: 0,
       fwUseTransition: false,
       fwSpinDuration: 0,
+      // Cosmetics
+      artifactCatalog: [],
+      equippedArtifact: '',
+      previewArtifact: null,
+      buyingCosmetic: null,
+      bgFile: null,
+      bgPreviewUrl: null,
+      bgResult: false,
+      currentBg: '',
+      // User profile for demo card
+      myImage: '',
+      myName: '',
+      myPosition: '',
+      myRole: 'staff',
+      myStats: { str: 10, def: 10, luk: 10 },
+      myBadges: [],
+      // Confirmation popup
+      confirmPopup: null,
     }
   },
   computed: {
@@ -185,10 +261,32 @@ export default {
           : 'none',
       }
     },
+    demoStatus() {
+      return this.titleText.trim() || this.currentStatus || ''
+    },
+    demoBgStyle() {
+      const url = this.bgPreviewUrl || (this.currentBg ? this.apiBase + this.currentBg : null)
+      if (!url) return {}
+      return {
+        backgroundImage: `linear-gradient(rgba(17,10,30,0.65), rgba(17,10,30,0.8)), url(${url})`,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+      }
+    },
+    demoArtifact() {
+      return this.previewArtifact || this.equippedArtifact || null
+    },
+    demoArtifactColor() {
+      return this.getArtifactColorById(this.demoArtifact)
+    },
+    demoArtifactImg() {
+      if (!this.demoArtifact || !this.hasArtifactImage(this.demoArtifact)) return null
+      return '/artifacts/' + this.demoArtifact + '.png'
+    },
   },
   mounted() {
     this.refreshCoins()
     this.loadFortuneWheels()
+    this.loadArtifactCatalog()
   },
   methods: {
     async refreshCoins() {
@@ -197,10 +295,35 @@ export default {
         this.myCoins = data.coins || 0
         this.myMana = data.angel_coins || 0
         this.currentStatus = data.status_text || ''
+        this.equippedArtifact = data.circle_artifact || ''
+        this.currentBg = data.magic_background || ''
+        this.myImage = data.image || ''
+        this.myName = `${data.name || ''} ${data.surname || ''}`.trim()
+        this.myPosition = data.position || 'Adventurer'
+        this.myRole = data.role || 'staff'
+      } catch (e) { /* ignore */ }
+      // Load badges & stats from town-people
+      try {
+        const { data: people } = await import('../../services/api').then(m => m.default.get('/api/badges/town-people'))
+        const me = people.find(p => p.name === (this.myName.split(' ')[0] || ''))
+        if (me) {
+          this.myStats = { str: me.stats.total_str, def: me.stats.total_def, luk: me.stats.total_luk }
+          this.myBadges = me.badges || []
+        }
       } catch (e) { /* ignore */ }
     },
 
-
+    // ── Scroll Emporium ──
+    confirmScroll(s) {
+      this.confirmPopup = {
+        icon: s.icon,
+        title: `Buy ${s.name}?`,
+        desc: `Permanently gain +1 ${s.stat}`,
+        costLabel: '💰 20 Gold',
+        okText: 'Buy',
+        action: () => { this.confirmPopup = null; this.buy(s.type) },
+      }
+    },
     async buy(itemType) {
       if (this.myCoins < 20) return
       this.buying = itemType
@@ -212,33 +335,40 @@ export default {
         const user = JSON.parse(localStorage.getItem('user') || '{}')
         user.coins = data.coins
         localStorage.setItem('user', JSON.stringify(user))
+        // Refresh stats
+        this.refreshCoins()
       } catch (e) {
-        const msg = e.response?.data?.detail || 'Purchase failed'
-        alert(msg)
-      } finally {
-        this.buying = null
-      }
+        alert(e.response?.data?.detail || 'Purchase failed')
+      } finally { this.buying = null }
     },
 
+    // ── Title Scroll ──
+    confirmBuyTitle() {
+      this.confirmPopup = {
+        icon: '📜',
+        title: 'Set Title Scroll?',
+        desc: `Status: "${this.titleText.trim()}"`,
+        costLabel: '✨ 2 Mana',
+        okText: 'Set Status',
+        action: () => { this.confirmPopup = null; this.buyTitle() },
+      }
+    },
     async buyTitle() {
-      if (!this.titleText.trim() || this.myCoins < 20 || this.buying) return
+      if (!this.titleText.trim() || this.myMana < 2 || this.buying) return
       this.buying = 'title_scroll'
       this.lastResult = null
       try {
         const { data } = await buyMagicItem('title_scroll', { status_text: this.titleText.trim() })
         this.lastResult = data
-        this.myCoins = data.coins
+        this.myMana = data.angel_coins
         this.currentStatus = data.status_text
         const user = JSON.parse(localStorage.getItem('user') || '{}')
-        user.coins = data.coins
+        user.angel_coins = data.angel_coins
         user.status_text = data.status_text
         localStorage.setItem('user', JSON.stringify(user))
       } catch (e) {
-        const msg = e.response?.data?.detail || 'Purchase failed'
-        alert(msg)
-      } finally {
-        this.buying = null
-      }
+        alert(e.response?.data?.detail || 'Purchase failed')
+      } finally { this.buying = null }
     },
 
     // ── Fortune Wheel ──
@@ -379,6 +509,100 @@ export default {
       const g = Math.max(0, ((n >> 8) & 0xFF) - Math.round(255 * pct / 100))
       const b = Math.max(0, (n & 0xFF) - Math.round(255 * pct / 100))
       return `rgb(${r},${g},${b})`
+    },
+
+    // ── Cosmetics ──
+    async loadArtifactCatalog() {
+      try {
+        const { data } = await getArtifactCatalog()
+        this.artifactCatalog = data
+      } catch (e) { console.error('Failed to load artifact catalog', e) }
+    },
+
+    hasArtifactImage(id) {
+      const AVAILABLE = ['artifact_01','artifact_02','artifact_03','artifact_04','artifact_05','artifact_06','artifact_07','artifact_08','artifact_09','artifact_10','artifact_11','artifact_12','artifact_13','artifact_14','artifact_15','artifact_16','artifact_17','artifact_18','artifact_19','artifact_20']
+      return AVAILABLE.includes(id)
+    },
+
+    getArtifactColorById(id) {
+      const COLORS = {
+        artifact_01: '#ffd700', artifact_02: '#a8d8ea', artifact_03: '#2ecc71', artifact_04: '#e74c3c',
+        artifact_05: '#3498db', artifact_06: '#9b59b6', artifact_07: '#cd7f32', artifact_08: '#00a86b',
+        artifact_09: '#2c3e50', artifact_10: '#f39c12', artifact_11: '#e67e22', artifact_12: '#f1c40f',
+        artifact_13: '#bdc3c7', artifact_14: '#c0392b', artifact_15: '#1abc9c', artifact_16: '#8e44ad',
+        artifact_17: '#d4a44c', artifact_18: '#ecf0f1', artifact_19: '#7b241c', artifact_20: '#ff6b6b',
+      }
+      return COLORS[id] || '#d4a44c'
+    },
+
+    previewArtifactOnDemo(a) {
+      this.previewArtifact = (this.previewArtifact === a.id) ? null : a.id
+    },
+
+    confirmBuyArtifact(a) {
+      this.previewArtifact = a.id
+      this.confirmPopup = {
+        icon: '💎',
+        title: `Equip ${a.name}?`,
+        desc: `${a.rarity} artifact`,
+        costLabel: `✨ ${a.price} Mana`,
+        okText: 'Equip',
+        action: () => { this.confirmPopup = null; this.buyArtifact(a) },
+      }
+    },
+    async buyArtifact(artifact) {
+      if (this.buyingCosmetic) return
+      this.buyingCosmetic = artifact.id
+      try {
+        const { data } = await buyMagicItem('circle_artifact', { artifact_id: artifact.id })
+        this.myMana = data.angel_coins
+        this.equippedArtifact = data.artifact_id
+        this.previewArtifact = null
+        const user = JSON.parse(localStorage.getItem('user') || '{}')
+        user.angel_coins = data.angel_coins
+        user.circle_artifact = data.artifact_id
+        localStorage.setItem('user', JSON.stringify(user))
+      } catch (e) {
+        alert(e.response?.data?.detail || 'Purchase failed')
+      } finally { this.buyingCosmetic = null }
+    },
+
+    onBgFileChange(e) {
+      const file = e.target.files[0]
+      if (!file) return
+      this.bgFile = file
+      this.bgPreviewUrl = URL.createObjectURL(file)
+      this.bgResult = false
+    },
+
+    confirmUploadBackground() {
+      this.confirmPopup = {
+        icon: '🖼️',
+        title: 'Set Magic Background?',
+        desc: 'Upload selected image as card background',
+        costLabel: '✨ 2 Mana',
+        okText: 'Upload',
+        action: () => { this.confirmPopup = null; this.uploadBackground() },
+      }
+    },
+    async uploadBackground() {
+      if (!this.bgFile || this.buyingCosmetic) return
+      this.buyingCosmetic = 'bg'
+      try {
+        const fd = new FormData()
+        fd.append('file', this.bgFile)
+        const { data } = await uploadMagicBackground(fd)
+        this.myMana = data.angel_coins
+        this.currentBg = data.magic_background
+        this.bgResult = true
+        this.bgFile = null
+        const user = JSON.parse(localStorage.getItem('user') || '{}')
+        user.angel_coins = data.angel_coins
+        user.magic_background = data.magic_background
+        localStorage.setItem('user', JSON.stringify(user))
+      } catch (e) {
+        alert(e.response?.data?.detail || 'Upload failed')
+      } finally { this.buyingCosmetic = null }
     },
   },
 }
@@ -712,4 +936,241 @@ export default {
 
 .result-fade-enter-active { animation: fwResultSlam 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
 .result-fade-leave-active { opacity: 0; transition: opacity 0.2s; }
+
+/* ── Scroll Row ── */
+.scroll-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+.scroll-item {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 12px 6px 10px; border-radius: 12px;
+  background: linear-gradient(145deg, rgba(44,24,16,0.85), rgba(26,26,46,0.9));
+  border: 1px solid rgba(212,164,76,0.15);
+}
+.scroll-icon { font-size: 28px; margin-bottom: 4px; }
+.scroll-name { font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700; color: #e8d5b7; text-align: center; }
+.scroll-desc { font-size: 10px; color: #8b7355; margin-bottom: 4px; }
+.scroll-cost { font-size: 11px; font-weight: 700; color: #d4a44c; margin-bottom: 6px; }
+
+/* ── Demo Card ── */
+.demo-card-wrap {
+  display: flex; flex-direction: column; align-items: center; margin-bottom: 16px;
+}
+.demo-card {
+  background: linear-gradient(145deg, rgba(44,24,16,0.85), rgba(26,26,46,0.9));
+  border: 2px solid rgba(212,164,76,0.15);
+  border-radius: 14px; padding: 18px 14px 14px;
+  display: flex; flex-direction: column; align-items: center;
+  width: 180px; background-size: cover; background-position: center;
+  transition: background-image 0.3s;
+}
+.demo-label {
+  font-size: 11px; font-weight: 700; color: #8b7355; margin-top: 6px;
+  font-style: italic; letter-spacing: 0.5px;
+}
+
+/* Demo card reuses Town People classes */
+.demo-card .person-portrait { position: relative; margin-bottom: 10px; }
+.demo-card .person-img {
+  width: 56px; height: 56px; border-radius: 50%;
+  object-fit: cover; border: 2px solid rgba(212,164,76,0.3);
+  position: relative; z-index: 1;
+}
+.demo-card .person-placeholder {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(212,164,76,0.15); display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; color: #8b7355;
+  border: 2px solid rgba(212,164,76,0.3); position: relative; z-index: 1;
+}
+.demo-card .person-role-tag {
+  position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
+  font-size: 8px; font-weight: 800; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 4px; z-index: 2;
+  background: #2c1810; color: #d4a44c; border: 1px solid rgba(212,164,76,0.3);
+}
+.demo-card .person-name { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 700; color: #e8d5b7; margin-top: 4px; }
+.demo-card .person-surname { font-family: 'Cinzel', serif; font-size: 12px; color: #c4a882; }
+.demo-card .person-position { font-size: 9px; font-weight: 600; color: #8b7355; text-transform: uppercase; letter-spacing: 1px; margin: 2px 0; }
+.demo-card .person-status { font-size: 10px; font-weight: 700; color: #e74c3c; font-style: italic; margin-bottom: 4px; }
+.demo-card .person-stats { display: flex; gap: 8px; margin: 6px 0; }
+.demo-card .ps { font-size: 10px; font-weight: 700; }
+.demo-card .ps.str { color: #e74c3c; }
+.demo-card .ps.def { color: #3498db; }
+.demo-card .ps.luk { color: #2ecc71; }
+.demo-card .person-badges { display: flex; gap: 4px; margin-bottom: 6px; }
+.demo-card .pb-circle { width: 22px; height: 22px; border-radius: 50%; overflow: hidden; }
+.demo-card .pb-img { width: 100%; height: 100%; object-fit: cover; }
+.demo-card .person-currency { display: flex; gap: 10px; }
+.demo-card .cur { font-size: 10px; font-weight: 700; }
+.demo-card .cur.gold { color: #d4a44c; }
+.demo-card .cur.mana { color: #9b59b6; }
+
+/* Artifact ring on demo card */
+.demo-artifact-ring-img {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90px; height: 90px; border-radius: 50%;
+  object-fit: cover; pointer-events: none; overflow: hidden;
+  aspect-ratio: 1 / 1;
+  animation: artifactGlow 3s ease-in-out infinite;
+}
+.demo-artifact-ring-css {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90px; height: 90px; border-radius: 50%;
+  border: 3px solid; pointer-events: none; overflow: hidden;
+  animation: artifactGlow 3s ease-in-out infinite;
+}
+@keyframes artifactGlow {
+  0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+}
+
+/* ── Cosmetics Section ── */
+.cosm-sub-header {
+  font-family: 'Cinzel', serif;
+  font-size: 13px; font-weight: 700; color: #c39bd3;
+  margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+}
+.cosm-price {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px; font-weight: 600; color: #9b59b6;
+  background: rgba(155,89,182,0.1); padding: 2px 8px;
+  border-radius: 8px; border: 1px solid rgba(155,89,182,0.2);
+}
+
+.cosm-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 440px) {
+  .cosm-row { grid-template-columns: 1fr; }
+}
+.cosm-panel {
+  background: linear-gradient(145deg, rgba(44,24,16,0.5), rgba(26,26,46,0.6));
+  border: 1px solid rgba(155,89,182,0.15); border-radius: 12px;
+  padding: 12px; display: flex; flex-direction: column;
+}
+.cosm-panel-body {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1;
+}
+.cosm-file-label {
+  display: inline-block; padding: 8px 16px; border-radius: 8px;
+  border: 2px dashed rgba(155,89,182,0.3); color: #c39bd3;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s; margin-bottom: 8px;
+}
+.cosm-file-label:hover { border-color: rgba(155,89,182,0.6); background: rgba(155,89,182,0.08); }
+.cosm-file-input { display: none; }
+.cosm-buy {
+  background: linear-gradient(135deg, #7b2d8e, #9b59b6) !important;
+  color: #fff !important; border: 1px solid rgba(155,89,182,0.4) !important;
+}
+.cosm-loading { font-size: 12px; color: #8b7355; font-style: italic; text-align: center; padding: 20px; }
+
+/* Artifact Grid */
+.artifact-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.artifact-card {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 14px 8px 10px; border-radius: 12px;
+  background: linear-gradient(145deg, rgba(44,24,16,0.85), rgba(26,26,46,0.9));
+  border: 2px solid var(--art-color, rgba(212,164,76,0.15));
+  transition: all 0.2s; cursor: pointer; position: relative;
+}
+.artifact-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--art-color) 20%, transparent);
+}
+.artifact-card.equipped {
+  border-width: 2px; border-style: solid;
+  box-shadow: 0 0 20px color-mix(in srgb, var(--art-color) 25%, transparent);
+}
+.artifact-card.previewing {
+  border-width: 3px;
+  box-shadow: 0 0 24px color-mix(in srgb, var(--art-color) 40%, transparent);
+  transform: translateY(-3px);
+}
+.artifact-ring {
+  width: 84px; height: 84px; border-radius: 50%;
+  border: 3px solid; display: flex; align-items: center; justify-content: center;
+  margin-bottom: 8px; position: relative; overflow: hidden;
+  animation: artifactPulse 3s ease-in-out infinite;
+}
+@keyframes artifactPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+.artifact-inner { width: 50px; height: 50px; border-radius: 50%; }
+.artifact-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; aspect-ratio: 1 / 1; }
+.artifact-name {
+  font-family: 'Cinzel', serif;
+  font-size: 10px; font-weight: 700; color: #e8d5b7;
+  text-align: center; line-height: 1.3; margin-bottom: 2px;
+}
+.artifact-rarity {
+  font-size: 9px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 6px; padding: 1px 6px; border-radius: 4px;
+}
+.artifact-card.common .artifact-rarity { color: #bdc3c7; background: rgba(189,195,199,0.1); }
+.artifact-card.uncommon .artifact-rarity { color: #2ecc71; background: rgba(46,204,113,0.1); }
+.artifact-card.rare .artifact-rarity { color: #3498db; background: rgba(52,152,219,0.1); }
+.artifact-card.epic .artifact-rarity { color: #9b59b6; background: rgba(155,89,182,0.1); }
+.artifact-card.legendary .artifact-rarity { color: #f39c12; background: rgba(243,156,18,0.1); }
+.artifact-card.mythic .artifact-rarity { color: #e74c3c; background: rgba(231,76,60,0.15); }
+
+.artifact-equipped-badge {
+  font-size: 10px; font-weight: 800; color: #2ecc71;
+  background: rgba(46,204,113,0.12); border: 1px solid rgba(46,204,113,0.3);
+  padding: 3px 10px; border-radius: 6px;
+}
+.artifact-buy-btn {
+  font-size: 10px; font-weight: 800; color: #c39bd3;
+  background: rgba(155,89,182,0.1); border: 1px solid rgba(155,89,182,0.3);
+  padding: 4px 10px; border-radius: 6px; cursor: pointer; transition: all 0.15s;
+}
+.artifact-buy-btn:hover:not(:disabled) {
+  background: rgba(155,89,182,0.2); box-shadow: 0 0 8px rgba(155,89,182,0.15);
+}
+.artifact-buy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (min-width: 540px) {
+  .artifact-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ── Confirm Popup ── */
+.confirm-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7); z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+}
+.confirm-box {
+  background: linear-gradient(145deg, #2c1810, #1a1a2e);
+  border: 2px solid rgba(212,164,76,0.3); border-radius: 16px;
+  padding: 28px 24px; text-align: center; max-width: 300px; width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.confirm-icon { font-size: 42px; margin-bottom: 8px; }
+.confirm-title {
+  font-family: 'Cinzel', serif; font-size: 16px; font-weight: 700;
+  color: #e8d5b7; margin-bottom: 4px;
+}
+.confirm-desc { font-size: 12px; color: #8b7355; margin-bottom: 8px; }
+.confirm-cost {
+  font-size: 14px; font-weight: 800; color: #d4a44c; margin-bottom: 16px;
+}
+.confirm-actions { display: flex; gap: 10px; justify-content: center; }
+.confirm-cancel {
+  padding: 8px 20px; border-radius: 8px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: #8b7355; font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.confirm-ok {
+  padding: 8px 20px; border-radius: 8px;
+  background: linear-gradient(135deg, #8b6914, #d4a44c);
+  border: none; color: #fff; font-weight: 800; font-size: 13px; cursor: pointer;
+  transition: all 0.2s;
+}
+.confirm-ok:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(212,164,76,0.3); }
 </style>

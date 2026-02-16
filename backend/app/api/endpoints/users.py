@@ -120,6 +120,35 @@ def upload_my_image(
     db.refresh(current_user)
     return current_user
 
+
+@router.post("/me/background")
+def upload_magic_background(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """Upload a custom card background image. Costs 2 Mana per upload."""
+    MANA_COST = 2
+    if (current_user.angel_coins or 0) < MANA_COST:
+        raise HTTPException(status_code=400, detail=f"Not enough Mana! Need {MANA_COST}")
+
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"bg_{current_user.id}_{uuid.uuid4().hex[:8]}{ext}"
+    upload_dir = os.path.join(settings.UPLOAD_DIR, "backgrounds")
+    os.makedirs(upload_dir, exist_ok=True)
+    filepath = os.path.join(upload_dir, filename)
+    with open(filepath, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    current_user.angel_coins -= MANA_COST
+    current_user.magic_background = f"/uploads/backgrounds/{filename}"
+    db.commit()
+    return {
+        "item": "Magic Background",
+        "magic_background": current_user.magic_background,
+        "angel_coins": current_user.angel_coins,
+    }
+
 # ── Mana Rescue ──────────────────────────────────────
 
 class RescueRequest(BaseModel):
