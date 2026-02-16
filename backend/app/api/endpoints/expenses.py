@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/expenses", tags=["Expenses"])
 
-from app.services.notifications import find_step_approvers, notify_approvers_by_email
+from app.services.notifications import find_step_approvers, notify_approvers
 
 RATE_CAR = 10       # baht per km
 RATE_MOTORCYCLE = 5  # baht per km
@@ -112,7 +112,7 @@ async def create_general_expense(
         approvers = find_step_approvers(current_user.id, 1, db)
         if approvers:
             detail = f"General expense: {description} — ฿{amount:,.0f}"
-            notify_approvers_by_email(requester_name, "Expense Request", detail, approvers)
+            notify_approvers(requester_name, "Expense Request", detail, approvers)
 
     return _expense_to_dict(exp)
 
@@ -213,7 +213,7 @@ async def create_travel_expense(
         approvers = find_step_approvers(current_user.id, 1, db)
         if approvers:
             detail = f"Travel expense: {vehicle_type} {km_outbound}+{km_return}km — ฿{exp.total_amount:,.0f}"
-            notify_approvers_by_email(requester_name, "Travel Expense", detail, approvers)
+            notify_approvers(requester_name, "Travel Expense", detail, approvers)
 
     return _expense_to_dict(exp)
 
@@ -295,7 +295,7 @@ def approve_expense(
             requester = db.query(User).filter(User.id == exp.user_id).first()
             requester_name = f"{requester.name} {requester.surname or ''}".strip() if requester else "Unknown"
             detail = f"Expense #{exp.id} ({exp.expense_type.value}) — step {next_step} approval needed"
-            notify_approvers_by_email(requester_name, "Expense Request", detail, approvers)
+            notify_approvers(requester_name, "Expense Request", detail, approvers)
 
     db.commit()
     db.refresh(exp)

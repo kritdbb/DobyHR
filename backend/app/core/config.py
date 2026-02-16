@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # Google Chat Webhook
     GOOGLE_CHAT_WEBHOOK_URL: str = os.getenv("GOOGLE_CHAT_WEBHOOK_URL", "")
 
+    # Google Chat DM (Service Account)
+    GOOGLE_CHAT_SA_KEY_FILE: str = os.getenv("GOOGLE_CHAT_SA_KEY_FILE", "")
+
     class Config:
         env_file = ".env"
 

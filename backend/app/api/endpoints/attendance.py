@@ -15,7 +15,7 @@ import logging
 
 logger = logging.getLogger("hr-api")
 
-from app.services.notifications import find_step_approvers, notify_approvers_by_email
+from app.services.notifications import find_step_approvers, notify_approvers
 
 router = APIRouter(prefix="/api/attendance", tags=["Attendance"])
 
@@ -133,7 +133,7 @@ def check_in(
         requester_name = f"{current_user.name} {current_user.surname or ''}".strip()
         approvers = find_step_approvers(current_user.id, 1, db)
         if approvers:
-            notify_approvers_by_email(requester_name, "Work Request", "Non-working day check-in — needs approval", approvers)
+            notify_approvers(requester_name, "Work Request", "Non-working day check-in — needs approval", approvers)
 
         logger.info(f"📋 Work Request created for {current_user.name} {current_user.surname} (non-working day)")
         return {
@@ -171,7 +171,7 @@ def check_in(
         requester_name = f"{current_user.name} {current_user.surname or ''}".strip()
         approvers = find_step_approvers(current_user.id, 1, db)
         if approvers:
-            notify_approvers_by_email(requester_name, "Remote Work Request", f"Remote check-in (distance: {int(distance)}m) — needs approval", approvers)
+            notify_approvers(requester_name, "Remote Work Request", f"Remote check-in (distance: {int(distance)}m) — needs approval", approvers)
 
         logger.info(f"📋 Remote Work Request created for {current_user.name} {current_user.surname} (distance: {int(distance)}m)")
         return {
