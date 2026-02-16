@@ -268,6 +268,7 @@ def award_badge(
 
     awarded = 0
     admin_name = f"{current_user.name} {current_user.surname or ''}".strip()
+    awarded_names = []
     for uid in req.user_ids:
         exists = db.query(UserBadge).filter(
             UserBadge.user_id == uid, UserBadge.badge_id == badge_id
@@ -277,8 +278,17 @@ def award_badge(
         ub = UserBadge(user_id=uid, badge_id=badge_id, awarded_by=admin_name)
         db.add(ub)
         awarded += 1
+        u = db.query(User).filter(User.id == uid).first()
+        if u:
+            awarded_names.append(f"{u.name} {u.surname or ''}".strip())
 
     db.commit()
+
+    # Webhook: badge award
+    from app.services.notifications import send_town_crier_webhook
+    for name in awarded_names:
+        send_town_crier_webhook(f"🏅 *{name}* earned the *{badge.name}* badge!")
+
     return {"detail": f"Badge awarded to {awarded} user(s)"}
 
 

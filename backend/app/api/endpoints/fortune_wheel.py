@@ -161,6 +161,13 @@ def spin_wheel(wheel_id: int, db: Session = Depends(get_db), current_user: User 
     rotations = random.randint(wheel.spin_min, wheel.spin_max)
 
     db.commit()
+
+    # Webhook: fortune wheel result
+    from app.services.notifications import send_town_crier_webhook
+    user_name = f"{current_user.name} {current_user.surname or ''}".strip()
+    if reward_type != "nothing" and reward_amount > 0:
+        send_town_crier_webhook(f"🎰 *{user_name}* spun *{wheel.name}* and won {message}")
+
     return SpinResult(
         segment_index=winner_index,
         segment=WheelSegment(**seg),

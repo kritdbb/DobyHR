@@ -682,7 +682,13 @@ def send_angel_coins(
     db.add(recipient_log)
     
     db.commit()
-    
+
+    # Webhook: mana gift
+    from app.services.notifications import send_town_crier_webhook
+    sender_name = f"{current_user.name} {current_user.surname or ''}".strip()
+    rcpt_name = f"{recipient.name} {recipient.surname or ''}".strip()
+    send_town_crier_webhook(f"✨ *{sender_name}* gifted {req.amount} {delivery_label} to *{rcpt_name}*{comment_text}")
+
     return {
         "message": f"Sent {req.amount} Mana as {delivery_label} to {recipient.name} {recipient.surname}",
         "sender_mana": current_user.angel_coins,

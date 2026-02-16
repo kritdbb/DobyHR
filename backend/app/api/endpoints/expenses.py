@@ -17,6 +17,8 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/expenses", tags=["Expenses"])
 
+from app.services.notifications import find_step_approvers, notify_approvers_by_email
+
 RATE_CAR = 10       # baht per km
 RATE_MOTORCYCLE = 5  # baht per km
 
@@ -103,6 +105,15 @@ async def create_general_expense(
     db.add(exp)
     db.commit()
     db.refresh(exp)
+
+    # Notify step 1 approvers
+    if total_steps > 0:
+        requester_name = f"{current_user.name} {current_user.surname or ''}".strip()
+        approvers = find_step_approvers(current_user.id, 1, db)
+        if approvers:
+            detail = f"General expense: {description} — ฿{amount:,.0f}"
+            notify_approvers_by_email(requester_name, "Expense Request", detail, approvers)
+
     return _expense_to_dict(exp)
 
 # ───────── CREATE CENTER EXPENSE ─────────
@@ -195,6 +206,15 @@ async def create_travel_expense(
 
     db.commit()
     db.refresh(exp)
+
+    # Notify step 1 approvers
+    if total_steps > 0:
+        requester_name = f"{current_user.name} {current_user.surname or ''}".strip()
+        approvers = find_step_approvers(current_user.id, 1, db)
+        if approvers:
+            detail = f"Travel expense: {vehicle_type} {km_outbound}+{km_return}km — ฿{exp.total_amount:,.0f}"
+            notify_approvers_by_email(requester_name, "Travel Expense", detail, approvers)
+
     return _expense_to_dict(exp)
 
 
@@ -267,6 +287,15 @@ def approve_expense(
     exp.current_step += 1
     if exp.current_step >= exp.total_steps:
         exp.status = ExpenseStatus.ALL_APPROVED
+    else:
+        # Notify next step approvers
+        next_step = exp.current_step + 1
+        approvers = find_step_approvers(exp.user_id, next_step, db)
+        if approvers:
+            requester = db.query(User).filter(User.id == exp.user_id).first()
+            requester_name = f"{requester.name} {requester.surname or ''}".strip() if requester else "Unknown"
+            detail = f"Expense #{exp.id} ({exp.expense_type.value}) — step {next_step} approval needed"
+            notify_approvers_by_email(requester_name, "Expense Request", detail, approvers)
 
     db.commit()
     db.refresh(exp)

@@ -15,6 +15,8 @@ import logging
 
 logger = logging.getLogger("hr-api")
 
+from app.services.notifications import find_step_approvers, notify_approvers_by_email
+
 router = APIRouter(prefix="/api/leaves", tags=["Leaves"])
 
 class LeaveRequestCreate(BaseModel):
@@ -82,6 +84,14 @@ def request_leave(
     db.add(leave_request)
     db.commit()
     db.refresh(leave_request)
+
+    # Notify step 1 approvers
+    requester_name = f"{current_user.name} {current_user.surname or ''}".strip()
+    approvers = find_step_approvers(current_user.id, 1, db)
+    if approvers:
+        detail = f"{req.leave_type.value} leave: {req.start_date} → {req.end_date}. Reason: {req.reason}"
+        notify_approvers_by_email(requester_name, "Leave Request", detail, approvers)
+
     return leave_request
 
 @router.get("/my-leaves", response_model=List[LeaveRequestResponse])

@@ -15,6 +15,16 @@ class Settings(BaseSettings):
     FITBIT_CLIENT_SECRET: str = os.getenv("FITBIT_CLIENT_SECRET", "")
     FITBIT_REDIRECT_URI: str = os.getenv("FITBIT_REDIRECT_URI", "https://hr.doby.me/oauth/callback")
 
+    # Email (SMTP)
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER: str = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM: str = os.getenv("SMTP_FROM", "")
+
+    # Google Chat Webhook
+    GOOGLE_CHAT_WEBHOOK_URL: str = os.getenv("GOOGLE_CHAT_WEBHOOK_URL", "")
+
     class Config:
         env_file = ".env"
 

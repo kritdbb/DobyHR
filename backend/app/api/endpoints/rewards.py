@@ -17,6 +17,8 @@ from app.schemas.reward import (
 
 router = APIRouter(prefix="/api/rewards", tags=["Rewards"])
 
+from app.services.notifications import find_step_approvers, notify_approvers_by_email
+
 # --- Rewards Management (Admin) ---
 
 @router.post("/", response_model=RewardResponse)
@@ -133,6 +135,14 @@ def redeem_reward(
     
     db.commit()
     db.refresh(redemption)
+
+    # Notify step 1 approvers
+    requester_name = f"{current_user.name} {current_user.surname or ''}".strip()
+    approvers = find_step_approvers(current_user.id, 1, db)
+    if approvers:
+        detail = f"Redeemed: {reward.name} ({reward.point_cost} gold)"
+        notify_approvers_by_email(requester_name, "Reward Redemption", detail, approvers)
+
     return redemption
 
 @router.get("/my-redemptions", response_model=List[RedemptionResponse])
