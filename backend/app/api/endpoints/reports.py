@@ -81,11 +81,12 @@ def get_attendance_report(
     # We need user_name which is on the relation
     report = []
     for r in results:
+        local_ts = r.timestamp + timedelta(hours=7) if r.timestamp else r.timestamp
         report.append({
             "id": r.id,
             "user_id": r.user_id,
             "user_name": f"{r.user.name} {r.user.surname}" if r.user else "Unknown",
-            "timestamp": r.timestamp,
+            "timestamp": local_ts,
             "status": r.status
         })
     return report
@@ -115,6 +116,7 @@ def get_coin_report(
     
     report = []
     for r in results:
+        local_ts = r.created_at + timedelta(hours=7) if r.created_at else r.created_at
         report.append({
             "id": r.id,
             "user_id": r.user_id,
@@ -122,7 +124,7 @@ def get_coin_report(
             "amount": r.amount,
             "reason": r.reason,
             "created_by": r.created_by,
-            "created_at": r.created_at
+            "created_at": local_ts
         })
     return report
 

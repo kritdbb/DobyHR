@@ -163,6 +163,76 @@ def evaluate_badge_quests():
         db.close()
 
 
+def auto_process_absent_penalties():
+    """Run daily at 23:00 UTC+7: deduct coins from users who didn't check in today."""
+    db = SessionLocal()
+    try:
+        now_local = datetime.utcnow() + timedelta(hours=7)
+        target_date = now_local.date()  # Today
+        today_code = DAY_MAP.get(target_date.weekday(), "")
+        logger.info(f"🚨 Auto absent penalty check for {target_date.isoformat()} ({today_code.upper()})")
+
+        company = db.query(Company).first()
+        if not company or not company.coin_absent_penalty:
+            logger.info("No absent penalty configured, skipping")
+            return
+
+        from app.models.attendance import Attendance
+        from app.models.leave import LeaveRequest, LeaveStatus
+
+        penalty_amount = company.coin_absent_penalty
+        staff = db.query(User).filter(User.role == UserRole.PLAYER).all()
+
+        penalized_count = 0
+        for user in staff:
+            # Check if it's a working day for this user
+            user_working_days = []
+            if user.working_days:
+                user_working_days = [d.strip().lower() for d in user.working_days.split(",")]
+            if today_code not in user_working_days:
+                continue
+
+            # Check if user checked in today
+            day_start_utc = datetime.combine(target_date, datetime.min.time()) - timedelta(hours=7)
+            day_end_utc = datetime.combine(target_date, datetime.max.time()) - timedelta(hours=7)
+            attendance = db.query(Attendance).filter(
+                Attendance.user_id == user.id,
+                Attendance.timestamp >= day_start_utc,
+                Attendance.timestamp <= day_end_utc
+            ).first()
+            if attendance:
+                continue
+
+            # Check if user has approved leave
+            approved_leave = db.query(LeaveRequest).filter(
+                LeaveRequest.user_id == user.id,
+                LeaveRequest.status == LeaveStatus.APPROVED,
+                LeaveRequest.start_date <= target_date,
+                LeaveRequest.end_date >= target_date
+            ).first()
+            if approved_leave:
+                continue
+
+            # Apply penalty
+            user.coins -= penalty_amount
+            log = CoinLog(
+                user_id=user.id,
+                amount=-penalty_amount,
+                reason=f"Absent penalty ({target_date.isoformat()})",
+                created_by="System"
+            )
+            db.add(log)
+            penalized_count += 1
+
+        db.commit()
+        logger.info(f"🚨 Absent penalties: {penalized_count} users penalized for {target_date.isoformat()}")
+    except Exception as e:
+        logger.error(f"Absent penalty error: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
 scheduler = BackgroundScheduler()
 
 
@@ -194,5 +264,14 @@ def start_scheduler():
         id="badge_quest_eval",
         replace_existing=True,
     )
+    # Auto absent penalties at 23:00 UTC+7 (16:00 UTC)
+    scheduler.add_job(
+        auto_process_absent_penalties,
+        "cron",
+        hour=16,
+        minute=0,
+        id="auto_absent_penalty",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("✅ Scheduler started — auto coin/angel at 00:01 UTC+7, lucky draw at 12:30 UTC+7, badge quest eval every 2h")
+    logger.info("✅ Scheduler started — auto coin/angel at 00:01 UTC+7, lucky draw at 12:30 UTC+7, absent penalty at 23:00 UTC+7, badge quest eval every 2h")

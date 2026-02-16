@@ -56,7 +56,7 @@ def get_today_status(
             "checked_in": True,
             "time": checkin_local.strftime("%H:%M"),
             "status": existing.status,
-            "timestamp": existing.timestamp,
+            "timestamp": checkin_local,
         }
     return {"checked_in": False}
 
@@ -127,7 +127,7 @@ def check_in(
         return {
             "message": "Work Request created — awaiting approval before coins are granted.",
             "distance": int(distance),
-            "timestamp": attendance.timestamp,
+            "timestamp": now_local,
             "status": "work_request",
             "coin_change": 0,
             "coins": current_user.coins,
@@ -158,7 +158,7 @@ def check_in(
         return {
             "message": "Remote Work Request created — awaiting manager approval.",
             "distance": int(distance),
-            "timestamp": attendance.timestamp,
+            "timestamp": now_local,
             "status": "remote_request",
             "coin_change": 0,
             "coins": current_user.coins,
@@ -169,16 +169,17 @@ def check_in(
     check_in_time = now_local.time()
     status = "present"
     
-    if current_user.work_start_time:
-        start = current_user.work_start_time
-        start_minutes = start.hour * 60 + start.minute
-        checkin_minutes = check_in_time.hour * 60 + check_in_time.minute
-        diff = checkin_minutes - start_minutes
-        
-        if diff > 60:
-            status = "absent"
-        elif diff > 0:
-            status = "late"
+    # Use work_start_time or default to 09:00
+    from datetime import time as dt_time
+    start = current_user.work_start_time or dt_time(9, 0)
+    start_minutes = start.hour * 60 + start.minute
+    checkin_minutes = check_in_time.hour * 60 + check_in_time.minute
+    diff = checkin_minutes - start_minutes
+    
+    if diff > 60:
+        status = "absent"
+    elif diff > 0:
+        status = "late"
     
     # 8. Record Attendance
     attendance = Attendance(
@@ -194,35 +195,34 @@ def check_in(
     coin_change = 0
     coin_reason = ""
     
-    if current_user.work_start_time:
-        if status == "absent":
-            if company.coin_absent_penalty:
-                coin_change = -company.coin_absent_penalty
-                coin_reason = "Absent (checked in >1hr late)"
-        elif status == "late":
-            if company.coin_late_penalty:
-                coin_change = -company.coin_late_penalty
-                coin_reason = "Late Check-in"
-        else:
-            if company.coin_on_time:
-                coin_change = company.coin_on_time
-                coin_reason = "On-time Check-in"
-        
-        if coin_change != 0:
-            current_user.coins += coin_change
-            log = CoinLog(
-                user_id=current_user.id,
-                amount=coin_change,
-                reason=coin_reason,
-                created_by="System"
-            )
-            db.add(log)
+    if status == "absent":
+        if company.coin_absent_penalty:
+            coin_change = -company.coin_absent_penalty
+            coin_reason = "Absent (checked in >1hr late)"
+    elif status == "late":
+        if company.coin_late_penalty:
+            coin_change = -company.coin_late_penalty
+            coin_reason = "Late Check-in"
+    else:
+        if company.coin_on_time:
+            coin_change = company.coin_on_time
+            coin_reason = "On-time Check-in"
+    
+    if coin_change != 0:
+        current_user.coins += coin_change
+        log = CoinLog(
+            user_id=current_user.id,
+            amount=coin_change,
+            reason=coin_reason,
+            created_by="System"
+        )
+        db.add(log)
 
     db.commit()
     return {
         "message": "Check-in successful", 
         "distance": int(distance), 
-        "timestamp": attendance.timestamp,
+        "timestamp": now_local,
         "status": status,
         "coin_change": coin_change,
         "coins": current_user.coins
@@ -230,5 +230,17 @@ def check_in(
 
 @router.get("/my-history")
 def get_my_attendance(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(Attendance).filter(Attendance.user_id == current_user.id).order_by(Attendance.timestamp.desc()).all()
+    records = db.query(Attendance).filter(Attendance.user_id == current_user.id).order_by(Attendance.timestamp.desc()).all()
+    result = []
+    for r in records:
+        local_ts = r.timestamp + timedelta(hours=7) if r.timestamp else None
+        result.append({
+            "id": r.id,
+            "user_id": r.user_id,
+            "timestamp": local_ts,
+            "status": r.status,
+            "latitude": r.latitude,
+            "longitude": r.longitude,
+        })
+    return result
 
