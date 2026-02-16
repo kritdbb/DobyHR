@@ -20,3 +20,6 @@ Thumbs.db
 
 # Docker
 postgres_data/
+
+# Secrets
+service-account.json
