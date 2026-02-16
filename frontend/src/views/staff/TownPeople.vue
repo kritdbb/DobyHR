@@ -123,7 +123,7 @@
         </div>
 
         <!-- Gift Mana Button (hide for self) -->
-        <button v-if="selectedPerson.id !== currentUserId && !showGiftForm" class="gift-mana-btn" @click="showGiftForm = true">
+        <button v-if="selectedPerson.id !== currentUserId && !showGiftForm" class="gift-mana-btn" @click="openGiftForm()">
           ✨ Gift Mana
         </button>
 
@@ -186,7 +186,7 @@
 </template>
 
 <script>
-import { getTownPeople, sendAngelCoins } from '../../services/api'
+import { getTownPeople, sendAngelCoins, getUser } from '../../services/api'
 
 export default {
   name: 'TownPeople',
@@ -210,9 +210,8 @@ export default {
     try {
       const { data } = await getTownPeople()
       this.people = data
-      // Load my current mana from the list
-      const me = data.find(p => p.id === this.currentUserId)
-      if (me) this.myMana = me.angel_coins || 0
+      // Load my current mana
+      await this.loadMyMana()
     } catch (e) {
       console.error('Failed to load town people', e)
     } finally {
@@ -228,6 +227,19 @@ export default {
       this.giftAmount = null
       this.giftComment = ''
       this.giftDeliveryType = 'gold'
+    },
+    async loadMyMana() {
+      try {
+        if (!this.currentUserId) return
+        const { data } = await getUser(this.currentUserId)
+        this.myMana = data.angel_coins || 0
+      } catch (e) {
+        console.error('Failed to load mana', e)
+      }
+    },
+    async openGiftForm() {
+      await this.loadMyMana()
+      this.showGiftForm = true
     },
     async confirmGift() {
       this.giftSending = true
