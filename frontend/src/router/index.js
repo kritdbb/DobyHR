@@ -4,6 +4,10 @@ const ADMIN_ROLES = ['god', 'gm']
 
 const routes = [
     {
+        path: '/',
+        redirect: '/login'
+    },
+    {
         path: '/oauth/callback',
         name: 'OAuthCallback',
         component: () => import('../views/OAuthCallback.vue'),
@@ -107,6 +111,10 @@ const routes = [
         meta: { requiresAuth: true },
         children: [
             {
+                path: '',
+                redirect: '/staff/home'
+            },
+            {
                 path: 'home',
                 component: () => import('../views/staff/StaffHome.vue')
             },
@@ -166,6 +174,11 @@ const routes = [
         component: () => import('../views/admin/ExpenseManagement.vue'),
         meta: { requiresAuth: true, role: 'gm' }
     },
+    // Catch-all: redirect unknown paths to login
+    {
+        path: '/:pathMatch(.*)*',
+        redirect: '/login'
+    },
 ]
 
 const router = createRouter({
@@ -173,51 +186,84 @@ const router = createRouter({
     routes,
 })
 
-router.beforeEach((to, from, next) => {
+// Token validation — checks if stored token is still valid after server restart
+let tokenValidated = false
+async function validateToken() {
+    if (tokenValidated) return true
+    const token = localStorage.getItem('token')
+    if (!token) return false
+    try {
+        const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/attendance/today-status', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (res.status === 401) {
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
+            return false
+        }
+        tokenValidated = true
+        return true
+    } catch {
+        // Network error — assume token is valid (offline mode)
+        return true
+    }
+}
+
+router.beforeEach(async (to, from, next) => {
     const token = localStorage.getItem('token')
     const userStr = localStorage.getItem('user')
     const user = userStr ? JSON.parse(userStr) : {}
 
+    // If route requires auth
     if (to.meta.requiresAuth) {
         if (!token) {
             next({ name: 'Login', query: { redirect: to.fullPath } })
-        } else {
-            // Role check
-            if (to.meta.role) {
-                // Admin routes require at least GM level
-                if (ADMIN_ROLES.includes(user.role)) {
-                    next()
-                    return
-                }
-                // Player trying to access admin pages → go to player home
-                next('/staff/home')
-                return
-            }
+            return
+        }
 
-            // Staff pages — allow God, GM, and Player
-            if (to.path.startsWith('/staff')) {
+        // Validate token on first navigation (catches stale tokens after server restart)
+        const valid = await validateToken()
+        if (!valid) {
+            next({ name: 'Login', query: { redirect: to.fullPath } })
+            return
+        }
+
+        // Role check
+        if (to.meta.role) {
+            if (ADMIN_ROLES.includes(user.role)) {
                 next()
                 return
             }
+            next('/staff/home')
+            return
+        }
 
-            // Root redirect
-            if (to.path === '/') {
-                if (ADMIN_ROLES.includes(user.role)) {
-                    next('/admin')
-                } else {
-                    next('/staff/home')
-                }
+        // Staff pages — allow all authenticated users
+        if (to.path.startsWith('/staff')) {
+            next()
+            return
+        }
+
+        // Root redirect
+        if (to.path === '/') {
+            if (ADMIN_ROLES.includes(user.role)) {
+                next('/admin')
+            } else {
+                next('/staff/home')
+            }
+            return
+        }
+
+        next()
+    } else {
+        // If logged in and trying to access login, redirect to appropriate home
+        if ((to.path === '/login' || to.path === '/') && token) {
+            const valid = await validateToken()
+            if (valid) {
+                if (ADMIN_ROLES.includes(user.role)) next('/admin')
+                else next('/staff/home')
                 return
             }
-
-            next()
-        }
-    } else {
-        // If logged in and trying to access login, redirect
-        if (to.path === '/login' && token) {
-            if (ADMIN_ROLES.includes(user.role)) next('/admin')
-            else next('/staff/home')
-            return
         }
         next()
     }
