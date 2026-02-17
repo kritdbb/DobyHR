@@ -166,6 +166,10 @@ const routes = [
                 path: 'revival-records',
                 component: () => import('../views/staff/RevivalRecords.vue')
             },
+            {
+                path: 'man-of-the-month',
+                component: () => import('../views/staff/ManOfTheMonth.vue')
+            },
         ]
     },
     {

@@ -14,6 +14,7 @@ class Company(Base):
     coin_on_time = Column(Integer, default=1) # Coins for on-time check-in
     coin_late_penalty = Column(Integer, default=20) # Coins deducted for late check-in
     coin_absent_penalty = Column(Integer, default=20) # Coins deducted for not checking in on a working day
+    def_grace_seconds = Column(Integer, default=0)  # DEF stat grace: 1 DEF point = X seconds before "late"
     # Auto Coin/Angel Giver
     auto_coin_day = Column(String(50), nullable=True)   # e.g. "mon,fri"
     auto_coin_amount = Column(Integer, default=0)
@@ -54,3 +55,5 @@ class Company(Base):
     face_min_face_height = Column(Integer, default=50)     # Minimum face height in px
     face_start_time = Column(String(5), default="06:00")   # HH:MM start
     face_end_time = Column(String(5), default="10:30")     # HH:MM end
+    # Man of the Month Rewards (JSON config)
+    motm_rewards = Column(Text, nullable=True)  # JSON: {"motm_mana": {"gold":10,"mana":5,"str":0,"def":0,"luk":0,"badge_id":null}, ...}

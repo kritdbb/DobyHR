@@ -480,8 +480,8 @@ def claim_step_reward(
     # Webhook: step reward
     from app.services.notifications import send_town_crier_webhook
     user_name = f"{current_user.name} {current_user.surname or ''}".strip()
-    goal_label = "Daily" if reward_type.startswith("daily") else "Monthly"
-    send_town_crier_webhook(f"🏃 *{user_name}* claimed {goal_label} step reward: {', '.join(parts) if parts else 'Reward'}")
+    goal_label = "Mini Daily" if reward_type == "daily" else ("FULL Daily" if reward_type == "daily2" else "Monthly")
+    send_town_crier_webhook(f"🏃 *{user_name}* Reach {goal_label} Step Quest — {', '.join(parts) if parts else 'Reward'}")
 
     return {
         "message": f"Reward claimed! {', '.join(parts)}" if parts else "Reward claimed!",

@@ -571,7 +571,7 @@ def get_recent_awards(
             if sr.coins_granted and sr.coins_granted > 0:
                 reward_parts.append(f"Gold +{sr.coins_granted}")
             reward_label = ", ".join(reward_parts) if reward_parts else "Reward"
-            goal_label = "Daily" if sr.reward_type == "daily" else "Monthly"
+            goal_label = "Mini Daily" if sr.reward_type == "daily" else ("FULL Daily" if sr.reward_type == "daily2" else "Monthly")
             events.append({
                 "id": f"step-{sr.id}",
                 "type": "step_reward",
@@ -628,6 +628,47 @@ def get_recent_awards(
             "rescuer_count": len(info["rescuers"]),
             "timestamp": info["latest_ts"].isoformat() if info["latest_ts"] else None,
         })
+
+    # Thank You Cards
+    from app.models.social import ThankYouCard as TYC, AnonymousPraise as AP
+    thank_cards = (
+        db.query(TYC)
+        .order_by(TYC.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    for tc in thank_cards:
+        sender = db.query(User).filter(User.id == tc.sender_id).first()
+        recipient = db.query(User).filter(User.id == tc.recipient_id).first()
+        if sender and recipient:
+            events.append({
+                "id": f"thankyou-{tc.id}",
+                "type": "thank_you",
+                "user_name": f"{recipient.name} {recipient.surname or ''}".strip(),
+                "user_image": recipient.image,
+                "sender_name": f"{sender.name} {sender.surname or ''}".strip(),
+                "sender_image": sender.image,
+                "timestamp": tc.created_at.isoformat() if tc.created_at else None,
+            })
+
+    # Anonymous Praises
+    anon_praises = (
+        db.query(AP)
+        .order_by(AP.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    for ap in anon_praises:
+        recipient = db.query(User).filter(User.id == ap.recipient_id).first()
+        if recipient:
+            events.append({
+                "id": f"praise-{ap.id}",
+                "type": "anonymous_praise",
+                "user_name": f"{recipient.name} {recipient.surname or ''}".strip(),
+                "user_image": recipient.image,
+                "message": ap.message,
+                "timestamp": ap.created_at.isoformat() if ap.created_at else None,
+            })
 
     # Sort combined by timestamp desc and return top N
     events.sort(key=lambda e: e.get("timestamp") or "", reverse=True)

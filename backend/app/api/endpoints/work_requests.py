@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func as sqlfunc
 from typing import List, Optional
 from datetime import datetime, timedelta
 from app.core.database import get_db
@@ -9,6 +10,7 @@ from app.models.user import User
 from app.models.company import Company
 from app.models.reward import CoinLog
 from app.models.approval import ApprovalFlow, ApprovalStep, ApprovalStepApprover
+from app.models.badge import Badge, UserBadge
 from app.api.deps import get_current_user
 from pydantic import BaseModel
 import logging
@@ -124,11 +126,24 @@ def approve_work_request(
         start = user.work_start_time or dt_time(9, 0)
         start_minutes = start.hour * 60 + start.minute
         checkin_minutes = checkin_time.hour * 60 + checkin_time.minute
-        diff = checkin_minutes - start_minutes
+        diff_seconds = (checkin_minutes - start_minutes) * 60
 
-        if diff > 60:
+        # DEF grace: total_def × def_grace_seconds
+        grace_seconds = 0
+        if company and company.def_grace_seconds and company.def_grace_seconds > 0:
+            base_def = user.base_def if hasattr(user, 'base_def') and user.base_def else 10
+            badge_def = (
+                db.query(sqlfunc.coalesce(sqlfunc.sum(Badge.stat_def), 0))
+                .join(UserBadge, UserBadge.badge_id == Badge.id)
+                .filter(UserBadge.user_id == user.id)
+                .scalar()
+            )
+            total_def = base_def + int(badge_def)
+            grace_seconds = total_def * company.def_grace_seconds
+
+        if diff_seconds > 3600:
             status = "absent"
-        elif diff > 0:
+        elif diff_seconds > grace_seconds:
             status = "late"
 
         # Update attendance status

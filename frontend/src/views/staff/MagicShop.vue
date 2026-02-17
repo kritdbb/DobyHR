@@ -17,7 +17,8 @@
         </div>
       </div>
       <div class="scroll-row">
-        <div class="scroll-item" v-for="s in scrollTypes" :key="s.type">
+        <div class="scroll-item" v-for="s in scrollTypes" :key="s.type"
+          :style="{ backgroundImage: 'linear-gradient(rgba(17,10,30,0.55), rgba(17,10,30,0.8)), url(' + s.bg + ')', backgroundSize: 'cover', backgroundPosition: 'center' }">
           <div class="scroll-icon">{{ s.icon }}</div>
           <div class="scroll-name">{{ s.name }}</div>
           <div class="scroll-desc">+1 {{ s.stat }}</div>
@@ -217,9 +218,9 @@ export default {
       currentStatus: '',
       // Scroll Emporium
       scrollTypes: [
-        { type: 'scroll_of_luck', name: 'Scroll of Luck', stat: 'LUK', icon: '🍀' },
-        { type: 'scroll_of_strength', name: 'Scroll of Strength', stat: 'STR', icon: '⚔️' },
-        { type: 'scroll_of_defense', name: 'Scroll of Defense', stat: 'DEF', icon: '🛡️' },
+        { type: 'scroll_of_luck', name: 'Scroll of Luck', stat: 'LUK', icon: '🍀', bg: '/icons/scroll_luck.png' },
+        { type: 'scroll_of_strength', name: 'Scroll of Strength', stat: 'STR', icon: '⚔️', bg: '/icons/scroll_strength.png' },
+        { type: 'scroll_of_defense', name: 'Scroll of Defense', stat: 'DEF', icon: '🛡️', bg: '/icons/scroll_defense.png' },
       ],
       // Fortune Wheels
       fortuneWheels: [],

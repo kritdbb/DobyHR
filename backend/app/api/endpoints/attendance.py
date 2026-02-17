@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import datetime, timedelta, date
 import math, os, base64, uuid
 from app.core.database import get_db
@@ -9,6 +10,7 @@ from app.models.company import Company
 from app.models.user import User
 from app.models.reward import CoinLog
 from app.models.work_request import WorkRequest, WorkRequestStatus
+from app.models.badge import Badge, UserBadge
 from app.api.deps import get_current_user
 from pydantic import BaseModel
 import logging
@@ -34,6 +36,18 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     return R * c
 
 DAY_MAP = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
+
+
+def _get_total_def(user: User, db: Session) -> int:
+    """Calculate total DEF = base_def + sum of badge stat_def."""
+    base = user.base_def if hasattr(user, 'base_def') and user.base_def else 10
+    badge_def = (
+        db.query(func.coalesce(func.sum(Badge.stat_def), 0))
+        .join(UserBadge, UserBadge.badge_id == Badge.id)
+        .filter(UserBadge.user_id == user.id)
+        .scalar()
+    )
+    return base + int(badge_def)
 
 
 @router.get("/today-status")
@@ -193,11 +207,17 @@ def check_in(
     start = current_user.work_start_time or dt_time(9, 0)
     start_minutes = start.hour * 60 + start.minute
     checkin_minutes = check_in_time.hour * 60 + check_in_time.minute
-    diff = checkin_minutes - start_minutes
+    diff_seconds = (checkin_minutes - start_minutes) * 60
     
-    if diff > 60:
+    # DEF grace: total_def × def_grace_seconds
+    grace_seconds = 0
+    if company.def_grace_seconds and company.def_grace_seconds > 0:
+        total_def = _get_total_def(current_user, db)
+        grace_seconds = total_def * company.def_grace_seconds
+    
+    if diff_seconds > 3600:  # >1hr late → absent
         status = "absent"
-    elif diff > 0:
+    elif diff_seconds > grace_seconds:  # past grace → late
         status = "late"
     
     # 8. Record Attendance
@@ -336,11 +356,17 @@ def face_check_in(req: FaceCheckInRequest, db: Session = Depends(get_db)):
     start = user.work_start_time or dt_time(9, 0)
     start_minutes = start.hour * 60 + start.minute
     checkin_minutes = check_in_time.hour * 60 + check_in_time.minute
-    diff = checkin_minutes - start_minutes
+    diff_seconds = (checkin_minutes - start_minutes) * 60
 
-    if diff > 60:
+    # DEF grace: total_def × def_grace_seconds
+    grace_seconds = 0
+    if company and company.def_grace_seconds and company.def_grace_seconds > 0:
+        total_def = _get_total_def(user, db)
+        grace_seconds = total_def * company.def_grace_seconds
+
+    if diff_seconds > 3600:
         status = "absent"
-    elif diff > 0:
+    elif diff_seconds > grace_seconds:
         status = "late"
 
     # 6. Get company location for lat/lon

@@ -14,6 +14,9 @@ from app.models.company import Company
 from app.models.user import User, UserRole
 from app.models.reward import CoinLog
 from app.models.badge import Badge, UserBadge
+from app.models.social import ThankYouCard
+from app.models.attendance import Attendance
+from app.models.social import AnonymousPraise
 
 logger = logging.getLogger("hr-api")
 
@@ -245,6 +248,289 @@ def auto_process_absent_penalties():
         db.close()
 
 
+
+def weekly_thank_you_badge_eval():
+    """Every Monday: find last week's top Thank You Card recipient, award temp badge + LUK 10."""
+    BADGE_NAME = "💌 Thank You Star"
+    LUK_BONUS = 10
+    db = SessionLocal()
+    try:
+        from datetime import datetime, timedelta
+        now_local = datetime.utcnow() + timedelta(hours=7)
+        prev = now_local - timedelta(weeks=1)
+        prev_week_key = f"{prev.isocalendar()[0]}-W{prev.isocalendar()[1]:02d}"
+        logger.info(f"🌟 Weekly Thank You evaluation for {prev_week_key}")
+
+        # Ensure badge exists (auto-create once)
+        badge = db.query(Badge).filter(Badge.name == BADGE_NAME).first()
+        if not badge:
+            badge = Badge(
+                name=BADGE_NAME,
+                description="Awarded weekly to the person who received the most Thank You Cards. LUK +10 for the week!",
+                stat_luk=0,  # We manage LUK directly via base_luk
+                stat_str=0,
+                stat_def=0,
+                image="/uploads/badges/thank_you_star.png",
+            )
+            db.add(badge)
+            db.commit()
+            db.refresh(badge)
+            logger.info(f"🌟 Auto-created '{BADGE_NAME}' badge (id={badge.id})")
+
+        # Step 1: Revoke last week's holders and remove LUK bonus
+        old_holders = db.query(UserBadge).filter(UserBadge.badge_id == badge.id).all()
+        for ub in old_holders:
+            user = db.query(User).filter(User.id == ub.user_id).first()
+            if user:
+                user.base_luk = max(10, (user.base_luk or 10) - LUK_BONUS)
+                logger.info(f"   Revoked from {user.name}, LUK back to {user.base_luk}")
+            db.delete(ub)
+        db.commit()
+
+        # Step 2: Find top recipient(s) from last week
+        from sqlalchemy import func as sqlfunc
+        top_recipients = (
+            db.query(
+                ThankYouCard.recipient_id,
+                sqlfunc.count(ThankYouCard.id).label("card_count"),
+            )
+            .filter(ThankYouCard.week_key == prev_week_key)
+            .group_by(ThankYouCard.recipient_id)
+            .order_by(sqlfunc.count(ThankYouCard.id).desc())
+            .all()
+        )
+
+        if not top_recipients:
+            logger.info("🌟 No Thank You Cards sent last week, skipping.")
+            return
+
+        max_count = top_recipients[0].card_count
+        winners = [r for r in top_recipients if r.card_count == max_count]
+
+        # Step 3: Award badge + LUK bonus to all winners
+        winner_names = []
+        for winner in winners:
+            user = db.query(User).filter(User.id == winner.recipient_id).first()
+            if not user:
+                continue
+            ub = UserBadge(
+                user_id=user.id,
+                badge_id=badge.id,
+                awarded_by="Weekly Thank You Star",
+            )
+            db.add(ub)
+            user.base_luk = (user.base_luk or 10) + LUK_BONUS
+            winner_names.append(f"{user.name} {user.surname or ''}".strip())
+            logger.info(f"   🌟 Awarded to {user.name} ({max_count} cards), LUK → {user.base_luk}")
+
+        db.commit()
+
+        # Announce in Town Crier
+        if winner_names:
+            try:
+                from app.services.notifications import send_town_crier_webhook
+                names = ", ".join(winner_names)
+                send_town_crier_webhook(
+                    f"🌟 *{names}* ได้รับเหรียญ Thank You Star ประจำสัปดาห์! "
+                    f"(ได้รับ Thank You Card มากที่สุด {max_count} ใบ — LUK +{LUK_BONUS} ตลอดสัปดาห์!)"
+                )
+            except Exception as e:
+                logger.warning(f"Town Crier webhook failed: {e}")
+
+        logger.info(f"🌟 Thank You Star awarded to {len(winners)} user(s)")
+    except Exception as e:
+        logger.error(f"❌ Weekly Thank You badge eval error: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
+def distribute_motm_rewards():
+    """Distribute Man of the Month rewards on the 1st of each month for the previous month."""
+    import json
+    from sqlalchemy import func, or_
+    db = SessionLocal()
+    try:
+        company = db.query(Company).first()
+        if not company or not company.motm_rewards:
+            logger.info("🏆 MOTM: No rewards configured, skipping")
+            return
+
+        try:
+            rewards_config = json.loads(company.motm_rewards)
+        except Exception:
+            logger.error("🏆 MOTM: Invalid JSON in motm_rewards")
+            return
+
+        if not rewards_config:
+            return
+
+        # Previous month window
+        now_local = datetime.utcnow() + timedelta(hours=7)
+        first_of_this_month = now_local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_month_end = first_of_this_month - timedelta(seconds=1)
+        first_of_last_month = last_month_end.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        month_label = first_of_last_month.strftime("%B %Y")
+
+        # Convert to UTC for DB queries
+        pm_start_utc = first_of_last_month - timedelta(hours=7)
+        pm_end_utc = first_of_this_month - timedelta(hours=7)
+
+        # Find winners for each category
+        category_winners = {}
+
+        # 1. Most Mana Received
+        mana_winner = (
+            db.query(CoinLog.user_id, func.sum(CoinLog.amount).label("total"))
+            .filter(
+                CoinLog.created_at >= pm_start_utc,
+                CoinLog.created_at < pm_end_utc,
+                or_(
+                    CoinLog.reason.ilike("%Received Angel Coins%"),
+                    CoinLog.reason.ilike("%Received Gold from%"),
+                    CoinLog.reason.ilike("%Received Mana from%"),
+                ),
+            )
+            .group_by(CoinLog.user_id)
+            .order_by(func.sum(CoinLog.amount).desc(), func.min(CoinLog.created_at).asc())
+            .first()
+        )
+        if mana_winner:
+            category_winners["motm_mana"] = mana_winner.user_id
+
+        # 2. Most Steps
+        try:
+            from app.models.fitbit import FitbitSteps
+            pm_start_date = first_of_last_month.date()
+            pm_end_date = first_of_this_month.date()
+            steps_winner = (
+                db.query(FitbitSteps.user_id, func.sum(FitbitSteps.steps).label("total"))
+                .filter(FitbitSteps.date >= pm_start_date, FitbitSteps.date < pm_end_date)
+                .group_by(FitbitSteps.user_id)
+                .order_by(func.sum(FitbitSteps.steps).desc(), func.min(FitbitSteps.date).asc())
+                .first()
+            )
+            if steps_winner:
+                category_winners["motm_steps"] = steps_winner.user_id
+        except Exception as e:
+            logger.warning(f"🏆 MOTM steps query error: {e}")
+
+        # 3. Most On-Time
+        ontime_winner = (
+            db.query(Attendance.user_id, func.count(Attendance.id).label("cnt"))
+            .filter(
+                Attendance.timestamp >= pm_start_utc,
+                Attendance.timestamp < pm_end_utc,
+                Attendance.status == "present",
+            )
+            .group_by(Attendance.user_id)
+            .order_by(func.count(Attendance.id).desc(), func.min(Attendance.timestamp).asc())
+            .first()
+        )
+        if ontime_winner:
+            category_winners["motm_ontime"] = ontime_winner.user_id
+
+        # 4. Most Gold Spent
+        gold_winner = (
+            db.query(CoinLog.user_id, func.sum(func.abs(CoinLog.amount)).label("total"))
+            .filter(
+                CoinLog.created_at >= pm_start_utc,
+                CoinLog.created_at < pm_end_utc,
+                CoinLog.amount < 0,
+                ~CoinLog.reason.ilike("%penalty%"),
+                ~CoinLog.reason.ilike("%Late%"),
+                ~CoinLog.reason.ilike("%Absent%"),
+            )
+            .group_by(CoinLog.user_id)
+            .order_by(func.sum(func.abs(CoinLog.amount)).desc(), func.min(CoinLog.created_at).asc())
+            .first()
+        )
+        if gold_winner:
+            category_winners["motm_gold_spent"] = gold_winner.user_id
+
+        # 5. Most Anonymous Praises
+        pm_month_str = first_of_last_month.strftime("%Y-%m")
+        praise_winner = (
+            db.query(AnonymousPraise.recipient_id, func.count(AnonymousPraise.id).label("cnt"))
+            .filter(AnonymousPraise.date_key.startswith(pm_month_str))
+            .group_by(AnonymousPraise.recipient_id)
+            .order_by(func.count(AnonymousPraise.id).desc(), func.min(AnonymousPraise.id).asc())
+            .first()
+        )
+        if praise_winner:
+            category_winners["motm_praises"] = praise_winner.recipient_id
+
+        # Apply rewards
+        category_labels = {
+            "motm_mana": "✨ Most Mana Received",
+            "motm_steps": "🥾 Most Steps",
+            "motm_ontime": "⏰ Most On-Time",
+            "motm_gold_spent": "💰 Most Gold Spent",
+            "motm_praises": "💬 Most Anonymous Praises",
+        }
+
+        for cat_key, winner_id in category_winners.items():
+            config = rewards_config.get(cat_key, {})
+            if not config:
+                continue
+
+            user = db.query(User).filter(User.id == winner_id).first()
+            if not user:
+                continue
+
+            label = category_labels.get(cat_key, cat_key)
+            applied = []
+
+            # Gold
+            gold_amt = int(config.get("gold", 0) or 0)
+            if gold_amt > 0:
+                user.coins = (user.coins or 0) + gold_amt
+                db.add(CoinLog(user_id=user.id, amount=gold_amt, reason=f"🏆 MOTM {month_label}: {label} — Gold +{gold_amt}", created_by="system"))
+                applied.append(f"Gold +{gold_amt}")
+
+            # Mana
+            mana_amt = int(config.get("mana", 0) or 0)
+            if mana_amt > 0:
+                user.angel_coins = (user.angel_coins or 0) + mana_amt
+                db.add(CoinLog(user_id=user.id, amount=mana_amt, reason=f"🏆 MOTM {month_label}: {label} — Mana +{mana_amt}", created_by="system"))
+                applied.append(f"Mana +{mana_amt}")
+
+            # Stats
+            for stat_name in ["str", "def", "luk"]:
+                stat_amt = int(config.get(stat_name, 0) or 0)
+                if stat_amt > 0:
+                    attr = f"base_{stat_name}"
+                    current = getattr(user, attr, None) or 10
+                    setattr(user, attr, current + stat_amt)
+                    applied.append(f"{stat_name.upper()} +{stat_amt}")
+
+            # Badge
+            badge_id = config.get("badge_id")
+            if badge_id:
+                badge_id = int(badge_id)
+                existing = db.query(UserBadge).filter(UserBadge.user_id == user.id, UserBadge.badge_id == badge_id).first()
+                if not existing:
+                    db.add(UserBadge(user_id=user.id, badge_id=badge_id))
+                    badge = db.query(Badge).filter(Badge.id == badge_id).first()
+                    badge_name = badge.name if badge else f"Badge #{badge_id}"
+                    applied.append(f"Badge: {badge_name}")
+
+            if applied:
+                user_full = f"{user.name} {user.surname or ''}".strip()
+                logger.info(f"🏆 MOTM {month_label}: {label} winner = {user_full} → {', '.join(applied)}")
+                from app.services.notifications import send_town_crier_webhook
+                send_town_crier_webhook(f"🏆 *{user_full}* ได้รับรางวัล Man of the Month ({label}) — {', '.join(applied)}")
+
+        db.commit()
+        logger.info(f"🏆 MOTM rewards distributed for {month_label}: {len(category_winners)} categories")
+
+    except Exception as e:
+        logger.error(f"❌ MOTM distribute error: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
 scheduler = BackgroundScheduler()
 
 
@@ -301,8 +587,28 @@ def start_scheduler():
         id="face_recognition_worker",
         replace_existing=True,
     )
+    # Weekly Thank You Star badge — every Monday 00:05 UTC+7 (17:05 UTC Sunday)
+    scheduler.add_job(
+        weekly_thank_you_badge_eval,
+        "cron",
+        day_of_week="sun",
+        hour=17,
+        minute=5,
+        id="weekly_thank_you_star",
+        replace_existing=True,
+    )
+    # Man of the Month rewards — 1st of each month at 00:10 UTC+7 (17:10 UTC)
+    scheduler.add_job(
+        distribute_motm_rewards,
+        "cron",
+        day=1,
+        hour=17,
+        minute=10,
+        id="motm_rewards",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("✅ Scheduler started — auto coin/angel at 00:01, lucky draw at 12:30, absent penalty at 23:00, face recognition check, badge quest eval every 2h")
+    logger.info("✅ Scheduler started — auto coin/angel at 00:01, lucky draw at 12:30, absent penalty at 23:00, face recognition check, badge quest eval every 2h, thank you star Mon 00:05, MOTM rewards 1st 00:10")
 
 
 def _run_face_recognition():

@@ -93,6 +93,15 @@
         <span class="service-desc">Hall of Fame</span>
       </router-link>
 
+      <!-- Row 6: Man of the Month -->
+      <router-link to="/staff/man-of-the-month" class="service-card">
+        <div class="icon-wrap">
+          <div class="service-icon">🏆</div>
+        </div>
+        <span class="service-label">Man of the Month</span>
+        <span class="service-desc">Monthly legends</span>
+      </router-link>
+
     </div>
 
     <!-- Leave Guild bar -->

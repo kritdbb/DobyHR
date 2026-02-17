@@ -160,6 +160,27 @@
           </div>
         </div>
 
+        <!-- Social Buttons (hide for self) -->
+        <div v-if="selectedPerson.id !== currentUserId" class="social-buttons">
+          <button class="social-btn thank-you" :disabled="thankYouSent || thankYouSending" @click="handleThankYou()">
+            {{ thankYouSending ? '送出中...' : (thankYouSent ? '✅ ส่งแล้วสัปดาห์นี้' : '💌 Thank You Card') }}
+          </button>
+          <button class="social-btn anon-praise" :disabled="praiseSentToday || praiseSending" @click="showPraiseModal = true">
+            {{ praiseSentToday ? '✅ ส่งแล้ววันนี้' : '💬 Anonymous Praise' }}
+          </button>
+        </div>
+
+        <!-- Anonymous Praise Modal -->
+        <div v-if="showPraiseModal" class="praise-popup">
+          <div class="praise-title">💬 Anonymous Praise</div>
+          <div class="praise-hint">ประกาศถึง <strong>{{ selectedPerson.name }}</strong> ใน Town Crier โดยไม่เปิดเผยว่าใครเป็นคนประกาศ!</div>
+          <textarea v-model="praiseMessage" class="praise-input" placeholder="พิมพ์ข้อความชื่นชม..." maxlength="200" rows="3"></textarea>
+          <div class="praise-actions">
+            <button class="gift-cancel" @click="showPraiseModal = false; praiseMessage = ''">Cancel</button>
+            <button class="gift-confirm" :disabled="!praiseMessage.trim() || praiseSending" @click="handleAnonymousPraise()">{{ praiseSending ? 'Sending...' : '✉️ ส่ง' }}</button>
+          </div>
+        </div>
+
         <div class="sheet-divider"></div>
 
         <!-- Equipment -->
@@ -192,7 +213,7 @@
 </template>
 
 <script>
-import { getTownPeople, sendAngelCoins, getUser } from '../../services/api'
+import { getTownPeople, sendAngelCoins, getUser, sendThankYouCard, getThankYouStatus, sendAnonymousPraise, getAnonymousPraiseStatus } from '../../services/api'
 
 export default {
   name: 'TownPeople',
@@ -211,6 +232,13 @@ export default {
       giftDeliveryType: 'gold',
       giftSending: false,
       apiBase: import.meta.env.VITE_API_URL || '',
+      // Social features
+      thankYouSent: false,
+      thankYouSending: false,
+      praiseSentToday: false,
+      praiseSending: false,
+      showPraiseModal: false,
+      praiseMessage: '',
     }
   },
   async mounted() {
@@ -226,7 +254,12 @@ export default {
     }
   },
   watch: {
-    selectedPerson() { this.resetGift() },
+    selectedPerson(val) {
+      this.resetGift()
+      this.showPraiseModal = false
+      this.praiseMessage = ''
+      if (val && val.id !== this.currentUserId) this.loadSocialStatus()
+    },
   },
   methods: {
     resetGift() {
@@ -287,6 +320,48 @@ export default {
     hasArtifactImage(id) {
       const AVAILABLE = ['artifact_01','artifact_02','artifact_03','artifact_04','artifact_05','artifact_06','artifact_07','artifact_08','artifact_09','artifact_10','artifact_11','artifact_12','artifact_13','artifact_14','artifact_15','artifact_16','artifact_17','artifact_18','artifact_19','artifact_20']
       return AVAILABLE.includes(id)
+    },
+    async loadSocialStatus() {
+      try {
+        const [ty, ap] = await Promise.all([
+          getThankYouStatus(),
+          getAnonymousPraiseStatus(),
+        ])
+        this.thankYouSent = ty.data.sent_this_week
+        this.praiseSentToday = ap.data.sent_today
+      } catch (e) {
+        console.error('Failed to load social status', e)
+      }
+    },
+    async handleThankYou() {
+      if (!confirm(`คุณแน่ใจว่าจะส่ง Thank You Card ให้ ${this.selectedPerson.name}? Thank You Card สามารถส่งได้แค่ 1 คนต่อสัปดาห์เท่านั้น!`)) return
+      this.thankYouSending = true
+      try {
+        const { data } = await sendThankYouCard(this.selectedPerson.id)
+        this.showToast(data.message, 'success')
+        this.thankYouSent = true
+      } catch (e) {
+        this.showToast(e.response?.data?.detail || 'Failed to send Thank You Card', 'error')
+      } finally {
+        this.thankYouSending = false
+      }
+    },
+    async handleAnonymousPraise() {
+      this.praiseSending = true
+      try {
+        const { data } = await sendAnonymousPraise({
+          recipient_id: this.selectedPerson.id,
+          message: this.praiseMessage,
+        })
+        this.showToast(data.message, 'success')
+        this.praiseSentToday = true
+        this.showPraiseModal = false
+        this.praiseMessage = ''
+      } catch (e) {
+        this.showToast(e.response?.data?.detail || 'Failed to send praise', 'error')
+      } finally {
+        this.praiseSending = false
+      }
     },
   },
 }
@@ -827,5 +902,64 @@ export default {
 }
 .gift-confirm:hover:not(:disabled) {
   box-shadow: 0 0 16px rgba(155,89,182,0.3);
+}
+
+/* ── Social Buttons ─────────────────── */
+.social-buttons {
+  display: flex; gap: 8px; margin-top: 12px;
+}
+.social-btn {
+  flex: 1; padding: 10px 6px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s;
+}
+.social-btn:disabled {
+  opacity: 0.4; cursor: not-allowed;
+}
+.social-btn.thank-you {
+  background: linear-gradient(135deg, #d4a44c33, #b8860b33);
+  border-color: rgba(212,164,76,0.3);
+  color: #d4a44c;
+}
+.social-btn.thank-you:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d4a44c55, #b8860b55);
+  box-shadow: 0 0 14px rgba(212,164,76,0.2);
+}
+.social-btn.anon-praise {
+  background: linear-gradient(135deg, #3498db33, #2980b933);
+  border-color: rgba(52,152,219,0.3);
+  color: #85c1e9;
+}
+.social-btn.anon-praise:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3498db55, #2980b955);
+  box-shadow: 0 0 14px rgba(52,152,219,0.2);
+}
+
+.praise-popup {
+  margin-top: 12px; padding: 14px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(52,152,219,0.2);
+  border-radius: 10px;
+}
+.praise-title {
+  font-size: 14px; font-weight: 700; color: #85c1e9;
+  margin-bottom: 6px;
+}
+.praise-hint {
+  font-size: 11px; color: #8b7355; margin-bottom: 10px; line-height: 1.4;
+}
+.praise-input {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 10px; border-radius: 6px;
+  border: 1px solid rgba(52,152,219,0.2);
+  background: rgba(0,0,0,0.25); color: #e8d5b7;
+  font-size: 13px; resize: none; font-family: inherit;
+}
+.praise-input:focus {
+  outline: none; border-color: rgba(52,152,219,0.5);
+}
+.praise-actions {
+  display: flex; gap: 8px; margin-top: 10px;
 }
 </style>

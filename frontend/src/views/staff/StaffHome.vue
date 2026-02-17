@@ -407,7 +407,7 @@
             </div>
             <div class="award-announce-body">
               <div class="award-announce-text">
-                <strong>{{ a.user_name }}</strong> completed <strong class="step-highlight">{{ a.goal_type }} Step Quest</strong> — {{ a.reward_label }}
+                <strong>{{ a.user_name }}</strong> Reach <strong class="step-highlight">{{ a.goal_type }} Step Quest</strong> — {{ a.reward_label }}
               </div>
               <div class="award-announce-meta">
                 {{ formatBadgeDate(a.timestamp) }}
@@ -423,6 +423,34 @@
               <div class="award-announce-text">
                 <strong>{{ a.user_name }}</strong> ได้รับการชุบชีวิตแล้ว! <strong class="rescue-highlight">Gold +{{ a.amount }}</strong>
                 <div class="rescue-by">โดย {{ a.rescuers }}</div>
+              </div>
+              <div class="award-announce-meta">
+                {{ formatBadgeDate(a.timestamp) }}
+              </div>
+            </div>
+          </template>
+          <!-- Thank You Card event -->
+          <template v-else-if="a.type === 'thank_you'">
+            <div class="award-announce-badge thankyou-icon-circle">
+              <span>💌</span>
+            </div>
+            <div class="award-announce-body">
+              <div class="award-announce-text">
+                <strong>{{ a.sender_name }}</strong> ส่ง Thank You Card ให้ <strong class="thankyou-highlight">{{ a.user_name }}</strong> 💛
+              </div>
+              <div class="award-announce-meta">
+                {{ formatBadgeDate(a.timestamp) }}
+              </div>
+            </div>
+          </template>
+          <!-- Anonymous Praise event -->
+          <template v-else-if="a.type === 'anonymous_praise'">
+            <div class="award-announce-badge praise-icon-circle">
+              <span>💬</span>
+            </div>
+            <div class="award-announce-body">
+              <div class="award-announce-text">
+                <strong>{{ a.user_name }}</strong> ถูกพูดถึงโดยบุคคลนิรนามว่า <em class="praise-msg">"​{{ a.message }}​"</em>
               </div>
               <div class="award-announce-meta">
                 {{ formatBadgeDate(a.timestamp) }}
@@ -526,7 +554,7 @@
               </div>
               <div class="award-announce-body">
                 <div class="award-announce-text">
-                  <strong>{{ a.user_name }}</strong> completed <strong class="step-highlight">{{ a.goal_type }} Step Quest</strong> — {{ a.reward_label }}
+                  <strong>{{ a.user_name }}</strong> Reach <strong class="step-highlight">{{ a.goal_type }} Step Quest</strong> — {{ a.reward_label }}
                 </div>
                 <div class="award-announce-meta">
                   {{ formatBadgeDate(a.timestamp) }}
@@ -542,6 +570,34 @@
                 <div class="award-announce-text">
                   <strong>{{ a.user_name }}</strong> ได้รับการชุบชีวิตแล้ว! <strong class="rescue-highlight">Gold +{{ a.amount }}</strong>
                   <div class="rescue-by">โดย {{ a.rescuers }}</div>
+                </div>
+                <div class="award-announce-meta">
+                  {{ formatBadgeDate(a.timestamp) }}
+                </div>
+              </div>
+            </template>
+            <!-- Thank You Card event (modal) -->
+            <template v-else-if="a.type === 'thank_you'">
+              <div class="award-announce-badge thankyou-icon-circle">
+                <span>💌</span>
+              </div>
+              <div class="award-announce-body">
+                <div class="award-announce-text">
+                  <strong>{{ a.sender_name }}</strong> ส่ง Thank You Card ให้ <strong class="thankyou-highlight">{{ a.user_name }}</strong> 💛
+                </div>
+                <div class="award-announce-meta">
+                  {{ formatBadgeDate(a.timestamp) }}
+                </div>
+              </div>
+            </template>
+            <!-- Anonymous Praise event (modal) -->
+            <template v-else-if="a.type === 'anonymous_praise'">
+              <div class="award-announce-badge praise-icon-circle">
+                <span>💬</span>
+              </div>
+              <div class="award-announce-body">
+                <div class="award-announce-text">
+                  <strong>{{ a.user_name }}</strong> ถูกพูดถึงโดยบุคคลนิรนามว่า <em class="praise-msg">"​{{ a.message }}​"</em>
                 </div>
                 <div class="award-announce-meta">
                   {{ formatBadgeDate(a.timestamp) }}
@@ -921,11 +977,28 @@ export default {
 .rescue-icon-circle {
   background: linear-gradient(135deg, rgba(231,76,60,0.15), rgba(192,57,43,0.1));
   border: 1px solid rgba(231,76,60,0.25);
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
 }
 .rescue-highlight { color: #f1c40f; }
 .rescue-by { font-size: 11px; color: #8b7355; margin-top: 2px; font-style: italic; }
 .rescue-revive-img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
 .rescue-revive-announce-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+/* Thank You Card event in Town Crier */
+.thankyou-icon-circle {
+  background: linear-gradient(135deg, rgba(212,164,76,0.15), rgba(184,134,11,0.1));
+  border: 1px solid rgba(212,164,76,0.25);
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.thankyou-highlight { color: #d4a44c; }
+
+/* Anonymous Praise event in Town Crier */
+.praise-icon-circle {
+  background: linear-gradient(135deg, rgba(52,152,219,0.15), rgba(41,128,185,0.1));
+  border: 1px solid rgba(52,152,219,0.25);
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.praise-msg { color: #85c1e9; font-style: italic; }
 
 /* ═══ RPG Character Sheet ═══ */
 .char-sheet {
@@ -1154,7 +1227,7 @@ export default {
   background: rgba(44,24,16,0.5);
   border: 1px solid rgba(212,164,76,0.08);
 }
-.award-announce-badge { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; overflow: hidden; border: 2px solid rgba(212,164,76,0.3); }
+.award-announce-badge { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; overflow: hidden; border: 2px solid rgba(212,164,76,0.3); display: flex; align-items: center; justify-content: center; }
 .award-announce-img { width: 100%; height: 100%; object-fit: cover; }
 .award-announce-fb { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #b8860b, #d4a44c); font-size: 16px; }
 .award-announce-body { flex: 1; }
@@ -1406,6 +1479,7 @@ export default {
 .step-icon-circle {
   background: linear-gradient(135deg, rgba(184,134,11,0.2), rgba(212,164,76,0.3)) !important;
   border-color: rgba(212,164,76,0.3) !important;
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
 }
 .step-highlight { color: #d4a44c; }
 

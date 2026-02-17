@@ -240,4 +240,11 @@ export const confirmExpense = (id, body) => api.put(`/api/expenses/${id}/confirm
 export const adminRejectExpense = (id) => api.put(`/api/expenses/${id}/admin-reject`)
 export const getExpenseReport = (params) => api.get('/api/expenses/report', { params })
 
+// --- Social Features ---
+export const sendThankYouCard = (recipientId) => api.post('/api/social/thank-you', { recipient_id: recipientId })
+export const getThankYouStatus = () => api.get('/api/social/thank-you/status')
+export const sendAnonymousPraise = (data) => api.post('/api/social/anonymous-praise', data)
+export const getAnonymousPraiseStatus = () => api.get('/api/social/anonymous-praise/status')
+export const getManOfTheMonth = () => api.get('/api/social/man-of-the-month')
+
 export default api

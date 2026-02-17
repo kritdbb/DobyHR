@@ -5,6 +5,18 @@
       <p class="checkin-sub">Report to the guild to begin your quest</p>
     </div>
 
+    <!-- DEF Grace Info -->
+    <div v-if="defGrace && defGrace.totalDef > 0 && !alreadyCheckedIn" class="def-grace-card">
+      <div class="def-grace-row">
+        <span class="def-stat">🛡️ DEF: <strong>{{ defGrace.totalDef }}</strong></span>
+        <span class="def-grace-value">สายได้ <strong>{{ formatGrace(defGrace.graceSeconds) }}</strong></span>
+      </div>
+      <div class="def-grace-hint">
+        เวลาเข้างานปกติ {{ defGrace.workStartFormatted }}
+        → ยืดเป็น {{ defGrace.effectiveStart }}
+      </div>
+    </div>
+
     <!-- Distance Display -->
     <div v-if="!alreadyCheckedIn" class="distance-section">
       <div v-if="distLoading" class="distance-badge distance-badge--loading">
@@ -85,6 +97,7 @@ export default {
       isExpired: false,
       workStartTime: null,
       formattedStartTime: '',
+      defGrace: null,
     }
   },
   computed: {
@@ -99,6 +112,7 @@ export default {
   async mounted() {
     await this.checkTodayStatus()
     if (!this.alreadyCheckedIn) {
+      await this.loadDefGrace()
       await this.checkExpired()
       await this.calcDistance()
     }
@@ -115,6 +129,56 @@ export default {
       } catch (e) {
         console.error('Failed to check today status', e)
       }
+    },
+    async loadDefGrace() {
+      try {
+        const [companyRes, meRes, statsRes] = await Promise.all([
+          getCompany(),
+          api.get('/api/users/me'),
+          api.get('/api/badges/stats/me')
+        ])
+        const company = companyRes.data
+        const me = meRes.data
+        const stats = statsRes.data
+        const defGracePerPoint = company.def_grace_seconds || 0
+        if (defGracePerPoint <= 0) return
+
+        // Use total_def from stats endpoint (base_def + badge DEF, calculated server-side)
+        const fullDef = stats.total_def || 10
+        const graceSeconds = fullDef * defGracePerPoint
+
+        // Work start time
+        const startTime = me.work_start_time || '09:00'
+        const parts = startTime.split(':')
+        const startH = parseInt(parts[0]), startM = parseInt(parts[1] || 0)
+        const workStartFormatted = `${String(startH).padStart(2,'0')}:${String(startM).padStart(2,'0')}`
+
+        // Calculate effective start with grace
+        const totalStartSec = startH * 3600 + startM * 60 + graceSeconds
+        const effH = Math.floor(totalStartSec / 3600)
+        const effM = Math.floor((totalStartSec % 3600) / 60)
+        const effS = totalStartSec % 60
+        const effectiveStart = effS > 0
+          ? `${String(effH).padStart(2,'0')}:${String(effM).padStart(2,'0')}:${String(effS).padStart(2,'0')}`
+          : `${String(effH).padStart(2,'0')}:${String(effM).padStart(2,'0')}`
+
+        this.defGrace = {
+          totalDef: fullDef,
+          graceSeconds,
+          workStartFormatted,
+          effectiveStart
+        }
+      } catch (e) {
+        console.error('Failed to load DEF grace', e)
+      }
+    },
+    formatGrace(seconds) {
+      if (seconds >= 60) {
+        const min = Math.floor(seconds / 60)
+        const sec = seconds % 60
+        return sec > 0 ? `${min} นาที ${sec} วินาที` : `${min} นาที`
+      }
+      return `${seconds} วินาที`
     },
     async checkExpired() {
       try {
@@ -257,6 +321,31 @@ export default {
   text-shadow: 0 2px 8px rgba(212,164,76,0.2);
 }
 .checkin-sub { color: #8b7355; font-weight: 600; margin-top: 4px; }
+
+/* DEF Grace Info */
+.def-grace-card {
+  background: linear-gradient(135deg, rgba(52,152,219,0.08), rgba(41,128,185,0.04));
+  border: 1.5px solid rgba(52,152,219,0.25);
+  border-radius: 10px;
+  padding: 12px 20px;
+  margin-bottom: 18px;
+  max-width: 340px;
+}
+.def-grace-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.def-stat { color: #3498db; font-size: 14px; font-weight: 700; }
+.def-grace-value { color: #2ecc71; font-size: 13px; font-weight: 600; }
+.def-grace-hint {
+  font-size: 11px;
+  color: #8b7355;
+  margin-top: 6px;
+  text-align: center;
+  font-weight: 500;
+}
 
 /* Distance */
 .distance-section { margin-bottom: 28px; }

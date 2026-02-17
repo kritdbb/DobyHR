@@ -75,6 +75,15 @@
         </div>
       </div>
 
+      <!-- DEF Grace -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>🛡️ DEF Grace (seconds per 1 DEF)</label>
+          <input v-model.number="form.def_grace_seconds" class="form-input" type="number" placeholder="e.g. 12" min="0" />
+          <p style="font-size: 12px; color: #8b7355; margin-top: 4px;">Each DEF point = X seconds grace before marked late. Example: 12 sec × DEF 10 = 2 min grace. Set 0 to disable.</p>
+        </div>
+      </div>
+
       <!-- Auto Coin Giver -->
       <div class="card-header" style="margin-top: 24px; border-top: 1px solid rgba(212,164,76,0.1); padding-top: 24px;">
         <span class="card-title">💰 Automatic Gold Giver</span>
@@ -266,6 +275,45 @@
         </div>
       </div>
 
+      <!-- Man of the Month Rewards -->
+      <div class="card-header" style="margin-top: 24px; border-top: 1px solid rgba(212,164,76,0.1); padding-top: 24px;">
+        <span class="card-title">🏆 Man of the Month Rewards</span>
+      </div>
+      <p class="section-desc">Configure rewards for Rank 1 winners. Distributed automatically on the 1st of each month.</p>
+
+      <div v-for="cat in motmCategories" :key="cat.key" style="margin-bottom: 14px; padding: 14px; background: rgba(26,20,15,0.3); border-radius: 10px; border: 1px solid rgba(212,164,76,0.08);">
+        <div style="font-size: 14px; font-weight: 700; color: #d4a44c; margin-bottom: 10px;">{{ cat.icon }} {{ cat.label }}</div>
+        <div class="form-row" style="gap: 8px;">
+          <div class="form-group" style="flex: 1; min-width: 60px;">
+            <label style="font-size: 11px;">💰 Gold</label>
+            <input v-model.number="motmRewards[cat.key].gold" class="form-input" type="number" min="0" placeholder="0" style="font-size: 12px; padding: 5px 8px;" />
+          </div>
+          <div class="form-group" style="flex: 1; min-width: 60px;">
+            <label style="font-size: 11px;">✨ Mana</label>
+            <input v-model.number="motmRewards[cat.key].mana" class="form-input" type="number" min="0" placeholder="0" style="font-size: 12px; padding: 5px 8px;" />
+          </div>
+          <div class="form-group" style="flex: 1; min-width: 50px;">
+            <label style="font-size: 11px;">⚔️ STR</label>
+            <input v-model.number="motmRewards[cat.key].str" class="form-input" type="number" min="0" placeholder="0" style="font-size: 12px; padding: 5px 8px;" />
+          </div>
+          <div class="form-group" style="flex: 1; min-width: 50px;">
+            <label style="font-size: 11px;">🛡️ DEF</label>
+            <input v-model.number="motmRewards[cat.key].def" class="form-input" type="number" min="0" placeholder="0" style="font-size: 12px; padding: 5px 8px;" />
+          </div>
+          <div class="form-group" style="flex: 1; min-width: 50px;">
+            <label style="font-size: 11px;">🍀 LUK</label>
+            <input v-model.number="motmRewards[cat.key].luk" class="form-input" type="number" min="0" placeholder="0" style="font-size: 12px; padding: 5px 8px;" />
+          </div>
+          <div class="form-group" style="flex: 1.5; min-width: 80px;">
+            <label style="font-size: 11px;">🎖️ Badge</label>
+            <select v-model="motmRewards[cat.key].badge_id" class="form-input" style="font-size: 12px; padding: 5px 8px;">
+              <option :value="null">— None —</option>
+              <option v-for="b in allBadges" :key="b.id" :value="b.id">{{ b.name }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <!-- CCTV Face Recognition -->
       <div class="card-header" style="margin-top: 24px; border-top: 1px solid rgba(212,164,76,0.1); padding-top: 24px;">
         <span class="card-title">📹 CCTV Face Recognition</span>
@@ -332,7 +380,7 @@
 </template>
 
 <script>
-import { getCompany, updateCompany, uploadCompanyLogo } from '../services/api'
+import { getCompany, updateCompany, uploadCompanyLogo, getBadges } from '../services/api'
 
 export default {
   inject: ['showToast'],
@@ -347,6 +395,7 @@ export default {
         coin_on_time: 1,
         coin_late_penalty: 20,
         coin_absent_penalty: 20,
+        def_grace_seconds: 0,
         auto_coin_amount: 0,
         auto_angel_amount: 0,
         step_daily_target: 5000,
@@ -376,6 +425,21 @@ export default {
         face_start_time: '06:00',
         face_end_time: '10:30',
       },
+      motmCategories: [
+        { key: 'motm_mana', icon: '✨', label: 'Most Mana Received' },
+        { key: 'motm_steps', icon: '🥾', label: 'Most Steps' },
+        { key: 'motm_ontime', icon: '⏰', label: 'Most On-Time' },
+        { key: 'motm_gold_spent', icon: '💰', label: 'Most Gold Spent' },
+        { key: 'motm_praises', icon: '💬', label: 'Most Anonymous Praises' },
+      ],
+      motmRewards: {
+        motm_mana: { gold: 0, mana: 0, str: 0, def: 0, luk: 0, badge_id: null },
+        motm_steps: { gold: 0, mana: 0, str: 0, def: 0, luk: 0, badge_id: null },
+        motm_ontime: { gold: 0, mana: 0, str: 0, def: 0, luk: 0, badge_id: null },
+        motm_gold_spent: { gold: 0, mana: 0, str: 0, def: 0, luk: 0, badge_id: null },
+        motm_praises: { gold: 0, mana: 0, str: 0, def: 0, luk: 0, badge_id: null },
+      },
+      allBadges: [],
       rtspCameras: [],
       autoCoinDays: [],
       autoAngelDays: [],
@@ -396,6 +460,7 @@ export default {
   },
   async mounted() {
     await this.loadCompany()
+    await this.loadBadges()
   },
   methods: {
     toggleDay(type, code) {
@@ -419,6 +484,7 @@ export default {
           coin_on_time: data.coin_on_time,
           coin_late_penalty: data.coin_late_penalty,
           coin_absent_penalty: data.coin_absent_penalty,
+          def_grace_seconds: data.def_grace_seconds ?? 0,
           auto_coin_amount: data.auto_coin_amount || 0,
           auto_angel_amount: data.auto_angel_amount || 0,
           lucky_draw_amount: data.lucky_draw_amount || 0,
@@ -462,8 +528,27 @@ export default {
         this.autoCoinDays = data.auto_coin_day ? data.auto_coin_day.split(',').map(d => d.trim().toLowerCase()) : []
         this.autoAngelDays = data.auto_angel_day ? data.auto_angel_day.split(',').map(d => d.trim().toLowerCase()) : []
         this.luckyDrawDays = data.lucky_draw_day ? data.lucky_draw_day.split(',').map(d => d.trim().toLowerCase()) : []
+        // Load MOTM rewards
+        if (data.motm_rewards) {
+          try {
+            const parsed = JSON.parse(data.motm_rewards)
+            for (const key of Object.keys(this.motmRewards)) {
+              if (parsed[key]) {
+                this.motmRewards[key] = { ...this.motmRewards[key], ...parsed[key] }
+              }
+            }
+          } catch (e) { console.error('Failed to parse motm_rewards', e) }
+        }
       } catch (e) {
         console.error('Failed to load company', e)
+      }
+    },
+    async loadBadges() {
+      try {
+        const { data } = await getBadges()
+        this.allBadges = data || []
+      } catch (e) {
+        console.error('Failed to load badges', e)
       }
     },
     async saveCompany() {
@@ -477,6 +562,7 @@ export default {
           coin_on_time: this.form.coin_on_time,
           coin_late_penalty: this.form.coin_late_penalty,
           coin_absent_penalty: this.form.coin_absent_penalty,
+          def_grace_seconds: this.form.def_grace_seconds,
           auto_coin_day: this.autoCoinDays.join(','),
           auto_coin_amount: this.form.auto_coin_amount,
           auto_angel_day: this.autoAngelDays.join(','),
@@ -510,6 +596,7 @@ export default {
           face_min_face_height: this.form.face_min_face_height,
           face_start_time: this.form.face_start_time,
           face_end_time: this.form.face_end_time,
+          motm_rewards: JSON.stringify(this.motmRewards),
         })
         this.showToast('Kingdom settings updated!')
       } catch (e) {

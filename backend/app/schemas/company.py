@@ -11,6 +11,7 @@ class CompanyBase(BaseModel):
     coin_on_time: Optional[int] = 1
     coin_late_penalty: Optional[int] = 20
     coin_absent_penalty: Optional[int] = 20
+    def_grace_seconds: Optional[int] = 0  # DEF stat grace: 1 DEF point = X seconds
     auto_coin_day: Optional[str] = None
     auto_coin_amount: Optional[int] = 0
     auto_angel_day: Optional[str] = None
@@ -45,6 +46,8 @@ class CompanyBase(BaseModel):
     face_min_face_height: Optional[int] = 50
     face_start_time: Optional[str] = "06:00"
     face_end_time: Optional[str] = "10:30"
+    # Man of the Month Rewards
+    motm_rewards: Optional[str] = None  # JSON config
 
 
 class CompanyUpdate(BaseModel):
@@ -56,6 +59,7 @@ class CompanyUpdate(BaseModel):
     coin_on_time: Optional[int] = None
     coin_late_penalty: Optional[int] = None
     coin_absent_penalty: Optional[int] = None
+    def_grace_seconds: Optional[int] = None
     auto_coin_day: Optional[str] = None
     auto_coin_amount: Optional[int] = None
     auto_angel_day: Optional[str] = None
@@ -90,6 +94,7 @@ class CompanyUpdate(BaseModel):
     face_min_face_height: Optional[int] = None
     face_start_time: Optional[str] = None
     face_end_time: Optional[str] = None
+    motm_rewards: Optional[str] = None
 
 
 class CompanyResponse(CompanyBase):
