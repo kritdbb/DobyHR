@@ -10,6 +10,11 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     allowedHosts: ['hr.doby.me', 'hr2.doby.me'],
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    },
     proxy: {
       '/api': {
         target: apiTarget,

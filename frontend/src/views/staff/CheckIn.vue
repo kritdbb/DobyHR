@@ -1,8 +1,8 @@
 <template>
   <div class="checkin-page">
     <div class="checkin-header">
-      <h1 class="checkin-title">🗡️ Daily Quest</h1>
-      <p class="checkin-sub">Report to the guild to begin your quest</p>
+      <h1 class="checkin-title">🗡️ Guild Check In</h1>
+      <p class="checkin-sub">Report to the guild to begin your check in</p>
     </div>
 
     <!-- DEF Grace Info -->
@@ -28,7 +28,7 @@
         <span class="distance-icon">🧭</span>
         You are <strong>{{ distance.toLocaleString() }}m</strong> from the guild
         <div class="distance-hint">
-          {{ distance <= maxRadius ? '✅ Within quest range' : '📡 Remote — will create Remote Quest' }}
+          {{ distance <= maxRadius ? '✅ Within check in range' : '📡 Remote — will create Remote Check In' }}
         </div>
       </div>
       <div v-else-if="distError" class="distance-badge distance-badge--error">
@@ -51,9 +51,9 @@
     <div v-else-if="isExpired" class="expired-section">
       <button class="checkin-btn checkin-btn--disabled" disabled>
         <span style="font-size: 48px;">⏳</span>
-        <span class="checkin-btn-label">Quest Expired</span>
+        <span class="checkin-btn-label">Check In Expired</span>
       </button>
-      <p class="expired-hint">Quest posted at {{ formattedStartTime }} — deadline has passed</p>
+      <p class="expired-hint">Check in posted at {{ formattedStartTime }} — deadline has passed</p>
     </div>
 
     <!-- Check In / Remote Work Button -->
@@ -105,7 +105,7 @@ export default {
       return this.distance !== null && this.distance > this.maxRadius
     },
     buttonLabel() {
-      return this.isRemote ? 'REMOTE QUEST' : 'ACCEPT QUEST'
+      return this.isRemote ? 'REMOTE CHECK IN' : 'CHECK IN'
     },
   },
   inject: ['showToast'],
@@ -277,10 +277,10 @@ export default {
               this.statusMessage = `📋 Special Mission created! Awaiting guild approval. Distance: ${data.distance}m`
               this.statusType = 'success'
             } else if (data.remote_request_created) {
-              this.statusMessage = `📡 Remote Quest created! Awaiting guild approval. Distance: ${data.distance}m`
+              this.statusMessage = `📡 Remote Check In created! Awaiting guild approval. Distance: ${data.distance}m`
               this.statusType = 'success'
             } else {
-              this.statusMessage = `Quest Accepted! Status: ${data.status}, Distance: ${data.distance}m${data.coin_change ? ` (${data.coin_change > 0 ? '+' : ''}${data.coin_change} gold)` : ''}`
+              this.statusMessage = `Check In Accepted! Status: ${data.status}, Distance: ${data.distance}m${data.coin_change ? ` (${data.coin_change > 0 ? '+' : ''}${data.coin_change} gold)` : ''}`
               this.statusType = 'success'
             }
             this.alreadyCheckedIn = true
@@ -290,7 +290,7 @@ export default {
             this.checkedInTime = `${String(local.getHours()).padStart(2, '0')}:${String(local.getMinutes()).padStart(2, '0')}`
             this.checkedInStatus = data.status
           } catch (e) {
-            this.statusMessage = e.response?.data?.detail || "Quest failed"
+            this.statusMessage = e.response?.data?.detail || "Check In failed"
             this.statusType = 'error'
           } finally { this.loading = false }
         },

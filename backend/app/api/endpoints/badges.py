@@ -112,40 +112,176 @@ def update_badge(
     )
 
 
-# ── Circle Artifact Catalog ───────────────────────────
+# ── Circle Artifact Catalog (DB-backed) ───────────────
 
-CIRCLE_ARTIFACT_CATALOG = [
-    {"id": "artifact_01", "name": "Golden Ornate Frame",      "price": 2,  "rarity": "common",    "color": "#ffd700"},
-    {"id": "artifact_02", "name": "Silver Ice Crystal",       "price": 2,  "rarity": "common",    "color": "#a8d8ea"},
-    {"id": "artifact_03", "name": "Emerald Vine Wreath",      "price": 3,  "rarity": "common",    "color": "#2ecc71"},
-    {"id": "artifact_04", "name": "Ruby Flame Circle",        "price": 3,  "rarity": "common",    "color": "#e74c3c"},
-    {"id": "artifact_05", "name": "Sapphire Water Ripple",    "price": 3,  "rarity": "uncommon",  "color": "#3498db"},
-    {"id": "artifact_06", "name": "Amethyst Mystic Runes",    "price": 4,  "rarity": "uncommon",  "color": "#9b59b6"},
-    {"id": "artifact_07", "name": "Bronze Dragon Coil",       "price": 4,  "rarity": "uncommon",  "color": "#cd7f32"},
-    {"id": "artifact_08", "name": "Jade Serpent Ring",        "price": 4,  "rarity": "uncommon",  "color": "#00a86b"},
-    {"id": "artifact_09", "name": "Obsidian Shadow Aura",     "price": 5,  "rarity": "rare",      "color": "#2c3e50"},
-    {"id": "artifact_10", "name": "Celestial Star Halo",      "price": 5,  "rarity": "rare",      "color": "#f39c12"},
-    {"id": "artifact_11", "name": "Phoenix Feather Crown",    "price": 5,  "rarity": "rare",      "color": "#e67e22"},
-    {"id": "artifact_12", "name": "Thunderbolt Arc",          "price": 6,  "rarity": "rare",      "color": "#f1c40f"},
-    {"id": "artifact_13", "name": "Moonlight Crescent",       "price": 6,  "rarity": "epic",      "color": "#bdc3c7"},
-    {"id": "artifact_14", "name": "Blood Moon Eclipse",       "price": 6,  "rarity": "epic",      "color": "#c0392b"},
-    {"id": "artifact_15", "name": "Crystal Prism",            "price": 7,  "rarity": "epic",      "color": "#1abc9c"},
-    {"id": "artifact_16", "name": "Void Portal Swirl",        "price": 7,  "rarity": "epic",      "color": "#8e44ad"},
-    {"id": "artifact_17", "name": "Ancient Tome Seal",        "price": 8,  "rarity": "legendary", "color": "#d4a44c"},
-    {"id": "artifact_18", "name": "Divine Angel Wings",       "price": 8,  "rarity": "legendary", "color": "#ecf0f1"},
-    {"id": "artifact_19", "name": "Demon King Crown",         "price": 9,  "rarity": "legendary", "color": "#7b241c"},
-    {"id": "artifact_20", "name": "Rainbow Aurora",           "price": 10, "rarity": "mythic",    "color": "#ff6b6b"},
+from app.models.artifact import Artifact
+
+# Seed defaults on first call
+_SEEDED = False
+
+SEED_ARTIFACTS = [
+    {"name": "Golden Ornate Frame",   "price": 2,  "rarity": "common",    "color": "#ffd700", "effect": "pulse"},
+    {"name": "Silver Ice Crystal",    "price": 2,  "rarity": "common",    "color": "#a8d8ea", "effect": "pulse"},
+    {"name": "Emerald Vine Wreath",   "price": 3,  "rarity": "common",    "color": "#2ecc71", "effect": "pulse"},
+    {"name": "Ruby Flame Circle",     "price": 3,  "rarity": "common",    "color": "#e74c3c", "effect": "pulse"},
+    {"name": "Sapphire Water Ripple", "price": 3,  "rarity": "uncommon",  "color": "#3498db", "effect": "pulse"},
+    {"name": "Amethyst Mystic Runes", "price": 4,  "rarity": "uncommon",  "color": "#9b59b6", "effect": "pulse"},
+    {"name": "Bronze Dragon Coil",    "price": 4,  "rarity": "uncommon",  "color": "#cd7f32", "effect": "pulse"},
+    {"name": "Jade Serpent Ring",     "price": 4,  "rarity": "uncommon",  "color": "#00a86b", "effect": "pulse"},
+    {"name": "Obsidian Shadow Aura",  "price": 5,  "rarity": "rare",      "color": "#2c3e50", "effect": "pulse"},
+    {"name": "Celestial Star Halo",   "price": 5,  "rarity": "rare",      "color": "#f39c12", "effect": "spin"},
+    {"name": "Phoenix Feather Crown", "price": 5,  "rarity": "rare",      "color": "#e67e22", "effect": "pulse"},
+    {"name": "Thunderbolt Arc",       "price": 6,  "rarity": "rare",      "color": "#f1c40f", "effect": "spin"},
+    {"name": "Moonlight Crescent",    "price": 6,  "rarity": "epic",      "color": "#bdc3c7", "effect": "pulse"},
+    {"name": "Blood Moon Eclipse",    "price": 6,  "rarity": "epic",      "color": "#c0392b", "effect": "spin"},
+    {"name": "Crystal Prism",         "price": 7,  "rarity": "epic",      "color": "#1abc9c", "effect": "pulse"},
+    {"name": "Void Portal Swirl",     "price": 7,  "rarity": "epic",      "color": "#8e44ad", "effect": "spin"},
+    {"name": "Ancient Tome Seal",     "price": 8,  "rarity": "legendary", "color": "#d4a44c", "effect": "pulse"},
+    {"name": "Divine Angel Wings",    "price": 8,  "rarity": "legendary", "color": "#ecf0f1", "effect": "spin"},
+    {"name": "Demon King Crown",      "price": 9,  "rarity": "legendary", "color": "#7b241c", "effect": "spin"},
+    {"name": "Rainbow Aurora",        "price": 10, "rarity": "mythic",    "color": "#ff6b6b", "effect": "spin"},
 ]
 
-_ARTIFACT_MAP = {a["id"]: a for a in CIRCLE_ARTIFACT_CATALOG}
+
+def _seed_artifacts(db):
+    global _SEEDED
+    if _SEEDED:
+        return
+    _SEEDED = True
+    count = db.query(Artifact).count()
+    if count > 0:
+        return
+    for i, a in enumerate(SEED_ARTIFACTS, 1):
+        db.add(Artifact(
+            name=a["name"], price=a["price"], rarity=a["rarity"],
+            color=a["color"], effect=a["effect"],
+            image=f"/artifacts/artifact_{i:02d}.png",
+            active=True,
+        ))
+    db.commit()
+
+
+def _artifact_to_dict(a):
+    return {
+        "id": a.id,
+        "name": a.name,
+        "price": a.price,
+        "rarity": a.rarity,
+        "color": a.color,
+        "effect": a.effect or "pulse",
+        "image": a.image,
+        "active": a.active,
+    }
 
 
 @router.get("/artifacts/catalog")
 def get_artifact_catalog(
+    db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
     """Return the list of purchasable circle artifacts."""
-    return CIRCLE_ARTIFACT_CATALOG
+    _seed_artifacts(db)
+    artifacts = db.query(Artifact).filter(Artifact.active == True).order_by(Artifact.id).all()
+    return [_artifact_to_dict(a) for a in artifacts]
+
+
+# ── Admin artifact endpoints ──────────────────────────
+
+@router.get("/artifacts/admin/list")
+def admin_list_artifacts(
+    db: Session = Depends(get_db),
+    admin=Depends(deps.get_current_gm_or_above),
+):
+    _seed_artifacts(db)
+    artifacts = db.query(Artifact).order_by(Artifact.id).all()
+    result = []
+    for a in artifacts:
+        d = _artifact_to_dict(a)
+        # Count users who have this artifact equipped
+        equipped = db.query(User).filter(User.circle_artifact == str(a.id)).count()
+        d["equipped_count"] = equipped
+        result.append(d)
+    return result
+
+
+@router.post("/artifacts/admin/create")
+def admin_create_artifact(
+    name: str = Form(...),
+    price: int = Form(5),
+    rarity: str = Form("common"),
+    color: str = Form("#d4a44c"),
+    effect: str = Form("pulse"),
+    file: UploadFile = File(None),
+    db: Session = Depends(get_db),
+    admin=Depends(deps.get_current_gm_or_above),
+):
+    artifact = Artifact(name=name, price=price, rarity=rarity, color=color, effect=effect, active=True)
+
+    if file:
+        ext = os.path.splitext(file.filename)[1]
+        filename = f"artifact_{uuid.uuid4().hex[:8]}{ext}"
+        upload_dir = os.path.join(settings.UPLOAD_DIR, "artifacts")
+        os.makedirs(upload_dir, exist_ok=True)
+        filepath = os.path.join(upload_dir, filename)
+        with open(filepath, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        artifact.image = f"/uploads/artifacts/{filename}"
+
+    db.add(artifact)
+    db.commit()
+    db.refresh(artifact)
+    return _artifact_to_dict(artifact)
+
+
+@router.put("/artifacts/admin/{artifact_id}")
+def admin_update_artifact(
+    artifact_id: int,
+    name: str = Form(...),
+    price: int = Form(5),
+    rarity: str = Form("common"),
+    color: str = Form("#d4a44c"),
+    effect: str = Form("pulse"),
+    file: UploadFile = File(None),
+    db: Session = Depends(get_db),
+    admin=Depends(deps.get_current_gm_or_above),
+):
+    artifact = db.query(Artifact).filter(Artifact.id == artifact_id).first()
+    if not artifact:
+        raise HTTPException(404, "Artifact not found")
+
+    artifact.name = name
+    artifact.price = price
+    artifact.rarity = rarity
+    artifact.color = color
+    artifact.effect = effect
+
+    if file:
+        ext = os.path.splitext(file.filename)[1]
+        filename = f"artifact_{uuid.uuid4().hex[:8]}{ext}"
+        upload_dir = os.path.join(settings.UPLOAD_DIR, "artifacts")
+        os.makedirs(upload_dir, exist_ok=True)
+        filepath = os.path.join(upload_dir, filename)
+        with open(filepath, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        artifact.image = f"/uploads/artifacts/{filename}"
+
+    db.commit()
+    db.refresh(artifact)
+    return _artifact_to_dict(artifact)
+
+
+@router.delete("/artifacts/admin/{artifact_id}")
+def admin_delete_artifact(
+    artifact_id: int,
+    db: Session = Depends(get_db),
+    admin=Depends(deps.get_current_gm_or_above),
+):
+    artifact = db.query(Artifact).filter(Artifact.id == artifact_id).first()
+    if not artifact:
+        raise HTTPException(404, "Artifact not found")
+    artifact.active = not artifact.active
+    db.commit()
+    return {"detail": f"Artifact {'activated' if artifact.active else 'deactivated'}"}
 
 
 # ── Town People (staff directory with stats) ──────────
@@ -156,6 +292,10 @@ def get_town_people(
     current_user: User = Depends(deps.get_current_user),
 ):
     """Get all active staff with profile, stats, badges, coins, and mana."""
+    # Pre-load artifact effect map
+    artifacts = db.query(Artifact).all()
+    artifact_map = {str(a.id): a for a in artifacts}
+
     staff = db.query(User).all()
     results = []
     for u in staff:
@@ -180,6 +320,12 @@ def get_town_people(
         base_s = u.base_str if hasattr(u, 'base_str') and u.base_str else 10
         base_d = u.base_def if hasattr(u, 'base_def') and u.base_def else 10
         base_l = u.base_luk if hasattr(u, 'base_luk') and u.base_luk else 10
+
+        # Get artifact effect type
+        art_effect = "pulse"
+        if u.circle_artifact and u.circle_artifact in artifact_map:
+            art_effect = artifact_map[u.circle_artifact].effect or "pulse"
+
         results.append({
             "id": u.id,
             "name": u.name,
@@ -199,6 +345,7 @@ def get_town_people(
             "status_text": u.status_text or "",
             "magic_background": u.magic_background or "",
             "circle_artifact": u.circle_artifact or "",
+            "artifact_effect": art_effect,
         })
     return results
 
@@ -227,19 +374,19 @@ def buy_magic_item(
     if item_type == "circle_artifact":
         if not artifact_id:
             raise HTTPException(status_code=400, detail="Please specify artifact_id")
-        artifact = _ARTIFACT_MAP.get(artifact_id)
+        artifact = db.query(Artifact).filter(Artifact.id == int(artifact_id), Artifact.active == True).first()
         if not artifact:
             raise HTTPException(status_code=400, detail=f"Unknown artifact: {artifact_id}")
-        price = artifact["price"]
+        price = artifact.price
         if (current_user.angel_coins or 0) < price:
             raise HTTPException(status_code=400, detail=f"Not enough Mana! Need {price}, have {current_user.angel_coins or 0}")
         current_user.angel_coins -= price
-        current_user.circle_artifact = artifact_id
+        current_user.circle_artifact = str(artifact.id)
         db.commit()
         return {
             "item": "Circle Artifact",
-            "artifact_id": artifact_id,
-            "artifact_name": artifact["name"],
+            "artifact_id": str(artifact.id),
+            "artifact_name": artifact.name,
             "coins": current_user.coins,
             "angel_coins": current_user.angel_coins,
         }

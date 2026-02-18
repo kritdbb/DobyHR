@@ -185,6 +185,48 @@
       </router-link>
     </div>
 
+    <!-- ⚔️ Friendly Arena -->
+    <div v-if="arenaBattles.length > 0" class="section arena-section">
+      <h2 class="section-title">⚔️ Friendly Arena</h2>
+      <div class="arena-carousel" @touchstart="arenaSwipeStart" @touchend="arenaSwipeEnd">
+        <button class="arena-nav arena-nav-prev" @click="arenaSlideIdx = Math.max(0, arenaSlideIdx - 1)" v-show="arenaSlideIdx > 0">‹</button>
+        <div class="arena-viewport">
+          <div class="arena-track" :style="{ transform: `translateX(-${arenaSlideIdx * 100}%)` }">
+            <router-link v-for="b in arenaBattles" :key="b.id" :to="'/staff/arena/' + b.id" class="arena-card" :class="{ 'arena-card--resolved': b.status === 'resolved' }">
+              <div class="arena-card-fighters">
+                <div class="arena-fighter arena-fighter-a">
+                  <div class="arena-avatar">
+                    <img v-if="b.player_a.image" :src="b.player_a.image" />
+                    <span v-else>{{ (b.player_a.name||'?').charAt(0) }}</span>
+                  </div>
+                  <span class="arena-fname">{{ b.player_a.name }}</span>
+                </div>
+                <div class="arena-vs">⚔️</div>
+                <div class="arena-fighter arena-fighter-b">
+                  <div class="arena-avatar">
+                    <img v-if="b.player_b.image" :src="b.player_b.image" />
+                    <span v-else>{{ (b.player_b.name||'?').charAt(0) }}</span>
+                  </div>
+                  <span class="arena-fname">{{ b.player_b.name }}</span>
+                </div>
+              </div>
+              <div class="arena-card-status">
+                <span v-if="b.status === 'resolved'" class="arena-see-result">🏆 See Battle Result</span>
+                <span v-else class="arena-battle-time">⏰ {{ formatBattleTime(b.scheduled_time) }}</span>
+              </div>
+              <div class="arena-card-rewards" v-if="b.winner_gold || b.winner_mana || b.loser_gold || b.loser_mana">
+                <span class="arena-reward-win">🏆Winner <template v-if="b.winner_gold">+{{ b.winner_gold }}💰</template><template v-if="b.winner_mana"> +{{ b.winner_mana }}✨</template><template v-if="b.winner_str"> +{{ b.winner_str }}⚔️</template><template v-if="b.winner_def"> +{{ b.winner_def }}🛡️</template><template v-if="b.winner_luk"> +{{ b.winner_luk }}🍀</template></span>
+                <span class="arena-reward-sep">|</span>
+                <span class="arena-reward-lose">💀Loser <template v-if="b.loser_gold">-{{ b.loser_gold }}💰</template><template v-if="b.loser_mana"> -{{ b.loser_mana }}✨</template><template v-if="b.loser_str"> -{{ b.loser_str }}⚔️</template><template v-if="b.loser_def"> -{{ b.loser_def }}🛡️</template><template v-if="b.loser_luk"> -{{ b.loser_luk }}🍀</template></span>
+              </div>
+            </router-link>
+          </div>
+        </div>
+        <button class="arena-nav arena-nav-next" @click="arenaSlideIdx = Math.min(arenaBattles.length - 1, arenaSlideIdx + 1)" v-show="arenaSlideIdx < arenaBattles.length - 1">›</button>
+      </div>
+      <div class="arena-page-indicator">{{ arenaSlideIdx + 1 }}/{{ arenaBattles.length }}</div>
+    </div>
+
     <!-- 💖 ชุบทีคับ: Revival Pool -->
     <div v-if="negativeUsers.length > 0" class="section rescue-section">
       <h2 class="section-title">🆘 Revival Pool - รวมพลังชุบชีวิต</h2>
@@ -684,6 +726,9 @@ export default {
       showRescueModal: false,
       rescueTarget: null,
       rescuing: false,
+      arenaBattles: [],
+      arenaSlideIdx: 0,
+      arenaSwipeX: 0,
     }
   },
   async mounted() {
@@ -701,6 +746,21 @@ export default {
     this.loadFitbit()  // fire-and-forget, won't block page
   },
   methods: {
+    arenaSwipeStart(e) {
+      this.arenaSwipeX = e.touches[0].clientX
+    },
+    arenaSwipeEnd(e) {
+      const diff = this.arenaSwipeX - e.changedTouches[0].clientX
+      if (Math.abs(diff) > 50) {
+        if (diff > 0 && this.arenaSlideIdx < this.arenaBattles.length - 1) this.arenaSlideIdx++
+        else if (diff < 0 && this.arenaSlideIdx > 0) this.arenaSlideIdx--
+      }
+    },
+    formatBattleTime(iso) {
+      if (!iso) return 'Battle Time TBD'
+      const d = new Date(iso)
+      return d.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
+    },
     async loadData() {
       try {
         const userStr = localStorage.getItem('user')
@@ -774,6 +834,11 @@ export default {
           }
           this.negativeUsers = users
         } catch (e2) { this.negativeUsers = [] }
+        // Load PVP arena battles
+        try {
+          const pvpRes = await api.get('/api/pvp/today')
+          this.arenaBattles = pvpRes.data || []
+        } catch (ep) { this.arenaBattles = [] }
       } catch (e) {
         this.myBadges = []
         this.recentAwards = []
@@ -904,6 +969,93 @@ export default {
 
 <style scoped>
 .staff-page { padding: 28px 0 16px; }
+
+/* ═══ Friendly Arena ═══ */
+.arena-section { }
+.arena-carousel {
+  position: relative; display: flex; align-items: center; gap: 4px;
+}
+.arena-viewport {
+  flex: 1; overflow: hidden; border-radius: 14px;
+}
+.arena-track {
+  display: flex; transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.arena-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 5;
+  width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(212,164,76,0.3);
+  background: rgba(26,14,46,0.9); color: #d4a44c; font-size: 20px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.arena-nav:hover { background: rgba(212,164,76,0.2); border-color: rgba(212,164,76,0.5); }
+.arena-nav-prev { left: -14px; }
+.arena-nav-next { right: -14px; }
+.arena-page-indicator {
+  text-align: center; margin-top: 8px; font-size: 12px; font-weight: 700;
+  color: #8b7355; letter-spacing: 1px;
+}
+.arena-card {
+  min-width: 100%; box-sizing: border-box;
+  display: flex; flex-direction: column;
+  background: linear-gradient(135deg, rgba(26,14,46,0.7), rgba(13,13,32,0.75)), url('/arena_bg.png') center/cover;
+  border: 1px solid rgba(212,164,76,0.15);
+  border-radius: 14px; padding: 14px 16px;
+  text-decoration: none; color: inherit;
+  transition: all 0.3s;
+}
+.arena-card:hover {
+  border-color: rgba(212,164,76,0.35);
+  box-shadow: 0 0 20px rgba(212,164,76,0.1);
+}
+.arena-card--resolved {
+  border-color: rgba(255,215,0,0.2);
+  background: linear-gradient(135deg, rgba(40,20,10,0.7), rgba(20,10,5,0.75)), url('/arena_bg.png') center/cover;
+}
+.arena-card-fighters {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 10px;
+}
+.arena-fighter { display: flex; flex-direction: column; align-items: center; flex: 1; }
+.arena-avatar {
+  width: 48px; height: 48px; border-radius: 50%; overflow: hidden;
+  margin-bottom: 4px; border: 2px solid rgba(212,164,76,0.2);
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #1a1a3e, #2a1a4a);
+}
+.arena-fighter-a .arena-avatar { border-color: rgba(74,158,255,0.4); }
+.arena-fighter-b .arena-avatar { border-color: rgba(255,74,106,0.4); }
+.arena-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.arena-avatar span { font-size: 20px; font-weight: 700; color: #8b7355; }
+.arena-fname { font-size: 12px; font-weight: 600; color: #c8b89a; text-align: center; }
+.arena-fighter-a .arena-fname { color: #7ec8ff; }
+.arena-fighter-b .arena-fname { color: #ff8fa3; }
+.arena-vs { font-size: 20px; flex-shrink: 0; }
+.arena-card-status { text-align: center; }
+.arena-battle-time {
+  font-size: 12px; color: #8b7355;
+  padding: 4px 12px; border-radius: 8px;
+  background: rgba(212,164,76,0.06);
+  border: 1px solid rgba(212,164,76,0.1);
+}
+.arena-see-result {
+  font-size: 13px; font-weight: 700; color: #ffd700;
+  padding: 4px 14px; border-radius: 8px;
+  background: rgba(255,215,0,0.1);
+  border: 1px solid rgba(255,215,0,0.2);
+  animation: result-pulse 2s infinite;
+}
+@keyframes result-pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.arena-card-rewards {
+  display: flex; justify-content: center; gap: 6px;
+  margin-top: 6px; font-size: 11px;
+}
+.arena-reward-win { color: #ffd700; }
+.arena-reward-lose { color: #ff6b6b; }
+.arena-reward-sep { color: #8b7355; margin: 0 2px; }
 
 /* ═══ Mana Rescue ═══ */
 .rescue-section { }

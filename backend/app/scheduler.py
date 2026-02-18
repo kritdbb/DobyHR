@@ -17,6 +17,7 @@ from app.models.badge import Badge, UserBadge
 from app.models.social import ThankYouCard
 from app.models.attendance import Attendance
 from app.models.social import AnonymousPraise
+from app.models.pvp import PvpBattle
 
 logger = logging.getLogger("hr-api")
 
@@ -37,7 +38,7 @@ def auto_give_coins_and_angels():
             return
 
         # Get all active staff
-        staff = db.query(User).filter(User.role == UserRole.PLAYER).all()
+        staff = db.query(User).filter(User.role.in_((UserRole.PLAYER, UserRole.GM))).all()
         if not staff:
             logger.info("No active staff found, skipping auto-giver")
             return
@@ -106,7 +107,7 @@ def lucky_draw():
             return
 
         # Get all active staff
-        staff = db.query(User).filter(User.role == UserRole.PLAYER).all()
+        staff = db.query(User).filter(User.role.in_((UserRole.PLAYER, UserRole.GM))).all()
         if not staff:
             logger.info("No active staff for lucky draw")
             return
@@ -531,6 +532,185 @@ def distribute_motm_rewards():
         db.close()
 
 
+# ── PVP Friendly Arena ──────────────────────────────────────
+def _get_user_total_stats(user, db):
+    """Calculate total stats (base + badge bonuses) for a user."""
+    from sqlalchemy import func
+    badge_row = (
+        db.query(
+            func.coalesce(func.sum(Badge.stat_str), 0).label("s"),
+            func.coalesce(func.sum(Badge.stat_def), 0).label("d"),
+            func.coalesce(func.sum(Badge.stat_luk), 0).label("l"),
+        )
+        .join(UserBadge, UserBadge.badge_id == Badge.id)
+        .filter(UserBadge.user_id == user.id)
+        .first()
+    )
+    base_s = user.base_str if user.base_str else 10
+    base_d = user.base_def if user.base_def else 10
+    base_l = user.base_luk if user.base_luk else 10
+    return (
+        base_s + (badge_row.s if badge_row else 0),
+        base_d + (badge_row.d if badge_row else 0),
+        base_l + (badge_row.l if badge_row else 0),
+    )
+
+
+
+
+def _simulate_battle(a_str, a_def, a_luk, b_str, b_def, b_luk):
+    """Run battle simulation, return (winner_side, battle_log)."""
+    import math
+
+    def calc_hp(s, d, l):
+        return s * 2 + d * 2 + l * 5 + 50
+
+    def calc_dmg(atk_str, def_def):
+        return max(1, atk_str * (1 - def_def / (def_def + 20)))
+
+    def crit_chance(luk):
+        return luk / (luk + 25)
+
+    def dodge_chance(luk):
+        return luk / (luk + 30)
+
+    def lucky_chance(luk):
+        return luk / (luk + 50)
+
+    a_hp = calc_hp(a_str, a_def, a_luk)
+    b_hp = calc_hp(b_str, b_def, b_luk)
+    a_max, b_max = a_hp, b_hp
+    events = []
+
+    fighters = [
+        {"name": "A", "str": a_str, "def": a_def, "luk": a_luk},
+        {"name": "B", "str": b_str, "def": b_def, "luk": b_luk},
+    ]
+
+    # Determine who attacks first: STR > LUK > DEF (higher goes first)
+    if (a_str, a_luk, a_def) >= (b_str, b_luk, b_def):
+        turn_order = [(0, 1), (1, 0)]  # A first
+    else:
+        turn_order = [(1, 0), (0, 1)]  # B first
+
+    for turn in range(1, 21):
+        events.append({"type": "turn", "turn": turn})
+
+        for atk_idx, def_idx in turn_order:
+            atk = fighters[atk_idx]
+            dfd = fighters[def_idx]
+            ev = {"type": "attack", "side": atk["name"]}
+
+            if random.random() < dodge_chance(dfd["luk"]):
+                ev["dmg"] = 0
+                ev["dodge"] = True
+            else:
+                base = calc_dmg(atk["str"], dfd["def"]) + random.random() * max(1, atk["str"] / 3)
+                ev["crit"] = random.random() < crit_chance(atk["luk"])
+                ev["lucky"] = random.random() < lucky_chance(atk["luk"])
+                if ev.get("crit"):
+                    base *= 2.5
+                if ev.get("lucky"):
+                    base *= 2
+                ev["dmg"] = max(1, int(base))
+
+            # Apply damage
+            if atk["name"] == "A":
+                b_hp -= ev["dmg"]
+            else:
+                a_hp -= ev["dmg"]
+
+            ev["aHP"] = max(0, int(a_hp))
+            ev["bHP"] = max(0, int(b_hp))
+            ev["aMax"] = a_max
+            ev["bMax"] = b_max
+            events.append(ev)
+
+            if b_hp <= 0:
+                events.append({"type": "winner", "side": "A", "turns": turn})
+                return "A", events
+            if a_hp <= 0:
+                events.append({"type": "winner", "side": "B", "turns": turn})
+                return "B", events
+
+    winner = "A" if a_hp >= b_hp else "B"
+    events.append({"type": "winner", "side": winner, "turns": 20, "timeout": True})
+    return winner, events
+
+
+def pvp_resolve_battles():
+    """
+    Interval job (every 60s): resolve battles whose scheduled_time is
+    within 5 minutes from now. Applies winner/loser rewards from battle columns.
+    """
+    from datetime import timezone
+    TZ7 = timezone(timedelta(hours=7))
+    now = datetime.now(TZ7)
+    cutoff = now + timedelta(minutes=5)
+
+    db = SessionLocal()
+    try:
+        battles = db.query(PvpBattle).filter(
+            PvpBattle.status == "scheduled",
+            PvpBattle.scheduled_time != None,
+            PvpBattle.scheduled_time <= cutoff.replace(tzinfo=None),
+        ).all()
+
+        if not battles:
+            return
+
+        for b in battles:
+            winner_side, battle_log = _simulate_battle(
+                b.a_str, b.a_def, b.a_luk,
+                b.b_str, b.b_def, b.b_luk,
+            )
+
+            if winner_side == "A":
+                winner = db.query(User).filter(User.id == b.player_a_id).first()
+                loser = db.query(User).filter(User.id == b.player_b_id).first()
+            else:
+                winner = db.query(User).filter(User.id == b.player_b_id).first()
+                loser = db.query(User).filter(User.id == b.player_a_id).first()
+
+            if not winner or not loser:
+                continue
+
+            # ── Apply winner rewards ──
+            winner.coins = (winner.coins or 0) + (b.winner_gold or 0)
+            winner.angel_coins = (winner.angel_coins or 0) + (b.winner_mana or 0)
+            winner.base_str = (winner.base_str or 10) + (b.winner_str or 0)
+            winner.base_def = (winner.base_def or 10) + (b.winner_def or 0)
+            winner.base_luk = (winner.base_luk or 10) + (b.winner_luk or 0)
+
+            # ── Apply loser penalties ──
+            loser.coins = max(0, (loser.coins or 0) - (b.loser_gold or 0))
+            loser.angel_coins = max(0, (loser.angel_coins or 0) - (b.loser_mana or 0))
+            loser.base_str = max(1, (loser.base_str or 10) - (b.loser_str or 0))
+            loser.base_def = max(1, (loser.base_def or 10) - (b.loser_def or 0))
+            loser.base_luk = max(1, (loser.base_luk or 10) - (b.loser_luk or 0))
+
+            b.winner_id = winner.id
+            b.loser_id = loser.id
+            b.battle_log = battle_log
+            b.gold_stolen = b.winner_gold or 0
+            b.status = "resolved"
+
+            logger.info(
+                f"⚔️ PVP resolved: {winner.name} beats {loser.name} "
+                f"(winner +{b.winner_gold or 0}G +{b.winner_mana or 0}M, "
+                f"loser -{b.loser_gold or 0}G -{b.loser_mana or 0}M)"
+            )
+
+        db.commit()
+        logger.info(f"⚔️ PVP resolve done: {len(battles)} battles")
+
+    except Exception as e:
+        logger.error(f"❌ PVP resolve error: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
 scheduler = BackgroundScheduler()
 
 
@@ -607,8 +787,16 @@ def start_scheduler():
         id="motm_rewards",
         replace_existing=True,
     )
+    # PVP Arena — resolve battles (interval every 60s, checks scheduled_time)
+    scheduler.add_job(
+        pvp_resolve_battles,
+        "interval",
+        seconds=60,
+        id="pvp_resolve",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("✅ Scheduler started — auto coin/angel at 00:01, lucky draw at 12:30, absent penalty at 23:00, face recognition check, badge quest eval every 2h, thank you star Mon 00:05, MOTM rewards 1st 00:10")
+    logger.info("✅ Scheduler started — auto coin/angel at 00:01, lucky draw at 12:30, absent penalty at 23:00, face recognition check, badge quest eval every 2h, thank you star Mon 00:05, MOTM rewards 1st 00:10, PVP resolve every 60s")
 
 
 def _run_face_recognition():

@@ -302,18 +302,29 @@ def _leaderboard_steps(db: Session, now_local):
 
 
 def _leaderboard_on_time(db: Session, month_start_utc):
-    """Most check-ins with status 'present' (on time)."""
+    """Most check-ins with status 'present' (on time).
+    Tiebreaker: earliest average check-in time wins.
+    """
+    # Average seconds-since-midnight as tiebreaker (lower = earlier check-in)
+    avg_time_of_day = func.avg(
+        func.extract('epoch', Attendance.timestamp) % 86400
+    ).label("avg_tod")
+
     on_time = (
         db.query(
             Attendance.user_id,
             func.count(Attendance.id).label("on_time_count"),
+            avg_time_of_day,
         )
         .filter(
             Attendance.timestamp >= month_start_utc,
             Attendance.status == "present",
         )
         .group_by(Attendance.user_id)
-        .order_by(func.count(Attendance.id).desc())
+        .order_by(
+            func.count(Attendance.id).desc(),   # primary: most on-time days
+            avg_time_of_day.asc(),               # tiebreaker: earliest avg check-in
+        )
         .limit(10)
         .all()
     )

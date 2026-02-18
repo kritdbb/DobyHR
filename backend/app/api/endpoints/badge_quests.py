@@ -14,8 +14,8 @@ from app.models.badge_quest import BadgeQuest
 from app.api import deps
 from app.services.badge_quest_evaluator import (
     CONDITION_LABELS, FIELD_DESCRIPTIONS, FIELD_RESOLVERS,
-    evaluate_user, evaluate_query, validate_query,
-    get_user_progress, resolve_user_fields,
+    evaluate_query, validate_query,
+    resolve_user_fields,
 )
 
 logger = logging.getLogger("hr-api")
@@ -331,18 +331,19 @@ def _run_evaluation(db: Session):
                 if existing:
                     continue
 
-            # Evaluate: prefer query, fallback to legacy
+            # Evaluate: prefer query, fallback to legacy (auto-convert to query)
             met = False
-            if quest.condition_query:
+            effective_query = quest.condition_query
+            if not effective_query and quest.condition_type:
+                effective_query = f"{quest.condition_type} >= {quest.threshold or 1}"
+            if effective_query:
                 try:
-                    met = evaluate_query(user.id, quest.condition_query, db)
+                    met = evaluate_query(user.id, effective_query, db)
                 except Exception as e:
                     logger.error(f"Query eval error quest={quest.id} user={user.id}: {e}")
-            elif quest.condition_type:
-                met = evaluate_user(user.id, quest.condition_type, quest.threshold or 1, db)
 
             user_name = f"{user.name} {user.surname or ''}".strip()
-            query_display = quest.condition_query or f"{quest.condition_type} >= {quest.threshold}"
+            query_display = effective_query or "(no condition)"
 
             if met:
                 # Check max_awards limit
@@ -444,11 +445,13 @@ def get_my_progress(
             completed = existing is not None
 
         # Get progress
-        if quest.condition_query:
-            progress_data = resolve_user_fields(current_user.id, quest.condition_query, db)
+        effective_query = quest.condition_query
+        if not effective_query and quest.condition_type:
+            effective_query = f"{quest.condition_type} >= {quest.threshold or 1}"
+        if effective_query:
+            progress_data = resolve_user_fields(current_user.id, effective_query, db)
         else:
-            progress_val = get_user_progress(current_user.id, quest.condition_type, db) if quest.condition_type else 0
-            progress_data = {quest.condition_type: progress_val} if quest.condition_type else {}
+            progress_data = {}
 
         result.append({
             "quest_id": quest.id,

@@ -33,6 +33,18 @@ const routes = [
         meta: { requiresAuth: true, role: 'gm' }
     },
     {
+        path: '/battle-arena',
+        name: 'BattleArena',
+        component: () => import('../views/admin/BattleArena.vue'),
+        meta: { requiresAuth: true, role: 'gm' }
+    },
+    {
+        path: '/artifact-shop',
+        name: 'ArtifactShop',
+        component: () => import('../views/admin/ArtifactShop.vue'),
+        meta: { requiresAuth: true, role: 'gm' }
+    },
+    {
         path: '/company',
         name: 'Company',
         component: () => import('../views/CompanySettings.vue'),
@@ -169,6 +181,10 @@ const routes = [
             {
                 path: 'man-of-the-month',
                 component: () => import('../views/staff/ManOfTheMonth.vue')
+            },
+            {
+                path: 'arena/:id',
+                component: () => import('../views/staff/ArenaBattle.vue')
             },
         ]
     },

@@ -21,6 +21,9 @@ from app.models.attendance import Attendance
 from app.models.fitbit import FitbitSteps
 from app.models.reward import CoinLog, Redemption, Reward
 from app.models.leave import LeaveRequest
+from app.models.badge import UserBadge
+from app.models.pvp import PvpBattle
+from app.models.social import ThankYouCard, AnonymousPraise
 
 logger = logging.getLogger("hr-api")
 
@@ -176,6 +179,107 @@ def _resolve_rescue_received(user_id: int, db: Session) -> int:
     ).scalar()
 
 
+# ── New resolvers ────────────────────────────────────
+
+def _resolve_total_checkins(user_id: int, db: Session) -> int:
+    """Total number of check-ins (any status)."""
+    return db.query(func.count(Attendance.id)).filter(
+        Attendance.user_id == user_id,
+    ).scalar()
+
+
+def _resolve_on_time_checkins(user_id: int, db: Session) -> int:
+    """Number of on-time check-ins (status = 'present')."""
+    return db.query(func.count(Attendance.id)).filter(
+        Attendance.user_id == user_id,
+        Attendance.status == "present",
+    ).scalar()
+
+
+def _resolve_pvp_wins(user_id: int, db: Session) -> int:
+    """Number of PvP battles won."""
+    return db.query(func.count(PvpBattle.id)).filter(
+        PvpBattle.winner_id == user_id,
+    ).scalar()
+
+
+def _resolve_pvp_battles(user_id: int, db: Session) -> int:
+    """Total PvP battles played (as player A or B)."""
+    from sqlalchemy import or_
+    return db.query(func.count(PvpBattle.id)).filter(
+        or_(PvpBattle.player_a_id == user_id, PvpBattle.player_b_id == user_id),
+    ).scalar()
+
+
+def _resolve_thank_you_sent(user_id: int, db: Session) -> int:
+    """Thank You Cards sent."""
+    return db.query(func.count(ThankYouCard.id)).filter(
+        ThankYouCard.sender_id == user_id,
+    ).scalar()
+
+
+def _resolve_thank_you_received(user_id: int, db: Session) -> int:
+    """Thank You Cards received."""
+    return db.query(func.count(ThankYouCard.id)).filter(
+        ThankYouCard.recipient_id == user_id,
+    ).scalar()
+
+
+def _resolve_anonymous_praise_sent(user_id: int, db: Session) -> int:
+    """Anonymous praises written."""
+    return db.query(func.count(AnonymousPraise.id)).filter(
+        AnonymousPraise.sender_id == user_id,
+    ).scalar()
+
+
+def _resolve_anonymous_praise_received(user_id: int, db: Session) -> int:
+    """Anonymous praises received."""
+    return db.query(func.count(AnonymousPraise.id)).filter(
+        AnonymousPraise.recipient_id == user_id,
+    ).scalar()
+
+
+def _resolve_fortune_spins(user_id: int, db: Session) -> int:
+    """Total Fortune Wheel spins."""
+    return db.query(func.count(CoinLog.id)).filter(
+        CoinLog.user_id == user_id,
+        CoinLog.reason.ilike("%Magic Lottery%"),
+    ).scalar()
+
+
+def _resolve_badges_count(user_id: int, db: Session) -> int:
+    """Total badges earned."""
+    return db.query(func.count(UserBadge.id)).filter(
+        UserBadge.user_id == user_id,
+    ).scalar()
+
+
+def _resolve_gold_spent(user_id: int, db: Session) -> int:
+    """Total gold spent (sum of negative CoinLog amounts, returned as positive)."""
+    result = db.query(func.coalesce(func.sum(CoinLog.amount), 0)).filter(
+        CoinLog.user_id == user_id,
+        CoinLog.amount < 0,
+    ).scalar()
+    return abs(result)
+
+
+def _resolve_total_gold_earned(user_id: int, db: Session) -> int:
+    """Total gold earned (sum of positive CoinLog amounts)."""
+    return db.query(func.coalesce(func.sum(CoinLog.amount), 0)).filter(
+        CoinLog.user_id == user_id,
+        CoinLog.amount > 0,
+    ).scalar()
+
+
+def _resolve_days_employed(user_id: int, db: Session) -> int:
+    """Days since start_date."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.start_date:
+        return 0
+    today = (datetime.utcnow() + timedelta(hours=7)).date()
+    return max(0, (today - user.start_date).days)
+
+
 FIELD_RESOLVERS = {
     "checkin_streak": _resolve_checkin_streak,
     "total_steps": _resolve_total_steps,
@@ -197,6 +301,20 @@ FIELD_RESOLVERS = {
     # Rescue
     "rescue_given": _resolve_rescue_given,
     "rescue_received": _resolve_rescue_received,
+    # ── New fields ──
+    "total_checkins": _resolve_total_checkins,
+    "on_time_checkins": _resolve_on_time_checkins,
+    "pvp_wins": _resolve_pvp_wins,
+    "pvp_battles": _resolve_pvp_battles,
+    "thank_you_sent": _resolve_thank_you_sent,
+    "thank_you_received": _resolve_thank_you_received,
+    "anonymous_praise_sent": _resolve_anonymous_praise_sent,
+    "anonymous_praise_received": _resolve_anonymous_praise_received,
+    "fortune_spins": _resolve_fortune_spins,
+    "badges_count": _resolve_badges_count,
+    "gold_spent": _resolve_gold_spent,
+    "total_gold_earned": _resolve_total_gold_earned,
+    "days_employed": _resolve_days_employed,
 }
 
 # item_<id> fields are registered dynamically — see _ensure_item_fields()
@@ -242,6 +360,20 @@ FIELD_DESCRIPTIONS = {
     "total_redemptions":  {"label": "🛍 Total Redemptions", "desc": "Total items redeemed from shop",            "example": "total_redemptions >= 5"},
     "rescue_given":       {"label": "🆘 Rescue Given",     "desc": "Times contributed a Revival Prayer to help others", "example": "rescue_given >= 3"},
     "rescue_received":    {"label": "💖 Rescue Received",   "desc": "Times successfully revived by friends",          "example": "rescue_received >= 1"},
+    # ── New fields ──
+    "total_checkins":           {"label": "📋 Total Check-ins",        "desc": "Total number of check-ins",                         "example": "total_checkins >= 30"},
+    "on_time_checkins":         {"label": "⏰ On-time Check-ins",      "desc": "Number of on-time check-ins",                       "example": "on_time_checkins >= 20"},
+    "pvp_wins":                 {"label": "⚔️ PvP Wins",              "desc": "PvP battles won",                                   "example": "pvp_wins >= 5"},
+    "pvp_battles":              {"label": "🏟️ PvP Battles",           "desc": "Total PvP battles played",                          "example": "pvp_battles >= 10"},
+    "thank_you_sent":           {"label": "💌 Thank You Sent",         "desc": "Thank You Cards sent",                              "example": "thank_you_sent >= 4"},
+    "thank_you_received":       {"label": "💝 Thank You Received",     "desc": "Thank You Cards received",                          "example": "thank_you_received >= 5"},
+    "anonymous_praise_sent":    {"label": "🕵️ Praise Sent",           "desc": "Anonymous praises written",                         "example": "anonymous_praise_sent >= 3"},
+    "anonymous_praise_received":{"label": "🌟 Praise Received",        "desc": "Anonymous praises received",                        "example": "anonymous_praise_received >= 3"},
+    "fortune_spins":            {"label": "🎰 Fortune Spins",          "desc": "Fortune Wheel spins",                               "example": "fortune_spins >= 10"},
+    "badges_count":             {"label": "🏅 Badges Count",           "desc": "Total badges earned",                               "example": "badges_count >= 5"},
+    "gold_spent":               {"label": "💸 Gold Spent",             "desc": "Total gold spent (all time)",                       "example": "gold_spent >= 100"},
+    "total_gold_earned":        {"label": "💰 Gold Earned",            "desc": "Total gold earned (all time)",                      "example": "total_gold_earned >= 500"},
+    "days_employed":            {"label": "📅 Days Employed",           "desc": "Days since start date",                             "example": "days_employed >= 365"},
 }
 
 # Legacy labels (kept for backward compat)
@@ -250,7 +382,6 @@ CONDITION_LABELS = {
     "total_steps": "Walk X total steps",
     "mana_received": "Receive Mana X times",
     "mana_sent": "Send Mana X times",
-    "lottery_played": "Play Magic Lottery X times",
     "scroll_purchased": "Purchase Scrolls X times",
 }
 
@@ -373,35 +504,3 @@ def resolve_user_fields(user_id: int, query_str: str, db: Session) -> dict:
             values[field] = resolver(user_id, db)
     return values
 
-
-# ── Legacy support ────────────────────────────────────
-
-EVALUATORS = {
-    "checkin_streak": lambda uid, th, db: _resolve_checkin_streak(uid, db) >= th,
-    "total_steps": lambda uid, th, db: _resolve_total_steps(uid, db) >= th,
-    "mana_received": lambda uid, th, db: _resolve_mana_received(uid, db) >= th,
-    "mana_sent": lambda uid, th, db: _resolve_mana_sent(uid, db) >= th,
-    "lottery_played": lambda uid, th, db: _resolve_lottery_played(uid, db) >= th,
-    "scroll_purchased": lambda uid, th, db: _resolve_scroll_purchased(uid, db) >= th,
-}
-
-
-def evaluate_user(user_id: int, condition_type: str, threshold: int, db: Session) -> bool:
-    """Legacy: evaluate single condition type. Used by old-style quests."""
-    evaluator = EVALUATORS.get(condition_type)
-    if not evaluator:
-        logger.warning(f"Unknown condition type: {condition_type}")
-        return False
-    try:
-        return evaluator(user_id, threshold, db)
-    except Exception as e:
-        logger.error(f"Evaluator error for {condition_type} user={user_id}: {e}")
-        return False
-
-
-def get_user_progress(user_id: int, condition_type: str, db: Session) -> int:
-    """Legacy: get progress value for old-style condition type."""
-    resolver = FIELD_RESOLVERS.get(condition_type)
-    if resolver:
-        return resolver(user_id, db)
-    return 0

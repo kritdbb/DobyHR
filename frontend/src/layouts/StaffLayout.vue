@@ -18,7 +18,7 @@
         <div class="checkin-fab">
           <img src="/icons/daily_quest.png" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;" />
         </div>
-        <span class="nav-label" style="margin-top: 28px; color: #d4a44c;">Daily Quest</span>
+        <span class="nav-label" style="margin-top: 28px; color: #d4a44c;">Check-in</span>
       </router-link>
 
       <router-link to="/staff/services" class="nav-tab" active-class="nav-tab--active">

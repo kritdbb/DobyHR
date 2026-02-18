@@ -70,8 +70,8 @@
       <div class="demo-card-wrap">
         <div class="demo-card" :style="demoBgStyle">
           <div class="person-portrait">
-            <img v-if="demoArtifactImg" :src="demoArtifactImg" class="demo-artifact-ring-img" />
-            <div v-else-if="demoArtifact" class="demo-artifact-ring-css" :style="{ borderColor: demoArtifactColor, boxShadow: '0 0 18px ' + demoArtifactColor + '66' }"></div>
+            <img v-if="demoArtifactImg" :src="demoArtifactImg" class="demo-artifact-ring-img" :class="'effect-' + demoArtifactEffect" />
+            <div v-else-if="demoArtifact" class="demo-artifact-ring-css" :class="'effect-' + demoArtifactEffect" :style="{ borderColor: demoArtifactColor, boxShadow: '0 0 18px ' + demoArtifactColor + '66' }"></div>
             <img v-if="myImage" :src="myImage" class="person-img" />
             <div v-else class="person-placeholder">{{ (myName || '?').charAt(0) }}</div>
             <span class="person-role-tag" :class="myRole">{{ myRole }}</span>
@@ -135,19 +135,20 @@
       <div class="cosm-sub-header" style="margin-top:18px;">💎 Artifacts <span class="cosm-price">Tap to preview → Buy to equip</span></div>
       <div v-if="artifactCatalog.length" class="artifact-grid">
         <div v-for="a in artifactCatalog" :key="a.id"
-          class="artifact-card" :class="[a.rarity, { equipped: equippedArtifact === a.id, previewing: previewArtifact === a.id }]"
+          class="artifact-card" :class="[a.rarity, { equipped: equippedArtifact === String(a.id), previewing: previewArtifact === String(a.id) }]"
           :style="{ '--art-color': a.color }"
           @click="previewArtifactOnDemo(a)">
-          <div class="artifact-ring" :style="{ borderColor: a.color, boxShadow: '0 0 12px ' + a.color + '44' }">
-            <img v-if="hasArtifactImage(a.id)" :src="'/artifacts/' + a.id + '.png'" class="artifact-img" />
+          <div class="artifact-ring" :class="'effect-' + (a.effect || 'pulse')" :style="{ borderColor: a.color, boxShadow: '0 0 12px ' + a.color + '44' }">
+            <img v-if="a.image" :src="a.image" class="artifact-img" />
             <div v-else class="artifact-inner" :style="{ background: 'radial-gradient(circle, ' + a.color + '33, transparent)' }"></div>
           </div>
           <div class="artifact-name">{{ a.name }}</div>
           <div class="artifact-rarity">{{ a.rarity }}</div>
-          <div v-if="equippedArtifact === a.id" class="artifact-equipped-badge">✦ Equipped</div>
+          <div class="artifact-effect-tag">{{ {pulse:'💫 Pulse',spin:'🔄 Spin',glow:'🌟 Glow',bounce:'⬆️ Bounce',shake:'💥 Shake',rainbow:'🌈 Rainbow'}[a.effect] || '💫 Pulse' }}</div>
+          <div v-if="equippedArtifact === String(a.id)" class="artifact-equipped-badge">✦ Equipped</div>
           <button v-else class="artifact-buy-btn" :disabled="buyingCosmetic || myMana < a.price"
             @click.stop="confirmBuyArtifact(a)">
-            {{ buyingCosmetic === a.id ? 'Equipping...' : '✨ ' + a.price + ' Mana' }}
+            {{ buyingCosmetic === String(a.id) ? 'Equipping...' : '✨ ' + a.price + ' Mana' }}
           </button>
         </div>
       </div>
@@ -277,11 +278,16 @@ export default {
       return this.previewArtifact || this.equippedArtifact || null
     },
     demoArtifactColor() {
-      return this.getArtifactColorById(this.demoArtifact)
+      const a = this.artifactCatalog.find(x => String(x.id) === this.demoArtifact)
+      return a ? a.color : '#d4a44c'
     },
     demoArtifactImg() {
-      if (!this.demoArtifact || !this.hasArtifactImage(this.demoArtifact)) return null
-      return '/artifacts/' + this.demoArtifact + '.png'
+      const a = this.artifactCatalog.find(x => String(x.id) === this.demoArtifact)
+      return a ? a.image : null
+    },
+    demoArtifactEffect() {
+      const a = this.artifactCatalog.find(x => String(x.id) === this.demoArtifact)
+      return a ? (a.effect || 'pulse') : 'pulse'
     },
   },
   mounted() {
@@ -520,32 +526,17 @@ export default {
       } catch (e) { console.error('Failed to load artifact catalog', e) }
     },
 
-    hasArtifactImage(id) {
-      const AVAILABLE = ['artifact_01','artifact_02','artifact_03','artifact_04','artifact_05','artifact_06','artifact_07','artifact_08','artifact_09','artifact_10','artifact_11','artifact_12','artifact_13','artifact_14','artifact_15','artifact_16','artifact_17','artifact_18','artifact_19','artifact_20']
-      return AVAILABLE.includes(id)
-    },
-
-    getArtifactColorById(id) {
-      const COLORS = {
-        artifact_01: '#ffd700', artifact_02: '#a8d8ea', artifact_03: '#2ecc71', artifact_04: '#e74c3c',
-        artifact_05: '#3498db', artifact_06: '#9b59b6', artifact_07: '#cd7f32', artifact_08: '#00a86b',
-        artifact_09: '#2c3e50', artifact_10: '#f39c12', artifact_11: '#e67e22', artifact_12: '#f1c40f',
-        artifact_13: '#bdc3c7', artifact_14: '#c0392b', artifact_15: '#1abc9c', artifact_16: '#8e44ad',
-        artifact_17: '#d4a44c', artifact_18: '#ecf0f1', artifact_19: '#7b241c', artifact_20: '#ff6b6b',
-      }
-      return COLORS[id] || '#d4a44c'
-    },
-
     previewArtifactOnDemo(a) {
-      this.previewArtifact = (this.previewArtifact === a.id) ? null : a.id
+      const sid = String(a.id)
+      this.previewArtifact = (this.previewArtifact === sid) ? null : sid
     },
 
     confirmBuyArtifact(a) {
-      this.previewArtifact = a.id
+      this.previewArtifact = String(a.id)
       this.confirmPopup = {
         icon: '💎',
         title: `Equip ${a.name}?`,
-        desc: `${a.rarity} artifact`,
+        desc: `${a.rarity} artifact (${a.effect === 'spin' ? '🔄 Spin' : '💫 Pulse'})`,
         costLabel: `✨ ${a.price} Mana`,
         okText: 'Equip',
         action: () => { this.confirmPopup = null; this.buyArtifact(a) },
@@ -553,9 +544,9 @@ export default {
     },
     async buyArtifact(artifact) {
       if (this.buyingCosmetic) return
-      this.buyingCosmetic = artifact.id
+      this.buyingCosmetic = String(artifact.id)
       try {
-        const { data } = await buyMagicItem('circle_artifact', { artifact_id: artifact.id })
+        const { data } = await buyMagicItem('circle_artifact', { artifact_id: String(artifact.id) })
         this.myMana = data.angel_coins
         this.equippedArtifact = data.artifact_id
         this.previewArtifact = null
@@ -971,7 +962,12 @@ export default {
 }
 
 /* Demo card reuses Town People classes */
-.demo-card .person-portrait { position: relative; margin-bottom: 10px; }
+.demo-card .person-portrait {
+  position: relative; margin-bottom: 10px;
+  width: 90px; height: 90px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: visible;
+}
 .demo-card .person-img {
   width: 56px; height: 56px; border-radius: 50%;
   object-fit: cover; border: 2px solid rgba(212,164,76,0.3);
@@ -1013,18 +1009,61 @@ export default {
   width: 90px; height: 90px; border-radius: 50%;
   object-fit: cover; pointer-events: none; overflow: hidden;
   aspect-ratio: 1 / 1;
-  animation: artifactGlow 3s ease-in-out infinite;
 }
 .demo-artifact-ring-css {
   position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   width: 90px; height: 90px; border-radius: 50%;
   border: 3px solid; pointer-events: none; overflow: hidden;
-  animation: artifactGlow 3s ease-in-out infinite;
 }
-@keyframes artifactGlow {
+.demo-artifact-ring-img.effect-pulse,
+.demo-artifact-ring-css.effect-pulse {
+  animation: demoArtifactPulse 3s ease-in-out infinite;
+}
+.demo-artifact-ring-img.effect-spin,
+.demo-artifact-ring-css.effect-spin {
+  animation: demoArtifactSpin 6s linear infinite;
+}
+.demo-artifact-ring-img.effect-glow,
+.demo-artifact-ring-css.effect-glow {
+  animation: demoArtifactGlow 2s ease-in-out infinite;
+}
+.demo-artifact-ring-img.effect-bounce,
+.demo-artifact-ring-css.effect-bounce {
+  animation: demoArtifactBounce 2s ease-in-out infinite;
+}
+.demo-artifact-ring-img.effect-shake,
+.demo-artifact-ring-css.effect-shake {
+  animation: demoArtifactShake 0.6s ease-in-out infinite;
+}
+.demo-artifact-ring-img.effect-rainbow,
+.demo-artifact-ring-css.effect-rainbow {
+  animation: demoArtifactRainbow 4s linear infinite;
+}
+@keyframes demoArtifactPulse {
   0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
   50% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+}
+@keyframes demoArtifactSpin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes demoArtifactGlow {
+  0%, 100% { opacity: 0.7; transform: translate(-50%, -50%); filter: brightness(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%); filter: brightness(1.4) drop-shadow(0 0 16px currentColor); }
+}
+@keyframes demoArtifactBounce {
+  0%, 100% { transform: translate(-50%, -50%); }
+  50% { transform: translate(-50%, calc(-50% - 8px)); }
+}
+@keyframes demoArtifactShake {
+  0%, 100% { transform: translate(-50%, -50%); }
+  25% { transform: translate(calc(-50% - 3px), -50%) rotate(-2deg); }
+  75% { transform: translate(calc(-50% + 3px), -50%) rotate(2deg); }
+}
+@keyframes demoArtifactRainbow {
+  from { transform: translate(-50%, -50%); filter: hue-rotate(0deg); }
+  to { transform: translate(-50%, -50%); filter: hue-rotate(360deg); }
 }
 
 /* ── Cosmetics Section ── */
@@ -1097,14 +1136,44 @@ export default {
   width: 84px; height: 84px; border-radius: 50%;
   border: 3px solid; display: flex; align-items: center; justify-content: center;
   margin-bottom: 8px; position: relative; overflow: hidden;
-  animation: artifactPulse 3s ease-in-out infinite;
 }
+.artifact-ring.effect-pulse { animation: artifactPulse 3s ease-in-out infinite; }
+.artifact-ring.effect-spin { animation: artifactSpin 6s linear infinite; }
+.artifact-ring.effect-glow { animation: artifactGlow 2s ease-in-out infinite; }
+.artifact-ring.effect-bounce { animation: artifactBounce 2s ease-in-out infinite; }
+.artifact-ring.effect-shake { animation: artifactShake 0.6s ease-in-out infinite; }
+.artifact-ring.effect-rainbow { animation: artifactRainbow 4s linear infinite; }
 @keyframes artifactPulse {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.04); }
+  50% { transform: scale(1.06); }
+}
+@keyframes artifactSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes artifactGlow {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 4px currentColor); }
+  50% { filter: brightness(1.4) drop-shadow(0 0 16px currentColor); }
+}
+@keyframes artifactBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes artifactShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px) rotate(-2deg); }
+  75% { transform: translateX(3px) rotate(2deg); }
+}
+@keyframes artifactRainbow {
+  from { filter: hue-rotate(0deg); }
+  to { filter: hue-rotate(360deg); }
 }
 .artifact-inner { width: 50px; height: 50px; border-radius: 50%; }
 .artifact-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; aspect-ratio: 1 / 1; }
+.artifact-effect-tag {
+  font-size: 9px; font-weight: 700; color: #8b7355;
+  margin-bottom: 4px;
+}
 .artifact-name {
   font-family: 'Cinzel', serif;
   font-size: 10px; font-weight: 700; color: #e8d5b7;

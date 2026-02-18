@@ -205,6 +205,10 @@ export const getRecentBadgeAwards = (limit = 50) => api.get(`/api/badges/awards/
 export const getTownPeople = () => api.get('/api/badges/town-people')
 export const buyMagicItem = (itemType, params = {}) => api.post(`/api/badges/magic-shop/buy?item_type=${itemType}${params.status_text ? '&status_text=' + encodeURIComponent(params.status_text) : ''}${params.artifact_id ? '&artifact_id=' + encodeURIComponent(params.artifact_id) : ''}`)
 export const getArtifactCatalog = () => api.get('/api/badges/artifacts/catalog')
+export const adminListArtifacts = () => api.get('/api/badges/artifacts/admin/list')
+export const adminCreateArtifact = (formData) => api.post('/api/badges/artifacts/admin/create', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+export const adminUpdateArtifact = (id, formData) => api.put(`/api/badges/artifacts/admin/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+export const adminDeleteArtifact = (id) => api.delete(`/api/badges/artifacts/admin/${id}`)
 export const uploadMagicBackground = (formData) => api.post('/api/users/me/background', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 
 // --- Fitbit ---
@@ -246,5 +250,9 @@ export const getThankYouStatus = () => api.get('/api/social/thank-you/status')
 export const sendAnonymousPraise = (data) => api.post('/api/social/anonymous-praise', data)
 export const getAnonymousPraiseStatus = () => api.get('/api/social/anonymous-praise/status')
 export const getManOfTheMonth = () => api.get('/api/social/man-of-the-month')
+
+// --- PVP Arena ---
+export const getTodayBattles = () => api.get('/api/pvp/today')
+export const getBattle = (id) => api.get(`/api/pvp/battle/${id}`)
 
 export default api
