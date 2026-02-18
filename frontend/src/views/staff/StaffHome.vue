@@ -10,7 +10,7 @@
       <div class="cs-profile-row">
         <div class="cs-portrait">
           <div class="cs-portrait-glow"></div>
-          <img v-if="userArtifact" :src="'/artifacts/' + userArtifact + '.png'" class="cs-artifact-ring-img" />
+          <img v-if="artifactImage" :src="artifactImage" class="cs-artifact-ring-img" />
           <div class="cs-portrait-ring">
             <img v-if="userImage" :src="userImage" class="cs-portrait-img" />
             <div v-else class="cs-portrait-ph">{{ userName.charAt(0) || '?' }}</div>
@@ -686,6 +686,7 @@ import api, {
   getPendingWorkRequests, approveWorkRequest, rejectWorkRequest,
   getMyBadges, getRecentBadgeAwards, getMyStats,
   getFitbitStatus, syncFitbitSteps, getStepGoals,
+  getArtifactCatalog,
 } from '../../services/api'
 
 export default {
@@ -699,6 +700,7 @@ export default {
       userStatus: '',
       userArtifact: '',
       userBackground: '',
+      artifactCatalog: [],
       pendingLeaves: [],
       pendingRedemptions: [],
       pendingWorkRequests: [],
@@ -743,6 +745,7 @@ export default {
       this.userBackground = u.magic_background || ''
     }
     await this.loadData()
+    this.loadArtifactCatalog()  // fire-and-forget
     this.loadFitbit()  // fire-and-forget, won't block page
   },
   methods: {
@@ -844,6 +847,12 @@ export default {
         this.recentAwards = []
       }
     },
+    async loadArtifactCatalog() {
+      try {
+        const { data } = await getArtifactCatalog()
+        this.artifactCatalog = data
+      } catch (e) { /* silent */ }
+    },
     async loadFitbit() {
       try {
         const { data } = await getFitbitStatus()
@@ -930,6 +939,11 @@ export default {
         backgroundImage: `linear-gradient(rgba(17,10,30,0.65), rgba(17,10,30,0.8)), url(${apiBase + this.userBackground})`,
         backgroundSize: 'cover', backgroundPosition: 'center',
       }
+    },
+    artifactImage() {
+      if (!this.userArtifact || !this.artifactCatalog.length) return null
+      const a = this.artifactCatalog.find(x => String(x.id) === String(this.userArtifact))
+      return a ? a.image : null
     },
     dailyMaxTarget() {
       const d2 = this.stepGoals.daily2_goal

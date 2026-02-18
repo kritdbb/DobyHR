@@ -28,8 +28,8 @@ class ExpenseRequest(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    expense_type = Column(SAEnum(ExpenseType), nullable=False)
-    status = Column(SAEnum(ExpenseStatus), default=ExpenseStatus.PENDING)
+    expense_type = Column(SAEnum(ExpenseType, values_callable=lambda x: [e.value for e in x]), nullable=False)
+    status = Column(SAEnum(ExpenseStatus, values_callable=lambda x: [e.value for e in x]), default=ExpenseStatus.PENDING)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # --- General Expense fields ---
@@ -40,7 +40,7 @@ class ExpenseRequest(Base):
 
     # --- Travel Expense fields ---
     travel_date = Column(Date, nullable=True)
-    vehicle_type = Column(SAEnum(VehicleType), nullable=True)
+    vehicle_type = Column(SAEnum(VehicleType, values_callable=lambda x: [e.value for e in x]), nullable=True)
     km_outbound = Column(Float, default=0)
     km_return = Column(Float, default=0)
     travel_cost = Column(Float, default=0)  # auto-calculated

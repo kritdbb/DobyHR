@@ -424,20 +424,21 @@ export default {
 /* Portrait */
 .person-portrait {
   position: relative; margin-bottom: 10px;
-  width: 74px; height: 74px;
+  width: 82px; height: 82px;
   display: flex; align-items: center; justify-content: center;
+  overflow: visible;
 }
 .person-artifact-ring {
   position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 74px; height: 74px; border-radius: 50%;
+  width: 82px; height: 82px; border-radius: 50%;
   border: 3px solid; pointer-events: none; overflow: hidden;
   z-index: 0;
 }
 .person-artifact-ring-img {
   position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 74px; height: 74px; border-radius: 50%;
+  width: 82px; height: 82px; border-radius: 50%;
   object-fit: cover; pointer-events: none; overflow: hidden;
   aspect-ratio: 1 / 1; z-index: 0;
 }
