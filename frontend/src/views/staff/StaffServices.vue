@@ -58,6 +58,14 @@
         <span class="service-desc">Spend Gold on magic</span>
       </router-link>
 
+      <router-link to="/staff/badge-shop" class="service-card">
+        <div class="icon-wrap">
+          <img src="/icons/badge_shop.png" class="service-icon-img" />
+        </div>
+        <span class="service-label">Badge Shop</span>
+        <span class="service-desc">Collect badges</span>
+      </router-link>
+
       <!-- Row 4: Character | Step Counter -->
       <router-link to="/staff/profile" class="service-card">
         <div class="icon-wrap">

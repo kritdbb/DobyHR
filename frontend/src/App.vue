@@ -59,6 +59,10 @@
                         <span class="mr-3 text-lg">🎯</span>
                         <span class="font-semibold">Badge Quest</span>
                     </router-link>
+                    <router-link v-if="userRole === 'god'" to="/badge-shop-admin" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
+                        <span class="mr-3 text-lg">🏪</span>
+                        <span class="font-semibold">Badge Shop</span>
+                    </router-link>
 
                     <div class="nav-divider"></div>
 

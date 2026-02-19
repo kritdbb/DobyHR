@@ -111,6 +111,12 @@ const routes = [
         meta: { requiresAuth: true, role: 'gm' }
     },
     {
+        path: '/badge-shop-admin',
+        name: 'BadgeShopAdmin',
+        component: () => import('../views/admin/BadgeShopAdmin.vue'),
+        meta: { requiresAuth: true, role: 'gm' }
+    },
+    {
         path: '/fortune-wheel',
         name: 'FortuneWheel',
         component: () => import('../views/admin/FortuneWheel.vue'),
@@ -185,6 +191,10 @@ const routes = [
             {
                 path: 'arena/:id',
                 component: () => import('../views/staff/ArenaBattle.vue')
+            },
+            {
+                path: 'badge-shop',
+                component: () => import('../views/staff/BadgeShop.vue')
             },
         ]
     },

@@ -251,6 +251,15 @@ export const sendAnonymousPraise = (data) => api.post('/api/social/anonymous-pra
 export const getAnonymousPraiseStatus = () => api.get('/api/social/anonymous-praise/status')
 export const getManOfTheMonth = () => api.get('/api/social/man-of-the-month')
 
+// --- Badge Shop ---
+export const getBadgeShopCatalog = () => api.get('/api/badge-shop/catalog')
+export const buyBadgeShopItem = (itemId) => api.post(`/api/badge-shop/buy/${itemId}`)
+export const getMyBadgeShopPurchases = () => api.get('/api/badge-shop/my-purchases')
+export const adminGetBadgeShopItems = () => api.get('/api/badge-shop/admin/items')
+export const adminCreateBadgeShopItem = (data) => api.post('/api/badge-shop/admin/items', data)
+export const adminUpdateBadgeShopItem = (id, data) => api.put(`/api/badge-shop/admin/items/${id}`, data)
+export const adminDeleteBadgeShopItem = (id) => api.delete(`/api/badge-shop/admin/items/${id}`)
+
 // --- PVP Arena ---
 export const getTodayBattles = () => api.get('/api/pvp/today')
 export const getBattle = (id) => api.get(`/api/pvp/battle/${id}`)
