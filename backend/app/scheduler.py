@@ -640,40 +640,53 @@ def _simulate_battle(a_str, a_def, a_luk, b_str, b_def, b_luk):
 
 def pvp_resolve_battles():
     """
-    Interval job (every 60s): resolve battles whose scheduled_time is
-    within 5 minutes from now. Applies winner/loser rewards from battle columns.
+    Interval job (every 60s): resolve battles whose scheduled_time has
+    passed. scheduled_time is stored as naive Bangkok time (UTC+7) in the DB.
+    Rewards/penalties are applied only when the scheduled time arrives.
+    Stats are snapshotted at fight time (now) for accuracy.
     """
-    from datetime import timezone
-    TZ7 = timezone(timedelta(hours=7))
-    now = datetime.now(TZ7)
-    cutoff = now + timedelta(minutes=5)
+    now_bkk = datetime.utcnow() + timedelta(hours=7)
 
     db = SessionLocal()
     try:
         battles = db.query(PvpBattle).filter(
             PvpBattle.status == "scheduled",
             PvpBattle.scheduled_time != None,
-            PvpBattle.scheduled_time <= cutoff.replace(tzinfo=None),
+            PvpBattle.scheduled_time <= now_bkk,
         ).all()
 
         if not battles:
             return
 
         for b in battles:
+            # ── Snapshot stats at FIGHT TIME (now), not creation time ──
+            pa = db.query(User).filter(User.id == b.player_a_id).first()
+            pb = db.query(User).filter(User.id == b.player_b_id).first()
+            if not pa or not pb:
+                continue
+
+            a_str, a_def, a_luk = _get_user_total_stats(pa, db)
+            b_str, b_def, b_luk = _get_user_total_stats(pb, db)
+
+            # Update the snapshot in DB so replay shows fight-time stats
+            b.a_str, b.a_def, b.a_luk = a_str, a_def, a_luk
+            b.b_str, b.b_def, b.b_luk = b_str, b_def, b_luk
+
+            # Snapshot coins/mana at fight time for display
+            b.a_coins = pa.coins or 0
+            b.a_angel_coins = pa.angel_coins or 0
+            b.b_coins = pb.coins or 0
+            b.b_angel_coins = pb.angel_coins or 0
+
             winner_side, battle_log = _simulate_battle(
-                b.a_str, b.a_def, b.a_luk,
-                b.b_str, b.b_def, b.b_luk,
+                a_str, a_def, a_luk,
+                b_str, b_def, b_luk,
             )
 
             if winner_side == "A":
-                winner = db.query(User).filter(User.id == b.player_a_id).first()
-                loser = db.query(User).filter(User.id == b.player_b_id).first()
+                winner, loser = pa, pb
             else:
-                winner = db.query(User).filter(User.id == b.player_b_id).first()
-                loser = db.query(User).filter(User.id == b.player_a_id).first()
-
-            if not winner or not loser:
-                continue
+                winner, loser = pb, pa
 
             # ── Apply winner rewards ──
             winner.coins = (winner.coins or 0) + (b.winner_gold or 0)

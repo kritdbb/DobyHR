@@ -175,7 +175,7 @@ export default {
           matches: valid.map(m => ({
             player_a_id: m.player_a_id,
             player_b_id: m.player_b_id,
-            scheduled_time: new Date(m.scheduled_time).toISOString(),
+            scheduled_time: m.scheduled_time,
           })),
           ...this.rewards,
         }
@@ -201,8 +201,10 @@ export default {
     },
     formatTime(iso) {
       if (!iso) return '—'
-      const d = new Date(iso)
-      return d.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
+      // scheduled_time is stored as naive Bangkok time (UTC+7)
+      const isoWithTz = iso.includes('+') || iso.includes('Z') ? iso : iso + '+07:00'
+      const d = new Date(isoWithTz)
+      return d.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Bangkok' })
     },
   },
 }

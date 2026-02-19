@@ -17,8 +17,8 @@
           :style="bgStyle(battle.player_a)">
           <!-- Player A card -->
           <div class="person-portrait">
-            <img v-if="battle.player_a.circle_artifact && hasArtifactImage(battle.player_a.circle_artifact)"
-              :src="'/artifacts/' + battle.player_a.circle_artifact + '.png'" class="person-artifact-ring-img" />
+            <img v-if="getArtifactImage(battle.player_a.circle_artifact)"
+              :src="getArtifactImage(battle.player_a.circle_artifact)" class="person-artifact-ring-img" />
             <div v-else-if="battle.player_a.circle_artifact" class="person-artifact-ring"
               :style="{ borderColor: getArtifactColor(battle.player_a.circle_artifact), boxShadow: '0 0 14px ' + getArtifactColor(battle.player_a.circle_artifact) + '66' }"></div>
             <img v-if="battle.player_a.image" :src="battle.player_a.image" class="person-img" />
@@ -49,8 +49,8 @@
           :style="bgStyle(battle.player_b)">
           <!-- Player B card -->
           <div class="person-portrait">
-            <img v-if="battle.player_b.circle_artifact && hasArtifactImage(battle.player_b.circle_artifact)"
-              :src="'/artifacts/' + battle.player_b.circle_artifact + '.png'" class="person-artifact-ring-img" />
+            <img v-if="getArtifactImage(battle.player_b.circle_artifact)"
+              :src="getArtifactImage(battle.player_b.circle_artifact)" class="person-artifact-ring-img" />
             <div v-else-if="battle.player_b.circle_artifact" class="person-artifact-ring"
               :style="{ borderColor: getArtifactColor(battle.player_b.circle_artifact), boxShadow: '0 0 14px ' + getArtifactColor(battle.player_b.circle_artifact) + '66' }"></div>
             <img v-if="battle.player_b.image" :src="battle.player_b.image" class="person-img" />
@@ -77,7 +77,7 @@
       </div>
       <div class="waiting-msg">
         <span class="waiting-icon">⏰</span>
-        <span>Battle Time: <strong>12:00</strong></span>
+        <span>Battle Time: <strong>{{ formatScheduledTime(battle.scheduled_time) }}</strong></span>
       </div>
     </div>
 
@@ -93,8 +93,8 @@
           <div class="fx-container" :id="'fxA'"></div>
           <!-- Player A card -->
           <div class="person-portrait">
-            <img v-if="battle.player_a.circle_artifact && hasArtifactImage(battle.player_a.circle_artifact)"
-              :src="'/artifacts/' + battle.player_a.circle_artifact + '.png'" class="person-artifact-ring-img" />
+            <img v-if="getArtifactImage(battle.player_a.circle_artifact)"
+              :src="getArtifactImage(battle.player_a.circle_artifact)" class="person-artifact-ring-img" />
             <div v-else-if="battle.player_a.circle_artifact" class="person-artifact-ring"
               :style="{ borderColor: getArtifactColor(battle.player_a.circle_artifact), boxShadow: '0 0 14px ' + getArtifactColor(battle.player_a.circle_artifact) + '66' }"></div>
             <img v-if="battle.player_a.image" :src="battle.player_a.image" class="person-img" />
@@ -140,8 +140,8 @@
           <div class="fx-container" :id="'fxB'"></div>
           <!-- Player B card -->
           <div class="person-portrait">
-            <img v-if="battle.player_b.circle_artifact && hasArtifactImage(battle.player_b.circle_artifact)"
-              :src="'/artifacts/' + battle.player_b.circle_artifact + '.png'" class="person-artifact-ring-img" />
+            <img v-if="getArtifactImage(battle.player_b.circle_artifact)"
+              :src="getArtifactImage(battle.player_b.circle_artifact)" class="person-artifact-ring-img" />
             <div v-else-if="battle.player_b.circle_artifact" class="person-artifact-ring"
               :style="{ borderColor: getArtifactColor(battle.player_b.circle_artifact), boxShadow: '0 0 14px ' + getArtifactColor(battle.player_b.circle_artifact) + '66' }"></div>
             <img v-if="battle.player_b.image" :src="battle.player_b.image" class="person-img" />
@@ -216,7 +216,7 @@
 </template>
 
 <script>
-import api from '../../services/api'
+import api, { getArtifactCatalog } from '../../services/api'
 
 const ARTIFACT_COLORS = {
   artifact_01: '#ffd700', artifact_02: '#a8d8ea', artifact_03: '#2ecc71', artifact_04: '#e74c3c',
@@ -244,6 +244,7 @@ export default {
       winnerName: '',
       loserName: '',
       apiBase: import.meta.env.VITE_API_URL || '',
+      artifactCatalog: [],
       // Battle sounds
       sounds: {
         strike: new Audio('/sound/strike.mp3'),
@@ -256,8 +257,12 @@ export default {
   },
   async mounted() {
     try {
-      const res = await api.get(`/api/pvp/battle/${this.$route.params.id}`)
+      const [res, catRes] = await Promise.all([
+        api.get(`/api/pvp/battle/${this.$route.params.id}`),
+        getArtifactCatalog().catch(() => ({ data: [] })),
+      ])
       this.battle = res.data
+      this.artifactCatalog = catRes.data || []
       if (this.battle && this.battle.player_a && this.battle.player_a.str !== undefined) {
         this.hpAMax = this.calcHP(this.battle.player_a.str, this.battle.player_a.def, this.battle.player_a.luk)
         this.hpBMax = this.calcHP(this.battle.player_b.str, this.battle.player_b.def, this.battle.player_b.luk)
@@ -284,6 +289,19 @@ export default {
     },
     hasArtifactImage(id) { return ARTIFACT_IDS.includes(id) },
     getArtifactColor(id) { return ARTIFACT_COLORS[id] || '#d4a44c' },
+    getArtifactImage(artifactId) {
+      if (!artifactId || !this.artifactCatalog.length) return null
+      const a = this.artifactCatalog.find(x => String(x.id) === String(artifactId))
+      return a ? a.image : null
+    },
+    formatScheduledTime(iso) {
+      if (!iso) return '??:??'
+      // scheduled_time is stored as naive Bangkok time (UTC+7),
+      // append timezone offset so Date parses it correctly
+      const isoWithTz = iso.includes('+') || iso.includes('Z') ? iso : iso + '+07:00'
+      const d = new Date(isoWithTz)
+      return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' })
+    },
 
     addCenterLog(html, cls = '') {
       this.logEntries.push({ type: 'center', html, cls })

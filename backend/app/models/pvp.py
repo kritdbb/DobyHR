@@ -21,6 +21,12 @@ class PvpBattle(Base):
     b_def = Column(Integer, default=0)
     b_luk = Column(Integer, default=0)
 
+    # Snapshot coins/mana at fight time for display
+    a_coins = Column(Integer, default=0)
+    a_angel_coins = Column(Integer, default=0)
+    b_coins = Column(Integer, default=0)
+    b_angel_coins = Column(Integer, default=0)
+
     # Winner rewards
     winner_gold = Column(Integer, default=0)
     winner_mana = Column(Integer, default=0)

@@ -77,8 +77,8 @@ def _get_user_total_stats(user, db):
 @router.get("/today")
 def get_today_battles(db: Session = Depends(get_db), current_user=Depends(deps.get_current_user)):
     """Get today's PVP battles with full fighter profiles."""
-    now = datetime.now(TZ7)
-    today = now.date()
+    now_bkk = datetime.utcnow() + timedelta(hours=7)
+    today = now_bkk.date()
 
     battles = db.query(PvpBattle).filter(PvpBattle.battle_date == today).all()
 
@@ -90,9 +90,9 @@ def get_today_battles(db: Session = Depends(get_db), current_user=Depends(deps.g
             continue
 
         is_resolved = b.status == "resolved"
-        # Only show result after scheduled time
+        # Only show result after scheduled time (stored as naive UTC)
         if b.scheduled_time:
-            is_resolved = is_resolved and now >= b.scheduled_time.replace(tzinfo=TZ7)
+            is_resolved = is_resolved and now_bkk >= b.scheduled_time
 
         result.append({
             "id": b.id,
@@ -124,10 +124,11 @@ def get_battle(battle_id: int, db: Session = Depends(get_db), current_user=Depen
     if not b:
         return {"error": "Battle not found"}
 
-    now = datetime.now(TZ7)
+    now_bkk = datetime.utcnow() + timedelta(hours=7)
     is_resolved = b.status == "resolved"
+    # Only show result after scheduled time (stored as naive Bangkok time)
     if b.scheduled_time:
-        is_resolved = is_resolved and now >= b.scheduled_time.replace(tzinfo=TZ7)
+        is_resolved = is_resolved and now_bkk >= b.scheduled_time
 
     pa = db.query(User).filter(User.id == b.player_a_id).first()
     pb = db.query(User).filter(User.id == b.player_b_id).first()
@@ -137,6 +138,13 @@ def get_battle(battle_id: int, db: Session = Depends(get_db), current_user=Depen
     # Inject battle stats into profile
     pa_profile.update({"str": b.a_str, "def": b.a_def, "luk": b.a_luk})
     pb_profile.update({"str": b.b_str, "def": b.b_def, "luk": b.b_luk})
+
+    # For resolved battles, use fight-time snapshot coins/mana instead of live data
+    if is_resolved:
+        pa_profile["coins"] = b.a_coins if b.a_coins is not None else pa_profile["coins"]
+        pa_profile["angel_coins"] = b.a_angel_coins if b.a_angel_coins is not None else pa_profile["angel_coins"]
+        pb_profile["coins"] = b.b_coins if b.b_coins is not None else pb_profile["coins"]
+        pb_profile["angel_coins"] = b.b_angel_coins if b.b_angel_coins is not None else pb_profile["angel_coins"]
 
     result = {
         "id": b.id,
