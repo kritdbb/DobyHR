@@ -195,8 +195,8 @@
 
       <div class="arena-controls" v-if="battleDone">
         <div class="reward-info">
-          <span class="reward-winner">🏆 {{ winnerName }} ได้รับ +{{ (battle.gold_stolen||0)+5 }} Gold</span>
-          <span class="reward-loser">{{ loserName }} เสีย {{ battle.gold_stolen||0 }} Gold</span>
+          <span class="reward-winner">🏆 {{ winnerName }} ได้รับ +{{ battle.winner_gold||0 }} Gold</span>
+          <span class="reward-loser">{{ loserName }} เสีย {{ battle.loser_gold||0 }} Gold</span>
         </div>
       </div>
 
