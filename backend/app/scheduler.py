@@ -563,7 +563,7 @@ def _simulate_battle(a_str, a_def, a_luk, b_str, b_def, b_luk):
     import math
 
     def calc_hp(s, d, l):
-        return s * 2 + d * 2 + l * 5 + 50
+        return s * 2 + d * 4 + l * 2 + 50
 
     def calc_dmg(atk_str, def_def):
         return max(1, atk_str * (1 - def_def / (def_def + 20)))
@@ -576,6 +576,15 @@ def _simulate_battle(a_str, a_def, a_luk, b_str, b_def, b_luk):
 
     def lucky_chance(luk):
         return luk / (luk + 50)
+
+    def block_chance(def_stat):
+        """DEF-based block: reduces incoming damage by 50%."""
+        return def_stat / (def_stat + 35)
+
+    def luk_weighted_random(luk):
+        """LUK-weighted random: higher LUK = higher minimum roll."""
+        luk_ratio = luk / (luk + 20)
+        return random.random() * (1 - luk_ratio) + luk_ratio
 
     a_hp = calc_hp(a_str, a_def, a_luk)
     b_hp = calc_hp(b_str, b_def, b_luk)
@@ -605,13 +614,18 @@ def _simulate_battle(a_str, a_def, a_luk, b_str, b_def, b_luk):
                 ev["dmg"] = 0
                 ev["dodge"] = True
             else:
-                base = calc_dmg(atk["str"], dfd["def"]) + random.random() * max(1, atk["str"] / 3)
+                base = calc_dmg(atk["str"], dfd["def"]) + luk_weighted_random(atk["luk"]) * max(1, atk["str"] / 3)
                 ev["crit"] = random.random() < crit_chance(atk["luk"])
-                ev["lucky"] = random.random() < lucky_chance(atk["luk"])
                 if ev.get("crit"):
                     base *= 2.5
-                if ev.get("lucky"):
-                    base *= 2
+                else:
+                    ev["lucky"] = random.random() < lucky_chance(atk["luk"])
+                    if ev.get("lucky"):
+                        base *= 2
+                # Block check: DEF-based, halves damage
+                if random.random() < block_chance(dfd["def"]):
+                    base *= 0.5
+                    ev["block"] = True
                 ev["dmg"] = max(1, int(base))
 
             # Apply damage

@@ -276,7 +276,7 @@ export default {
     }
   },
   methods: {
-    calcHP(s, d, l) { return s * 2 + d * 2 + l * 5 + 50 },
+    calcHP(s, d, l) { return s * 2 + d * 4 + l * 2 + 50 },
     sleep(ms) { return new Promise(r => setTimeout(r, ms)) },
 
     bgStyle(player) {
@@ -487,11 +487,12 @@ export default {
             let tags = ''
             if (ev.crit) tags += ' <span class="log-tag tag-crit">🎯 CRIT</span>'
             if (ev.lucky) tags += ' <span class="log-tag tag-lucky">🍀 x2</span>'
+            if (ev.block) tags += ' <span class="log-tag tag-block">🛡️ BLOCK</span>'
 
             atkHtml = `<span class="log-icon">⚔️</span><span class="log-dmg${ev.crit ? ' crit' : ''}">${ev.dmg}</span>${tags}`
-            defHtml = `<span class="log-hp-loss">HP ▼ ${ev.dmg}</span>`
+            defHtml = `<span class="log-hp-loss">HP ▼ ${ev.dmg}</span>${ev.block ? ' <span class="log-tag tag-block">🛡️</span>' : ''}`
             atkCls = ev.crit ? 'atk-cell crit-cell' : (ev.lucky ? 'atk-cell lucky-cell' : 'atk-cell')
-            defCls = 'hp-cell'
+            defCls = ev.block ? 'hp-cell block-cell' : 'hp-cell'
 
             // Visual FX
             if (ev.crit) {
@@ -504,9 +505,13 @@ export default {
               setTimeout(() => this.spawnFloatingText(defFx, 'CRITICAL!', 'fx-crit-label'), 100)
             } else {
               this.playSound('strike')
-              this.flashCard(defFlash, 'rgba(255,60,60,0.3)')
-              this.screenShake('normal')
+              this.flashCard(defFlash, ev.block ? 'rgba(52,152,219,0.4)' : 'rgba(255,60,60,0.3)')
+              this.screenShake(ev.block ? 'normal' : 'normal')
               this.spawnFloatingText(defFx, `-${ev.dmg}`, 'fx-dmg')
+            }
+
+            if (ev.block) {
+              setTimeout(() => this.spawnFloatingText(defFx, 'BLOCKED!', 'fx-block-label'), 80)
             }
 
             if (ev.lucky) {
@@ -1163,6 +1168,27 @@ export default {
   filter: drop-shadow(0 0 8px rgba(206,147,216,0.6));
 }
 
+/* ── BLOCK styles ── */
+.log-tag.tag-block {
+  background: rgba(52,152,219,0.15); color: #3498db;
+}
+.block-cell {
+  background: rgba(52,152,219,0.06) !important;
+}
+.fx-block-label {
+  font-size: 12px;
+  color: #85c1e9;
+  font-family: 'Cinzel', serif;
+  letter-spacing: 2px;
+  top: 35%;
+  animation: blockPop 1.2s ease-out forwards;
+  filter: drop-shadow(0 0 6px rgba(52,152,219,0.5));
+}
+@keyframes blockPop {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  15% { opacity: 1; transform: translateY(-5px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-30px) scale(0.8); }
+}
 /* ── Screen Shake ── */
 .arena-battle.screen-shake {
   animation: screenShake 0.3s ease-in-out;
