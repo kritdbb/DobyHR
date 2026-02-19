@@ -83,9 +83,17 @@
 
     <!-- Resolved — show battle replay -->
     <div v-else-if="battle && battle.status === 'resolved'" class="arena-battle">
+      <!-- Countdown Overlay -->
+      <div class="countdown-overlay" v-if="countdownText" :key="countdownText">
+        <span class="countdown-number" :class="{ 'countdown-fight': countdownText === 'FIGHT!' }">{{ countdownText }}</span>
+      </div>
+      <!-- Ambient Particles Container -->
+      <div class="ambient-particles" id="ambientParticles"></div>
+      <!-- Confetti Container -->
+      <div class="confetti-container" id="confettiContainer" v-if="battleDone"></div>
       <div class="fighters-row">
         <div class="char-card player-a" :id="'cardA'"
-          :class="{ dead: battleDone && battle.winner_id !== battle.player_a.id, 'winner-glow': battleDone && battle.winner_id === battle.player_a.id }"
+          :class="{ dead: battleDone && battle.winner_id !== battle.player_a.id, 'winner-glow': battleDone && battle.winner_id === battle.player_a.id, 'active-turn': activeSide === 'A', 'card-intro-left': battleStarted }"
           :style="bgStyle(battle.player_a)">
           <!-- Hit flash overlay -->
           <div class="hit-flash" :id="'flashA'"></div>
@@ -110,6 +118,8 @@
             <span class="ps def">🛡️ {{ battle.player_a.def }}</span>
             <span class="ps luk">🍀 {{ battle.player_a.luk }}</span>
           </div>
+          <!-- Hit & Combo Counter -->
+          <div class="hit-counter" v-if="hitsA > 0">🗡️ {{ hitsA }} <span v-if="comboA >= 2" class="combo-badge">{{ comboA }}x COMBO</span></div>
           <div class="person-badges" v-if="battle.player_a.badges && battle.player_a.badges.length">
             <div v-for="b in battle.player_a.badges.slice(0, 5)" :key="b.id" class="pb-circle" :title="b.name">
               <img v-if="b.image" :src="b.image" class="pb-img" />
@@ -132,7 +142,7 @@
         <div class="vs-badge" v-if="!battleStarted">VS</div>
 
         <div class="char-card player-b" :id="'cardB'"
-          :class="{ dead: battleDone && battle.winner_id !== battle.player_b.id, 'winner-glow': battleDone && battle.winner_id === battle.player_b.id }"
+          :class="{ dead: battleDone && battle.winner_id !== battle.player_b.id, 'winner-glow': battleDone && battle.winner_id === battle.player_b.id, 'active-turn': activeSide === 'B', 'card-intro-right': battleStarted }"
           :style="bgStyle(battle.player_b)">
           <!-- Hit flash overlay -->
           <div class="hit-flash" :id="'flashB'"></div>
@@ -157,6 +167,8 @@
             <span class="ps def">🛡️ {{ battle.player_b.def }}</span>
             <span class="ps luk">🍀 {{ battle.player_b.luk }}</span>
           </div>
+          <!-- Hit & Combo Counter -->
+          <div class="hit-counter" v-if="hitsB > 0">🗡️ {{ hitsB }} <span v-if="comboB >= 2" class="combo-badge">{{ comboB }}x COMBO</span></div>
           <div class="person-badges" v-if="battle.player_b.badges && battle.player_b.badges.length">
             <div v-for="b in battle.player_b.badges.slice(0, 5)" :key="b.id" class="pb-circle" :title="b.name">
               <img v-if="b.image" :src="b.image" class="pb-img" />
@@ -245,6 +257,16 @@ export default {
       loserName: '',
       apiBase: import.meta.env.VITE_API_URL || '',
       artifactCatalog: [],
+      // Enhancement: countdown, active turn, hit/combo tracking
+      countdownText: '',
+      activeSide: '',
+      hitsA: 0,
+      hitsB: 0,
+      comboA: 0,
+      comboB: 0,
+      lastAttacker: '',
+      currentCombo: 0,
+      ambientInterval: null,
       // Battle sounds
       sounds: {
         strike: new Audio('/sound/strike.mp3'),
@@ -254,6 +276,9 @@ export default {
         victory: new Audio('/sound/Victory.mp3'),
       },
     }
+  },
+  beforeUnmount() {
+    this.stopAmbientParticles()
   },
   async mounted() {
     try {
@@ -428,19 +453,96 @@ export default {
       setTimeout(() => card.classList.remove('dodge-ghost'), 600)
     },
 
+    // ─── Countdown Intro ──────────────────────────
+    async playCountdown() {
+      const steps = ['3', '2', '1', 'FIGHT!']
+      for (const text of steps) {
+        this.countdownText = text
+        await this.sleep(text === 'FIGHT!' ? 600 : 500)
+      }
+      this.countdownText = ''
+    },
+
+    // ─── Ambient Particles ──────────────────────────
+    startAmbientParticles() {
+      const container = document.getElementById('ambientParticles')
+      if (!container) return
+      this.ambientInterval = setInterval(() => {
+        if (this.battleDone) { this.stopAmbientParticles(); return }
+        const p = document.createElement('div')
+        p.className = 'ambient-dot'
+        p.style.left = Math.random() * 100 + '%'
+        p.style.animationDuration = (3 + Math.random() * 4) + 's'
+        p.style.animationDelay = Math.random() * 0.5 + 's'
+        p.style.width = p.style.height = (2 + Math.random() * 3) + 'px'
+        p.style.opacity = 0.2 + Math.random() * 0.5
+        container.appendChild(p)
+        setTimeout(() => p.remove(), 7000)
+      }, 200)
+    },
+    stopAmbientParticles() {
+      if (this.ambientInterval) { clearInterval(this.ambientInterval); this.ambientInterval = null }
+    },
+
+    // ─── Confetti / Fireworks ──────────────────────────
+    spawnConfetti() {
+      const container = document.getElementById('confettiContainer')
+      if (!container) return
+      const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#45b7d1', '#f7dc6f', '#bb8fce', '#85c1e9', '#f0b27a']
+      for (let i = 0; i < 60; i++) {
+        const c = document.createElement('div')
+        c.className = 'confetti-piece'
+        c.style.left = Math.random() * 100 + '%'
+        c.style.background = colors[Math.floor(Math.random() * colors.length)]
+        c.style.animationDuration = (2 + Math.random() * 2) + 's'
+        c.style.animationDelay = Math.random() * 0.8 + 's'
+        c.style.setProperty('--drift', (Math.random() * 200 - 100) + 'px')
+        c.style.setProperty('--spin', (Math.random() * 720 - 360) + 'deg')
+        c.style.width = (4 + Math.random() * 6) + 'px'
+        c.style.height = (4 + Math.random() * 6) + 'px'
+        container.appendChild(c)
+        setTimeout(() => c.remove(), 5000)
+      }
+    },
+
+    // ─── Track Combos ──────────────────────────
+    trackCombo(side) {
+      if (this.lastAttacker === side) {
+        this.currentCombo++
+      } else {
+        this.currentCombo = 1
+        this.lastAttacker = side
+      }
+      if (side === 'A') { this.comboA = this.currentCombo; this.comboB = 0 }
+      else { this.comboB = this.currentCombo; this.comboA = 0 }
+      // Combo FX
+      if (this.currentCombo >= 3) {
+        const fx = side === 'A' ? 'fxA' : 'fxB'
+        this.spawnFloatingText(fx, `${this.currentCombo}x COMBO!`, 'fx-combo-label')
+      }
+    },
+
     async playBattle() {
       if (!this.battle || !this.battle.battle_log) return
       this.battleStarted = true
+
+      // ─── Cinematic Intro ───
+      await this.playCountdown()
+      this.startAmbientParticles()
+
       const events = this.battle.battle_log
 
       for (const ev of events) {
         if (ev.type === 'turn') {
+          this.activeSide = ''
           this.addCenterLog(`── TURN ${ev.turn} ──`, 'turn-header')
           await this.sleep(this.speed * 0.4)
           continue
         }
 
         if (ev.type === 'winner') {
+          this.activeSide = ''
+          this.stopAmbientParticles()
           const nameA = this.battle.player_a.name
           const nameB = this.battle.player_b.name
           const wName = ev.side === 'A' ? nameA : nameB
@@ -453,11 +555,20 @@ export default {
           this.playSound('victory')
           this.addCenterLog(`🏆 ${wName} WINS!`, 'winner-log')
           this.battleDone = true
+          // Victory confetti
+          this.$nextTick(() => {
+            this.spawnConfetti()
+            // Extra burst after a short delay
+            setTimeout(() => this.spawnConfetti(), 800)
+          })
           await this.sleep(500)
           continue
         }
 
         if (ev.type === 'attack') {
+          // Active turn glow
+          this.activeSide = ev.side
+
           const defCard = ev.side === 'A' ? 'cardB' : 'cardA'
           const defFx = ev.side === 'A' ? 'fxB' : 'fxA'
           const defFlash = ev.side === 'A' ? 'flashB' : 'flashA'
@@ -478,7 +589,11 @@ export default {
             atkCls = 'miss-cell'
             defCls = 'dodge-cell'
           } else {
-            // ══ HIT ══
+            // ══ HIT ══ — Track hits & combos
+            if (ev.side === 'A') this.hitsA++
+            else this.hitsB++
+            this.trackCombo(ev.side)
+
             this.shakeCard(defCard)
             this.spawnSlash(defFx, ev.crit)
             this.spawnSparks(defFx, ev.crit ? 12 : 6, ev.crit ? '#ffeb3b' : '#ff6b35')
@@ -628,11 +743,6 @@ export default {
 }
 .char-card.player-a::before { background: linear-gradient(90deg, transparent, #4a9eff, transparent); }
 .char-card.player-b::before { background: linear-gradient(90deg, transparent, #ff4a6a, transparent); }
-.char-card.dead { filter: grayscale(0.8) brightness(0.5); }
-.char-card.winner-glow {
-  border-color: rgba(255,215,0,0.4);
-  box-shadow: 0 0 30px rgba(255,215,0,0.15);
-}
 .char-card.shake-hit {
   animation: shake-hit 0.4s ease-in-out;
 }
@@ -999,6 +1109,157 @@ export default {
 }
 .waiting-icon { font-size: 24px; margin-right: 8px; }
 
+/* ── Countdown Overlay ── */
+.countdown-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  pointer-events: none;
+}
+.countdown-number {
+  font-family: 'Cinzel', serif;
+  font-size: 60px;
+  font-weight: 900;
+  color: #ffd700;
+  text-shadow:
+    0 0 20px rgba(255,215,0,0.6),
+    0 0 40px rgba(255,215,0,0.3),
+    0 4px 8px rgba(0,0,0,0.8);
+  animation: countdownPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.countdown-fight {
+  font-size: 48px !important;
+  color: #ff4444 !important;
+  text-shadow:
+    0 0 20px rgba(255,68,68,0.6),
+    0 0 40px rgba(255,68,68,0.3),
+    0 4px 8px rgba(0,0,0,0.8) !important;
+  letter-spacing: 6px;
+  animation: countdownFightPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+}
+@keyframes countdownPop {
+  0% { opacity: 0; transform: scale(3) rotate(-5deg); }
+  40% { opacity: 1; transform: scale(0.9) rotate(1deg); }
+  60% { transform: scale(1.05) rotate(0deg); }
+  100% { opacity: 0.85; transform: scale(1); }
+}
+@keyframes countdownFightPop {
+  0% { opacity: 0; transform: scale(0.2) rotate(-10deg); }
+  30% { opacity: 1; transform: scale(1.4) rotate(2deg); }
+  50% { transform: scale(1.1) rotate(-1deg); }
+  100% { opacity: 0; transform: scale(0.8) translateY(-30px); }
+}
+
+/* ── Card Intro Slide ── */
+.card-intro-left {
+  animation: slideInLeft 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.card-intro-right {
+  animation: slideInRight 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes slideInLeft {
+  0% { opacity: 0; transform: translateX(-40px) scale(0.9); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes slideInRight {
+  0% { opacity: 0; transform: translateX(40px) scale(0.9); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+/* ── Active Turn Glow ── */
+.char-card.active-turn {
+  transition: box-shadow 0.3s, border-color 0.3s;
+}
+.char-card.player-a.active-turn {
+  border-color: rgba(74,158,255,0.5);
+  box-shadow: 0 0 18px rgba(74,158,255,0.25), inset 0 0 12px rgba(74,158,255,0.06);
+}
+.char-card.player-b.active-turn {
+  border-color: rgba(255,74,106,0.5);
+  box-shadow: 0 0 18px rgba(255,74,106,0.25), inset 0 0 12px rgba(255,74,106,0.06);
+}
+
+/* ── Hit Counter & Combo ── */
+.hit-counter {
+  font-size: 9px;
+  font-weight: 700;
+  color: #c4b08a;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.combo-badge {
+  font-size: 8px;
+  font-weight: 900;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, rgba(255,107,107,0.2), rgba(255,107,107,0.1));
+  color: #ff6b6b;
+  border: 1px solid rgba(255,107,107,0.3);
+  animation: comboPulse 0.6s ease-in-out;
+}
+@keyframes comboPulse {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── HP Bar Shimmer ── */
+.hp-bar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: hpShimmer 3s ease-in-out infinite;
+  z-index: 1;
+}
+@keyframes hpShimmer {
+  0% { left: -100%; }
+  50% { left: 150%; }
+  100% { left: 150%; }
+}
+
+/* ── Ambient Particles ── */
+.ambient-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+
+/* ── Confetti Container ── */
+.confetti-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  overflow: hidden;
+}
+
+/* ── Enhanced Dead Card Transition ── */
+.char-card.dead {
+  filter: grayscale(0.8) brightness(0.5);
+  transition: filter 1.2s ease-in-out, transform 0.8s ease;
+  transform: scale(0.97);
+}
+
+/* ── Enhanced Winner Glow ── */
+.char-card.winner-glow {
+  border-color: rgba(255,215,0,0.4);
+  box-shadow: 0 0 30px rgba(255,215,0,0.15), 0 0 60px rgba(255,215,0,0.08);
+  animation: winnerPulseGlow 2s ease-in-out infinite;
+}
+@keyframes winnerPulseGlow {
+  0%, 100% { box-shadow: 0 0 30px rgba(255,215,0,0.15), 0 0 60px rgba(255,215,0,0.08); }
+  50% { box-shadow: 0 0 40px rgba(255,215,0,0.25), 0 0 80px rgba(255,215,0,0.12); }
+}
+
 /* ── No battle ── */
 .no-battle { text-align: center; padding: 60px 0; color: #8b7355; }
 .btn-back {
@@ -1309,6 +1570,55 @@ export default {
 @keyframes log-in {
   from { opacity: 0; transform: translateX(-10px); }
   to { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Ambient Floating Particles ── */
+.ambient-dot {
+  position: absolute;
+  bottom: -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,215,0,0.8), rgba(212,164,76,0.3));
+  pointer-events: none;
+  animation: ambientFloat linear forwards;
+  box-shadow: 0 0 4px rgba(255,215,0,0.3);
+}
+@keyframes ambientFloat {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.2; }
+  100% { transform: translateY(-350px) translateX(var(--drift, 20px)); opacity: 0; }
+}
+
+/* ── Confetti Pieces ── */
+.confetti-piece {
+  position: absolute;
+  top: -10px;
+  border-radius: 2px;
+  pointer-events: none;
+  animation: confettiFall ease-out forwards;
+  opacity: 0;
+}
+@keyframes confettiFall {
+  0% { opacity: 0; transform: translateY(-20px) translateX(0) rotate(0deg); }
+  10% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(400px) translateX(var(--drift, 0px)) rotate(var(--spin, 360deg)); }
+}
+
+/* ── Combo Label FX ── */
+.fx-combo-label {
+  font-size: 14px;
+  color: #ff6b6b;
+  font-family: 'Cinzel', serif;
+  letter-spacing: 3px;
+  top: 60%;
+  animation: comboBurst 1.4s ease-out forwards;
+  filter: drop-shadow(0 0 8px rgba(255,107,107,0.6));
+}
+@keyframes comboBurst {
+  0% { opacity: 0; transform: translateY(5px) scale(0.3); }
+  15% { opacity: 1; transform: translateY(-5px) scale(1.4); }
+  30% { transform: translateY(-10px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-45px) scale(0.7); }
 }
 </style>
 
