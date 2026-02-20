@@ -134,12 +134,15 @@ async def create_center_expense(
 
     file_url = _save_file(file)
 
+    submitter_name = f"{current_user.name} {current_user.surname or ''}".strip()
+    full_description = f"{submitter_name} - {description}"
+
     exp = ExpenseRequest(
         user_id=admin_user.id,
         submitted_by_id=current_user.id,
         expense_type=ExpenseType.CENTER,
         expense_date=date.fromisoformat(expense_date),
-        description=description,
+        description=full_description,
         amount=amount,
         file_path=file_url,
         total_steps=0,
