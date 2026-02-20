@@ -218,77 +218,89 @@
          </div>
     </div>
 
-    <!-- Expense Report Table -->
-    <div v-if="activeTab === 'expenses' && expenseData.length > 0" class="card" style="margin-bottom: 20px;">
-        <h3>💰 Expense Summary</h3>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 12px;">
+    <!-- Expense Report: Per-User Cards -->
+    <template v-if="activeTab === 'expenses'">
+      <div v-if="loading" class="loading">Loading...</div>
+      <template v-else>
+        <!-- Grand Total Banner -->
+        <div v-if="expenseUserCards.length > 0" class="card" style="margin-bottom: 20px;">
+          <h3>💰 Company Expense Summary</h3>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 12px;">
             <div class="summary-box">
-                <div class="summary-label">📄 General Expenses</div>
-                <div class="summary-value">฿{{ expenseSummary.general.toLocaleString() }}</div>
-                <div class="summary-count">{{ expenseSummary.generalCount }} items</div>
+              <div class="summary-label">📄 General</div>
+              <div class="summary-value" style="color: #3498db;">฿{{ expenseGrandTotal.general.toLocaleString() }}</div>
             </div>
             <div class="summary-box">
-                <div class="summary-label">🚗 Travel Expenses</div>
-                <div class="summary-value">฿{{ expenseSummary.travel.toLocaleString() }}</div>
-                <div class="summary-count">{{ expenseSummary.travelCount }} items</div>
+              <div class="summary-label">🚗 Travel</div>
+              <div class="summary-value" style="color: #2ecc71;">฿{{ expenseGrandTotal.travel.toLocaleString() }}</div>
+            </div>
+            <div class="summary-box">
+              <div class="summary-label">🏢 Center</div>
+              <div class="summary-value" style="color: #9b59b6;">฿{{ expenseGrandTotal.center.toLocaleString() }}</div>
             </div>
             <div class="summary-box grand">
-                <div class="summary-label">⚔️ Grand Total</div>
-                <div class="summary-value">฿{{ expenseSummary.total.toLocaleString() }}</div>
-                <div class="summary-count">{{ expenseData.length }} items</div>
+              <div class="summary-label">⚔️ Grand Total</div>
+              <div class="summary-value">฿{{ expenseGrandTotal.all.toLocaleString() }}</div>
             </div>
+          </div>
         </div>
-    </div>
 
-    <div v-if="activeTab === 'expenses'" class="card">
-         <h3>Expense Report</h3>
-         <div v-if="loading" class="loading">Loading...</div>
-         <div v-else class="table-container">
+        <!-- Empty state -->
+        <div v-if="expenseUserCards.length === 0" class="card" style="text-align: center; padding: 40px; color: #8b7355;">
+          No expense records found
+        </div>
+
+        <!-- Per-user cards -->
+        <div v-for="uc in expenseUserCards" :key="uc.user_id" class="expense-user-card">
+          <div class="euc-header" @click="uc.expanded = !uc.expanded">
+            <div class="euc-user">
+              <div class="euc-name">{{ uc.name }}</div>
+              <div class="euc-count">{{ uc.items.length }} items</div>
+            </div>
+            <div class="euc-summary">
+              <span v-if="uc.generalTotal > 0" class="euc-stat" style="color: #3498db;">📄 ฿{{ uc.generalTotal.toLocaleString() }}</span>
+              <span v-if="uc.travelTotal > 0" class="euc-stat" style="color: #2ecc71;">🚗 ฿{{ uc.travelTotal.toLocaleString() }}</span>
+              <span v-if="uc.centerTotal > 0" class="euc-stat" style="color: #9b59b6;">🏢 ฿{{ uc.centerTotal.toLocaleString() }}</span>
+              <span class="euc-stat euc-total">💰 ฿{{ uc.total.toLocaleString() }}</span>
+            </div>
+            <span class="euc-chevron" :class="{ open: uc.expanded }">▾</span>
+          </div>
+          <div v-if="uc.expanded" class="euc-body">
             <table>
-                <thead>
-                    <tr>
-                        <th>Adventurer</th>
-                        <th>Type</th>
-                        <th>Date</th>
-                        <th>Description</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Files</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="exp in expenseData" :key="exp.id">
-                         <td>{{ exp.user_name }}</td>
-                         <td><span class="status-badge" :style="exp.expense_type === 'GENERAL' ? 'background: rgba(52,152,219,0.1); color: #3498db; border: 1px solid rgba(52,152,219,0.2);' : 'background: rgba(46,204,113,0.1); color: #2ecc71; border: 1px solid rgba(46,204,113,0.2);'">{{ exp.expense_type === 'GENERAL' ? '📄' : '🚗' }} {{ exp.expense_type }}</span></td>
-                         <td>{{ exp.expense_type === 'GENERAL' ? exp.expense_date : exp.travel_date }}</td>
-                         <td>{{ exp.description || (exp.expense_type === 'TRAVEL' ? `${exp.vehicle_type} ${exp.km_outbound}+${exp.km_return}km` : '-') }}</td>
-                         <td style="font-weight: 700;">฿{{ (exp.expense_type === 'GENERAL' ? exp.amount : exp.total_amount).toLocaleString() }}</td>
-                         <td><span class="status-badge" :style="getExpenseStatusColor(exp.status)">{{ exp.status }}</span></td>
-                         <td>
-                            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                                <div v-if="exp.file_path" class="report-thumb" @click="openViewer(exp.file_path)">
-                                    <img v-if="!isPdf(exp.file_path)" :src="apiBase + exp.file_path" />
-                                    <span v-else class="pdf-mini">PDF</span>
-                                </div>
-                                <div v-if="exp.outbound_image" class="report-thumb" @click="openViewer(exp.outbound_image)">
-                                    <img :src="apiBase + exp.outbound_image" />
-                                </div>
-                                <div v-if="exp.return_image" class="report-thumb" @click="openViewer(exp.return_image)">
-                                    <img :src="apiBase + exp.return_image" />
-                                </div>
-                                <div v-for="att in exp.attachments" :key="att.id" class="report-thumb" @click="openViewer(att.file_path)">
-                                    <img :src="apiBase + att.file_path" />
-                                </div>
-                            </div>
-                         </td>
-                    </tr>
-                    <tr v-if="expenseData.length === 0">
-                        <td colspan="7" style="text-align: center; color: #8b7355;">No expense records found</td>
-                    </tr>
-                </tbody>
+              <thead>
+                <tr>
+                  <th>Type</th><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th>Files</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="exp in uc.items" :key="exp.id">
+                  <td>
+                    <span class="status-badge" :style="exp.expense_type === 'GENERAL' ? 'background: rgba(52,152,219,0.1); color: #3498db; border: 1px solid rgba(52,152,219,0.2);' : exp.expense_type === 'CENTER' ? 'background: rgba(155,89,182,0.1); color: #9b59b6; border: 1px solid rgba(155,89,182,0.2);' : 'background: rgba(46,204,113,0.1); color: #2ecc71; border: 1px solid rgba(46,204,113,0.2);'">
+                      {{ exp.expense_type === 'GENERAL' ? '📄' : exp.expense_type === 'CENTER' ? '🏢' : '🚗' }} {{ exp.expense_type }}
+                    </span>
+                  </td>
+                  <td>{{ exp.expense_type === 'TRAVEL' ? exp.travel_date : exp.expense_date }}</td>
+                  <td>{{ exp.description || (exp.expense_type === 'TRAVEL' ? `${exp.vehicle_type} ${exp.km_outbound}+${exp.km_return}km` : '-') }}</td>
+                  <td style="font-weight: 700;">฿{{ getExpAmount(exp).toLocaleString() }}</td>
+                  <td><span class="status-badge" :style="getExpenseStatusColor(exp.status)">{{ exp.status }}</span></td>
+                  <td>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                      <div v-if="exp.file_path" class="report-thumb" @click="openViewer(exp.file_path)">
+                        <img v-if="!isPdf(exp.file_path)" :src="apiBase + exp.file_path" />
+                        <span v-else class="pdf-mini">PDF</span>
+                      </div>
+                      <div v-if="exp.outbound_image" class="report-thumb" @click="openViewer(exp.outbound_image)"><img :src="apiBase + exp.outbound_image" /></div>
+                      <div v-if="exp.return_image" class="report-thumb" @click="openViewer(exp.return_image)"><img :src="apiBase + exp.return_image" /></div>
+                      <div v-for="att in exp.attachments" :key="att.id" class="report-thumb" @click="openViewer(att.file_path)"><img :src="apiBase + att.file_path" /></div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
             </table>
-         </div>
-    </div>
+          </div>
+        </div>
+      </template>
+    </template>
 
     <!-- Mana Gift Report -->
     <div v-if="activeTab === 'mana' && manaReport.summary.length > 0" class="card" style="margin-bottom: 20px;">
@@ -422,17 +434,57 @@ export default {
             )
         },
         expenseSummary() {
-            let general = 0, travel = 0, generalCount = 0, travelCount = 0
+            let general = 0, travel = 0, center = 0, generalCount = 0, travelCount = 0, centerCount = 0
             this.expenseData.forEach(e => {
+                if (e.status === 'REJECTED') return
                 if (e.expense_type === 'GENERAL') {
                     general += (e.amount || 0)
                     generalCount++
+                } else if (e.expense_type === 'CENTER') {
+                    center += (e.amount || 0)
+                    centerCount++
                 } else {
                     travel += (e.total_amount || 0)
                     travelCount++
                 }
             })
-            return { general, travel, total: general + travel, generalCount, travelCount }
+            return { general, travel, center, total: general + travel + center, generalCount, travelCount, centerCount }
+        },
+        expenseUserCards() {
+            // Filter out rejected, group by user
+            const nonRejected = this.expenseData.filter(e => e.status !== 'REJECTED')
+            const groups = {}
+            for (const exp of nonRejected) {
+                const key = exp.user_id
+                if (!groups[key]) {
+                    groups[key] = {
+                        user_id: exp.user_id,
+                        name: exp.user_name,
+                        items: [],
+                        generalTotal: 0,
+                        travelTotal: 0,
+                        centerTotal: 0,
+                        total: 0,
+                        expanded: false,
+                    }
+                }
+                groups[key].items.push(exp)
+                const amt = this.getExpAmount(exp)
+                if (exp.expense_type === 'GENERAL') groups[key].generalTotal += amt
+                else if (exp.expense_type === 'TRAVEL') groups[key].travelTotal += amt
+                else if (exp.expense_type === 'CENTER') groups[key].centerTotal += amt
+                groups[key].total += amt
+            }
+            return Object.values(groups).sort((a, b) => b.total - a.total)
+        },
+        expenseGrandTotal() {
+            const cards = this.expenseUserCards
+            return {
+                general: cards.reduce((s, u) => s + u.generalTotal, 0),
+                travel: cards.reduce((s, u) => s + u.travelTotal, 0),
+                center: cards.reduce((s, u) => s + u.centerTotal, 0),
+                all: cards.reduce((s, u) => s + u.total, 0),
+            }
         }
     },
     methods: {
@@ -632,6 +684,9 @@ export default {
         },
         openViewer(src) { this.viewerSrc = src; this.viewerOpen = true },
         isPdf(path) { return path && path.toLowerCase().endsWith('.pdf') },
+        getExpAmount(exp) {
+            return exp.expense_type === 'TRAVEL' ? (exp.total_amount || 0) : (exp.amount || 0)
+        },
         getExpenseStatusColor(status) {
             if (status === 'PENDING') return 'background: rgba(230,126,34,0.1); color: #e67e22; border: 1px solid rgba(230,126,34,0.2);'
             if (status === 'ALL_APPROVED') return 'background: rgba(46,204,113,0.1); color: #2ecc71; border: 1px solid rgba(46,204,113,0.2);'
@@ -772,4 +827,33 @@ export default {
 .viewer-content { max-width: 90vw; max-height: 90vh; overflow: auto; }
 .viewer-img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 8px; }
 .viewer-pdf { width: 90vw; height: 90vh; border: none; border-radius: 8px; }
+
+/* Expense User Cards */
+.expense-user-card {
+  background: linear-gradient(135deg, rgba(17,10,30,0.5), rgba(30,14,10,0.35));
+  border: 1px solid rgba(212,164,76,0.1);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.expense-user-card:hover { border-color: rgba(212,164,76,0.25); }
+.euc-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; cursor: pointer;
+  transition: background 0.15s;
+}
+.euc-header:hover { background: rgba(212,164,76,0.04); }
+.euc-user { flex: 1; min-width: 0; }
+.euc-name { font-size: 14px; font-weight: 700; color: #e8d5b7; }
+.euc-count { font-size: 11px; color: #8b7355; }
+.euc-summary { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.euc-stat { font-size: 12px; font-weight: 700; white-space: nowrap; }
+.euc-total { color: #d4a44c; font-size: 14px; }
+.euc-chevron { font-size: 16px; color: #8b7355; transition: transform 0.2s; }
+.euc-chevron.open { transform: rotate(180deg); }
+.euc-body { border-top: 1px solid rgba(212,164,76,0.08); padding: 0 18px 14px; }
+.euc-body table { margin-top: 10px; }
+.euc-body th { font-size: 11px; padding: 8px 10px; }
+.euc-body td { font-size: 12px; padding: 8px 10px; }
 </style>
