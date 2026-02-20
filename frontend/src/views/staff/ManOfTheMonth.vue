@@ -151,6 +151,34 @@
           </div>
         </div>
       </div>
+
+      <!-- Most Center Slips -->
+      <div class="lb-section">
+        <div class="lb-title">🧾 Most Center Slips</div>
+        <div v-if="hasReward(rewards.motm_center_slips)" class="lb-reward">
+          <div v-if="formatReward(rewards.motm_center_slips)">Winner Reward : {{ formatReward(rewards.motm_center_slips) }}</div>
+          <div v-if="rewards.motm_center_slips && rewards.motm_center_slips.badge_id" class="lb-badge-row">
+            <img v-if="rewards.motm_center_slips.badge_image" :src="rewards.motm_center_slips.badge_image" class="lb-badge-icon" />
+            <span>🎖️ {{ rewards.motm_center_slips.badge_name || 'Badge' }}</span>
+            <span v-if="badgeStats(rewards.motm_center_slips)" class="lb-badge-stats">{{ badgeStats(rewards.motm_center_slips) }}</span>
+          </div>
+        </div>
+        <div v-if="data.most_center_slips.length === 0" class="lb-empty">No data yet</div>
+        <div v-else class="lb-entries">
+          <div v-for="(u, i) in data.most_center_slips" :key="'center-' + u.user_id" class="lb-entry" :class="{ champion: i === 0 }">
+            <div class="lb-rank">{{ i + 1 }}</div>
+            <div class="lb-avatar">
+              <img v-if="u.image" :src="u.image" class="lb-avatar-img" />
+              <div v-else class="lb-avatar-ph">{{ (u.name || '?').charAt(0) }}</div>
+            </div>
+            <div class="lb-info">
+              <div class="lb-name">{{ u.name }} {{ u.surname }}</div>
+              <div class="lb-pos">{{ u.position }}</div>
+            </div>
+            <div class="lb-value center">🧾 {{ u.value }}</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -170,6 +198,7 @@ export default {
         most_on_time: [],
         most_gold_spent: [],
         most_anonymous_praises: [],
+        most_center_slips: [],
       },
       rewards: {},
     }
@@ -363,4 +392,5 @@ export default {
 .lb-value.ontime { color: #f39c12; }
 .lb-value.gold { color: #d4a44c; }
 .lb-value.praise { color: #85c1e9; }
+.lb-value.center { color: #e67e22; }
 </style>

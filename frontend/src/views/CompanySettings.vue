@@ -431,6 +431,7 @@ export default {
         { key: 'motm_ontime', icon: '⏰', label: 'Most On-Time' },
         { key: 'motm_gold_spent', icon: '💰', label: 'Most Gold Spent' },
         { key: 'motm_praises', icon: '💬', label: 'Most Anonymous Praises' },
+        { key: 'motm_center_slips', icon: '🧾', label: 'Most Center Slips' },
       ],
       motmRewards: {
         motm_mana: { gold: 0, mana: 0, str: 0, def: 0, luk: 0, badge_id: null },
@@ -438,6 +439,7 @@ export default {
         motm_ontime: { gold: 0, mana: 0, str: 0, def: 0, luk: 0, badge_id: null },
         motm_gold_spent: { gold: 0, mana: 0, str: 0, def: 0, luk: 0, badge_id: null },
         motm_praises: { gold: 0, mana: 0, str: 0, def: 0, luk: 0, badge_id: null },
+        motm_center_slips: { gold: 0, mana: 0, str: 0, def: 0, luk: 0, badge_id: null },
       },
       allBadges: [],
       rtspCameras: [],

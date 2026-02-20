@@ -136,6 +136,7 @@ async def create_center_expense(
 
     exp = ExpenseRequest(
         user_id=admin_user.id,
+        submitted_by_id=current_user.id,
         expense_type=ExpenseType.CENTER,
         expense_date=date.fromisoformat(expense_date),
         description=description,

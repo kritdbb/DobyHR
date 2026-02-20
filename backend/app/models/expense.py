@@ -57,8 +57,12 @@ class ExpenseRequest(Base):
     rejected_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     rejected_at = Column(DateTime, nullable=True)
 
+    # Center expense: who actually submitted the slip
+    submitted_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     # Relationships
     user = relationship("User", foreign_keys=[user_id], backref="expense_requests")
+    submitted_by = relationship("User", foreign_keys=[submitted_by_id])
     attachments = relationship("ExpenseAttachment", back_populates="expense", cascade="all, delete-orphan")
 
 

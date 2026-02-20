@@ -461,6 +461,23 @@ def distribute_motm_rewards():
         if praise_winner:
             category_winners["motm_praises"] = praise_winner.recipient_id
 
+        # 6. Most Center Slips
+        from app.models.expense import ExpenseRequest, ExpenseType
+        center_winner = (
+            db.query(ExpenseRequest.submitted_by_id, func.count(ExpenseRequest.id).label("cnt"))
+            .filter(
+                ExpenseRequest.created_at >= pm_start_utc,
+                ExpenseRequest.created_at < pm_end_utc,
+                ExpenseRequest.expense_type == ExpenseType.CENTER,
+                ExpenseRequest.submitted_by_id.isnot(None),
+            )
+            .group_by(ExpenseRequest.submitted_by_id)
+            .order_by(func.count(ExpenseRequest.id).desc(), func.min(ExpenseRequest.created_at).asc())
+            .first()
+        )
+        if center_winner:
+            category_winners["motm_center_slips"] = center_winner.submitted_by_id
+
         # Apply rewards
         category_labels = {
             "motm_mana": "✨ Most Mana Received",
@@ -468,6 +485,7 @@ def distribute_motm_rewards():
             "motm_ontime": "⏰ Most On-Time",
             "motm_gold_spent": "💰 Most Gold Spent",
             "motm_praises": "💬 Most Anonymous Praises",
+            "motm_center_slips": "🧾 Most Center Slips",
         }
 
         for cat_key, winner_id in category_winners.items():

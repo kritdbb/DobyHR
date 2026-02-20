@@ -15,6 +15,7 @@ from app.models.user import User
 from app.models.company import Company
 from app.models.reward import CoinLog
 from app.models.attendance import Attendance
+from app.models.expense import ExpenseRequest, ExpenseType
 from app.api import deps
 
 logger = logging.getLogger("hr-api")
@@ -223,6 +224,7 @@ def get_man_of_the_month(
         "most_on_time": _leaderboard_on_time(db, month_start_utc),
         "most_gold_spent": _leaderboard_gold_spent(db, month_start_utc),
         "most_anonymous_praises": _leaderboard_anonymous_praises(db, now),
+        "most_center_slips": _leaderboard_center_slips(db, month_start_utc),
     }
 
     # Include MOTM reward config for display
@@ -368,6 +370,26 @@ def _leaderboard_anonymous_praises(db: Session, now_local):
         .all()
     )
     return _resolve_users(db, [(r.recipient_id, int(r.praise_count)) for r in praises])
+
+
+def _leaderboard_center_slips(db: Session, month_start_utc):
+    """Most Center Expense slips submitted this month."""
+    slips = (
+        db.query(
+            ExpenseRequest.submitted_by_id,
+            func.count(ExpenseRequest.id).label("slip_count"),
+        )
+        .filter(
+            ExpenseRequest.created_at >= month_start_utc,
+            ExpenseRequest.expense_type == ExpenseType.CENTER,
+            ExpenseRequest.submitted_by_id.isnot(None),
+        )
+        .group_by(ExpenseRequest.submitted_by_id)
+        .order_by(func.count(ExpenseRequest.id).desc())
+        .limit(10)
+        .all()
+    )
+    return _resolve_users(db, [(r.submitted_by_id, int(r.slip_count)) for r in slips])
 
 
 def _resolve_users(db: Session, user_value_pairs):
