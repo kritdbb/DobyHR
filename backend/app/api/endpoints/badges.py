@@ -867,3 +867,59 @@ def _compute_user_stats(user: User, db: Session) -> UserStatsResponse:
         badge_str=badge_str, badge_def=badge_def, badge_luk=badge_luk,
         total_str=base_s + badge_str, total_def=base_d + badge_def, total_luk=base_l + badge_luk,
     )
+
+
+# ── Push to Production ────────────────────────────────
+
+@router.post("/{badge_id}/push-to-prod")
+def push_badge_to_prod(
+    badge_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_gm_or_above),
+):
+    """Push a badge from this server to production via sync API."""
+    import httpx
+
+    badge = db.query(Badge).filter(Badge.id == badge_id).first()
+    if not badge:
+        raise HTTPException(status_code=404, detail="Badge not found")
+
+    prod_url = settings.PROD_API_URL.rstrip("/")
+    sync_key = settings.PROD_SYNC_KEY
+    if not sync_key:
+        raise HTTPException(status_code=503, detail="PROD_SYNC_KEY not configured")
+
+    # Prepare form data
+    data = {
+        "name": badge.name,
+        "description": badge.description or "",
+        "stat_str": str(badge.stat_str or 0),
+        "stat_def": str(badge.stat_def or 0),
+        "stat_luk": str(badge.stat_luk or 0),
+    }
+    files = None
+
+    # Attach image file if exists
+    if badge.image:
+        # image is like /uploads/badges/badge_xxx.png
+        local_path = os.path.join(settings.UPLOAD_DIR, badge.image.lstrip("/uploads/"))
+        if os.path.isfile(local_path):
+            files = {"file": (os.path.basename(local_path), open(local_path, "rb"))}
+
+    try:
+        resp = httpx.post(
+            f"{prod_url}/api/sync/badge",
+            data=data,
+            files=files,
+            headers={"X-Sync-Key": sync_key},
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"Prod returned {resp.status_code}: {resp.text}")
+        return {"message": "Badge pushed to production", "prod_response": resp.json()}
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Failed to connect to prod: {e}")
+    finally:
+        if files:
+            files["file"][1].close()
+

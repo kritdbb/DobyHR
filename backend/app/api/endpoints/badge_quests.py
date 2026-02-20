@@ -469,3 +469,58 @@ def get_my_progress(
             "reward_value": quest.reward_value or 0,
         })
     return result
+
+
+# ── Push to Production ────────────────────────────────
+
+@router.post("/{quest_id}/push-to-prod")
+def push_quest_to_prod(
+    quest_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_gm_or_above),
+):
+    """Push a badge quest from this server to production via sync API."""
+    import httpx
+    from app.core.config import settings
+
+    quest = db.query(BadgeQuest).filter(BadgeQuest.id == quest_id).first()
+    if not quest:
+        raise HTTPException(status_code=404, detail="Quest not found")
+
+    prod_url = settings.PROD_API_URL.rstrip("/")
+    sync_key = settings.PROD_SYNC_KEY
+    if not sync_key:
+        raise HTTPException(status_code=503, detail="PROD_SYNC_KEY not configured")
+
+    # Resolve badge name for the quest
+    badge_name = None
+    if quest.badge_id:
+        badge = db.query(Badge).filter(Badge.id == quest.badge_id).first()
+        if badge:
+            badge_name = badge.name
+
+    payload = {
+        "badge_name": badge_name,
+        "condition_query": quest.condition_query,
+        "condition_type": quest.condition_type,
+        "threshold": quest.threshold,
+        "is_active": quest.is_active,
+        "description": quest.description,
+        "max_awards": quest.max_awards,
+        "reward_type": quest.reward_type or "badge",
+        "reward_value": quest.reward_value or 0,
+    }
+
+    try:
+        resp = httpx.post(
+            f"{prod_url}/api/sync/badge-quest",
+            json=payload,
+            headers={"X-Sync-Key": sync_key, "Content-Type": "application/json"},
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"Prod returned {resp.status_code}: {resp.text}")
+        return {"message": "Quest pushed to production", "prod_response": resp.json()}
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Failed to connect to prod: {e}")
+

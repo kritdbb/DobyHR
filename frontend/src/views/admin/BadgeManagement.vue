@@ -93,6 +93,7 @@
           </div>
           <button class="btn-edit" @click="openEditBadge" title="Edit badge">✏️</button>
           <button class="btn-delete" @click="confirmDeleteBadge" title="Delete badge">🗑️</button>
+          <button class="btn-push" @click.stop="pushToProd(selectedBadge)" :disabled="pushing" title="Push to Production">{{ pushing ? '⏳' : '🚀' }}</button>
         </div>
         <!-- Stats display -->
         <div class="detail-stats" v-if="selectedBadge.stat_str || selectedBadge.stat_def || selectedBadge.stat_luk">
@@ -140,7 +141,7 @@
 </template>
 
 <script>
-import { getBadges, createBadge, updateBadge, deleteBadge, awardBadge, revokeBadge, getBadgeHolders, getUsers } from '../../services/api'
+import { getBadges, createBadge, updateBadge, deleteBadge, awardBadge, revokeBadge, getBadgeHolders, getUsers, pushBadgeToProd } from '../../services/api'
 
 export default {
   name: 'BadgeManagement',
@@ -160,6 +161,7 @@ export default {
       holders: [],
       selectedUserIds: [],
       awarding: false,
+      pushing: false,
     }
   },
   computed: {
@@ -286,6 +288,19 @@ export default {
       if (!d) return ''
       return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     },
+    async pushToProd(badge) {
+      if (!confirm(`Push "${badge.name}" to Production?`)) return
+      this.pushing = true
+      try {
+        const { data } = await pushBadgeToProd(badge.id)
+        this.showToast(`🚀 ${data.prod_response?.action === 'updated' ? 'Updated' : 'Created'} on Production!`)
+      } catch (e) {
+        const msg = e.response?.data?.detail || 'Push failed'
+        this.showToast(msg, 'error')
+      } finally {
+        this.pushing = false
+      }
+    },
   }
 }
 </script>
@@ -388,6 +403,9 @@ export default {
 .btn-delete:hover { background: rgba(192,57,43,0.4); }
 .btn-edit { background: rgba(52,152,219,0.2); color: #3498db; border: 1px solid rgba(52,152,219,0.3); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 16px; }
 .btn-edit:hover { background: rgba(52,152,219,0.4); }
+.btn-push { background: rgba(46,204,113,0.2); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+.btn-push:hover { background: rgba(46,204,113,0.4); }
+.btn-push:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .detail-stats { display: flex; gap: 12px; margin-bottom: 20px; padding: 10px 14px; background: rgba(212,164,76,0.06); border-radius: 10px; border: 1px solid rgba(212,164,76,0.1); }
 .detail-stat { font-size: 13px; color: #e8dcc8; font-weight: 600; }

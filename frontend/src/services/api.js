@@ -209,6 +209,8 @@ export const adminListArtifacts = () => api.get('/api/badges/artifacts/admin/lis
 export const adminCreateArtifact = (formData) => api.post('/api/badges/artifacts/admin/create', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const adminUpdateArtifact = (id, formData) => api.put(`/api/badges/artifacts/admin/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const adminDeleteArtifact = (id) => api.delete(`/api/badges/artifacts/admin/${id}`)
+export const pushBadgeToProd = (badgeId) => api.post(`/api/badges/${badgeId}/push-to-prod`)
+export const pushQuestToProd = (questId) => api.post(`/api/badge-quests/${questId}/push-to-prod`)
 export const uploadMagicBackground = (formData) => api.post('/api/users/me/background', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 
 // --- Fitbit ---

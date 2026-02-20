@@ -57,6 +57,7 @@
         <div class="quest-card-footer">
           <span class="quest-card-date">{{ formatDate(q.created_at) }}</span>
           <div class="quest-card-actions">
+            <button class="btn-icon" title="Push to Prod" @click="pushToProd(q)">🚀</button>
             <button class="btn-icon" title="Edit" @click="openEdit(q)">✏️</button>
             <button class="btn-icon" title="Delete" @click="deleteQuest(q.id)">🗑️</button>
           </div>
@@ -208,7 +209,7 @@
 </template>
 
 <script>
-import api, { getBadges, getRewards } from '../../services/api'
+import api, { getBadges, getRewards, pushQuestToProd } from '../../services/api'
 
 export default {
   name: 'BadgeQuests',
@@ -405,6 +406,17 @@ export default {
     formatDate(d) {
       if (!d) return ''
       return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    },
+    async pushToProd(quest) {
+      const label = quest.badge_name || quest.description || `Quest #${quest.id}`
+      if (!confirm(`Push "${label}" to Production?`)) return
+      try {
+        const { data } = await pushQuestToProd(quest.id)
+        this.showToast(`🚀 Quest pushed to Production!`)
+      } catch (e) {
+        const msg = e.response?.data?.detail || 'Push failed'
+        this.showToast(msg, 'error')
+      }
     },
   },
 }

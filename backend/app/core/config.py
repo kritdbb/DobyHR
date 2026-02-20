@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     GOOGLE_CHAT_WEBHOOK_URL: str = os.getenv("GOOGLE_CHAT_WEBHOOK_URL", "")
     GOOGLE_CHAT_APPROVAL_WEBHOOK: str = os.getenv("GOOGLE_CHAT_APPROVAL_WEBHOOK", "")
 
+    # Badge Sync (UAT → Production)
+    SYNC_API_KEY: str = os.getenv("SYNC_API_KEY", "")          # key this server accepts
+    PROD_API_URL: str = os.getenv("PROD_API_URL", "https://hr.doby.me")  # target prod
+    PROD_SYNC_KEY: str = os.getenv("PROD_SYNC_KEY", "")        # key sent to prod
+
     class Config:
         env_file = ".env"
 
