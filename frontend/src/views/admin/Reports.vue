@@ -252,7 +252,7 @@
 
         <!-- Per-user cards -->
         <div v-for="uc in expenseUserCards" :key="uc.user_id" class="expense-user-card">
-          <div class="euc-header" @click="uc.expanded = !uc.expanded">
+          <div class="euc-header" @click="toggleExpUser(uc.user_id)">
             <div class="euc-user">
               <div class="euc-name">{{ uc.name }}</div>
               <div class="euc-count">{{ uc.items.length }} items</div>
@@ -263,9 +263,9 @@
               <span v-if="uc.centerTotal > 0" class="euc-stat" style="color: #9b59b6;">🏢 ฿{{ uc.centerTotal.toLocaleString() }}</span>
               <span class="euc-stat euc-total">💰 ฿{{ uc.total.toLocaleString() }}</span>
             </div>
-            <span class="euc-chevron" :class="{ open: uc.expanded }">▾</span>
+            <span class="euc-chevron" :class="{ open: expandedExpUsers[uc.user_id] }">▾</span>
           </div>
-          <div v-if="uc.expanded" class="euc-body">
+          <div v-if="expandedExpUsers[uc.user_id]" class="euc-body">
             <table>
               <thead>
                 <tr>
@@ -394,6 +394,7 @@ export default {
             pendingLeaves: [],
             expenseData: [],
             manaReport: { summary: [], transactions: [] },
+            expandedExpUsers: {},
             loading: false,
             attendanceChartData: null,
             leaveChartData: null,
@@ -465,7 +466,7 @@ export default {
                         travelTotal: 0,
                         centerTotal: 0,
                         total: 0,
-                        expanded: false,
+
                     }
                 }
                 groups[key].items.push(exp)
@@ -684,6 +685,9 @@ export default {
         },
         openViewer(src) { this.viewerSrc = src; this.viewerOpen = true },
         isPdf(path) { return path && path.toLowerCase().endsWith('.pdf') },
+        toggleExpUser(userId) {
+            this.expandedExpUsers = { ...this.expandedExpUsers, [userId]: !this.expandedExpUsers[userId] }
+        },
         getExpAmount(exp) {
             return exp.expense_type === 'TRAVEL' ? (exp.total_amount || 0) : (exp.amount || 0)
         },
