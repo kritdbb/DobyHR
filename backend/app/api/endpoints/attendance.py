@@ -11,6 +11,7 @@ from app.models.user import User
 from app.models.reward import CoinLog
 from app.models.work_request import WorkRequest, WorkRequestStatus
 from app.models.badge import Badge, UserBadge
+from app.models.holiday import Holiday
 from app.api.deps import get_current_user
 from pydantic import BaseModel
 import logging
@@ -96,6 +97,9 @@ def check_in(
         user_working_days = [d.strip().lower() for d in current_user.working_days.split(",")]
         if day_code not in user_working_days:
             is_working_day = False
+
+    # 1b. Check if today is a holiday
+    is_holiday = db.query(Holiday).filter(Holiday.date == today_local).first() is not None
     
     # 2. Check for duplicate check-in today (ignore remote_request/work_request/rejected)
     day_start_utc = datetime.combine(today_local, datetime.min.time()) - timedelta(hours=7)
@@ -122,8 +126,11 @@ def check_in(
     # 5. Check if too far → Remote Work Request
     is_remote = distance > 200
 
-    # 6. Handle non-working day → Work Request
-    if not is_working_day:
+    # 6. Handle non-working day or holiday → Work Request
+    if not is_working_day or is_holiday:
+        req_type = "holiday_request" if (is_holiday and is_working_day) else "work_request"
+        detail_msg = "Holiday check-in — needs approval" if req_type == "holiday_request" else "Non-working day check-in — needs approval"
+
         attendance = Attendance(
             user_id=current_user.id,
             timestamp=datetime.utcnow(),
@@ -138,7 +145,8 @@ def check_in(
         work_req = WorkRequest(
             user_id=current_user.id,
             attendance_id=attendance.id,
-            status=WorkRequestStatus.PENDING
+            status=WorkRequestStatus.PENDING,
+            request_type=req_type,
         )
         db.add(work_req)
         db.commit()
@@ -147,9 +155,9 @@ def check_in(
         requester_name = f"{current_user.name} {current_user.surname or ''}".strip()
         approvers = find_step_approvers(current_user.id, 1, db)
         if approvers:
-            notify_approvers(requester_name, "Work Request", "Non-working day check-in — needs approval", approvers)
+            notify_approvers(requester_name, "Work Request", detail_msg, approvers)
 
-        logger.info(f"📋 Work Request created for {current_user.name} {current_user.surname} (non-working day)")
+        logger.info(f"📋 Work Request created for {current_user.name} {current_user.surname} ({req_type})")
         return {
             "message": "Work Request created — awaiting approval before coins are granted.",
             "distance": int(distance),
@@ -176,7 +184,8 @@ def check_in(
         work_req = WorkRequest(
             user_id=current_user.id,
             attendance_id=attendance.id,
-            status=WorkRequestStatus.PENDING
+            status=WorkRequestStatus.PENDING,
+            request_type="remote_request",
         )
         db.add(work_req)
         db.commit()

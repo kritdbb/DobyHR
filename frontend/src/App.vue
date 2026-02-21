@@ -80,6 +80,11 @@
                         <span class="mr-3 text-lg">📊</span>
                         <span class="font-semibold">Chronicles</span>
                     </router-link>
+
+                    <router-link to="/holidays" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
+                        <span class="mr-3 text-lg">🎌</span>
+                        <span class="font-semibold">Holidays</span>
+                    </router-link>
                 </nav>
             </div>
             

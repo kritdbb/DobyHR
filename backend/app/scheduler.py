@@ -184,6 +184,12 @@ def auto_process_absent_penalties():
         from app.models.attendance import Attendance
         from app.models.leave import LeaveRequest, LeaveStatus
         from app.models.work_request import WorkRequest, WorkRequestStatus
+        from app.models.holiday import Holiday
+
+        # Skip penalty on holidays
+        if db.query(Holiday).filter(Holiday.date == target_date).first():
+            logger.info(f"🎌 {target_date} is a holiday — skipping absent penalties")
+            return
 
         penalty_amount = company.coin_absent_penalty
         staff = db.query(User).filter(User.role == UserRole.PLAYER).all()

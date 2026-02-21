@@ -318,12 +318,12 @@
             <span class="quest-emoji">📋</span>
             <div>
               <div class="quest-name">{{ item.user_name }}</div>
-              <div class="quest-type">Special Mission (non-working day)</div>
+              <div class="quest-type">{{ workRequestLabel(item.request_type) }}</div>
             </div>
           </div>
           <span class="quest-badge">pending</span>
         </div>
-        <div class="quest-detail" v-if="item.check_in_time">🕐 Quest started: {{ item.check_in_time }}</div>
+        <div class="quest-detail" v-if="item.check_in_time">🕐 เวลา: {{ item.check_in_time }}</div>
         <div class="quest-actions">
           <button @click="handleApproveWorkRequest(item.id)" class="btn-approve">✅ Accept</button>
           <button @click="handleRejectWorkRequest(item.id)" class="btn-reject">❌ Deny</button>
@@ -893,6 +893,11 @@ export default {
       if (!d) return ''
       const dt = new Date(d)
       return dt.toLocaleDateString('en-GB') + ' ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    },
+    workRequestLabel(type) {
+      if (type === 'remote_request') return 'ขอเช็คอินนอกสถานที่'
+      if (type === 'holiday_request') return 'ขอทำงานในวันหยุดราชการ'
+      return 'ขอทำงานนอกวันงานปกติ'
     },
     formatBadgeDate(d) {
       if (!d) return ''

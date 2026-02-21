@@ -55,10 +55,8 @@ export default {
 
       if (this.$router.currentRoute.value.query.redirect) {
         this.$router.push(this.$router.currentRoute.value.query.redirect)
-      } else if (['god', 'gm'].includes(data.role)) {
-        this.$router.push('/company')
       } else {
-        this.$router.push('/staff/check-in')
+        this.$router.push('/staff/home')
       }
     },
     async handleLogin() {

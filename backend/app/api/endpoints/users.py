@@ -500,7 +500,7 @@ def adjust_user_coins(
     return user
 
 
-@router.get("/{user_id}/coin-logs", response_model=List[CoinLogResponse])
+@router.get("/{user_id}/coin-logs")
 def get_user_coin_logs(
     user_id: int,
     db: Session = Depends(get_db),
@@ -510,13 +510,25 @@ def get_user_coin_logs(
     if current_user.id != user_id and current_user.role not in (UserRole.GOD, UserRole.GM):
          raise HTTPException(status_code=403, detail="Not authorized")
          
-    return db.query(CoinLog).filter(
+    logs = db.query(CoinLog).filter(
         CoinLog.user_id == user_id,
         ~CoinLog.reason.like("%Angel%")
     ).order_by(CoinLog.created_at.desc()).all()
 
+    return [
+        {
+            "id": log.id,
+            "user_id": log.user_id,
+            "amount": log.amount,
+            "reason": log.reason,
+            "created_by": log.created_by,
+            "created_at": (log.created_at + timedelta(hours=7)).isoformat() if log.created_at else None,
+        }
+        for log in logs
+    ]
 
-@router.get("/{user_id}/angel-coin-logs", response_model=List[CoinLogResponse])
+
+@router.get("/{user_id}/angel-coin-logs")
 def get_user_angel_coin_logs(
     user_id: int,
     db: Session = Depends(get_db),
@@ -525,12 +537,25 @@ def get_user_angel_coin_logs(
     """Return only angel-coin-related log entries."""
     if current_user.id != user_id and current_user.role not in (UserRole.GOD, UserRole.GM):
          raise HTTPException(status_code=403, detail="Not authorized")
-    return (
+
+    logs = (
         db.query(CoinLog)
         .filter(CoinLog.user_id == user_id, CoinLog.reason.like("%Angel%"))
         .order_by(CoinLog.created_at.desc())
         .all()
     )
+
+    return [
+        {
+            "id": log.id,
+            "user_id": log.user_id,
+            "amount": log.amount,
+            "reason": log.reason,
+            "created_by": log.created_by,
+            "created_at": (log.created_at + timedelta(hours=7)).isoformat() if log.created_at else None,
+        }
+        for log in logs
+    ]
 
 
 @router.get("/{user_id}/attendance")

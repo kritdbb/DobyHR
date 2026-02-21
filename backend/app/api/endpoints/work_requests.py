@@ -26,6 +26,7 @@ class WorkRequestResponse(BaseModel):
     user_name: Optional[str] = None
     attendance_id: Optional[int] = None
     status: WorkRequestStatus
+    request_type: Optional[str] = None
     created_at: Optional[datetime] = None
     check_in_time: Optional[str] = None
 
@@ -78,6 +79,13 @@ def get_pending_work_requests(
                 local_ts = att.timestamp + timedelta(hours=7)
                 check_in_time = local_ts.strftime("%d %b %Y %H:%M")
 
+        # Determine request_type: use column if present, else infer from attendance status
+        req_type = wr.request_type
+        if not req_type and wr.attendance_id:
+            att_check = db.query(Attendance).filter(Attendance.id == wr.attendance_id).first()
+            if att_check:
+                req_type = "remote_request" if att_check.status == "remote_request" else "work_request"
+
         result.append(
             WorkRequestResponse(
                 id=wr.id,
@@ -85,6 +93,7 @@ def get_pending_work_requests(
                 user_name=user_cache[wr.user_id],
                 attendance_id=wr.attendance_id,
                 status=wr.status,
+                request_type=req_type,
                 created_at=wr.created_at,
                 check_in_time=check_in_time,
             )
@@ -117,52 +126,65 @@ def approve_work_request(
     coin_reason = ""
     status = "present"
 
+    # Determine request type (with legacy fallback)
+    req_type = wr.request_type
+    if not req_type and attendance:
+        req_type = "remote_request" if attendance.status == "remote_request" else "work_request"
+
     if attendance:
-        # Use original check-in timestamp to determine on-time / late / absent
-        checkin_local = attendance.timestamp + timedelta(hours=7)
-        checkin_time = checkin_local.time()
+        if req_type in ("work_request", "holiday_request"):
+            # Non-working day / holiday: auto on-time, no time evaluation
+            status = "present"
+            attendance.status = status
+            if company and company.coin_on_time:
+                coin_change = company.coin_on_time
+                coin_reason = "On-time (work request approved)"
+        else:
+            # Remote request: evaluate check-in time
+            checkin_local = attendance.timestamp + timedelta(hours=7)
+            checkin_time = checkin_local.time()
 
-        from datetime import time as dt_time
-        start = user.work_start_time or dt_time(9, 0)
-        start_minutes = start.hour * 60 + start.minute
-        checkin_minutes = checkin_time.hour * 60 + checkin_time.minute
-        diff_seconds = (checkin_minutes - start_minutes) * 60
+            from datetime import time as dt_time
+            start = user.work_start_time or dt_time(9, 0)
+            start_minutes = start.hour * 60 + start.minute
+            checkin_minutes = checkin_time.hour * 60 + checkin_time.minute
+            diff_seconds = (checkin_minutes - start_minutes) * 60
 
-        # DEF grace: total_def × def_grace_seconds
-        grace_seconds = 0
-        if company and company.def_grace_seconds and company.def_grace_seconds > 0:
-            base_def = user.base_def if hasattr(user, 'base_def') and user.base_def else 10
-            badge_def = (
-                db.query(sqlfunc.coalesce(sqlfunc.sum(Badge.stat_def), 0))
-                .join(UserBadge, UserBadge.badge_id == Badge.id)
-                .filter(UserBadge.user_id == user.id)
-                .scalar()
-            )
-            total_def = base_def + int(badge_def)
-            grace_seconds = total_def * company.def_grace_seconds
+            # DEF grace: total_def × def_grace_seconds
+            grace_seconds = 0
+            if company and company.def_grace_seconds and company.def_grace_seconds > 0:
+                base_def = user.base_def if hasattr(user, 'base_def') and user.base_def else 10
+                badge_def = (
+                    db.query(sqlfunc.coalesce(sqlfunc.sum(Badge.stat_def), 0))
+                    .join(UserBadge, UserBadge.badge_id == Badge.id)
+                    .filter(UserBadge.user_id == user.id)
+                    .scalar()
+                )
+                total_def = base_def + int(badge_def)
+                grace_seconds = total_def * company.def_grace_seconds
 
-        if diff_seconds > 3600:
-            status = "absent"
-        elif diff_seconds > grace_seconds:
-            status = "late"
+            if diff_seconds > 3600:
+                status = "absent"
+            elif diff_seconds > grace_seconds:
+                status = "late"
 
-        # Update attendance status
-        attendance.status = status
+            # Update attendance status
+            attendance.status = status
 
-        # Coin logic
-        if company:
-            if status == "absent":
-                if company.coin_absent_penalty:
-                    coin_change = -company.coin_absent_penalty
-                    coin_reason = "Absent (remote request approved, >1hr late)"
-            elif status == "late":
-                if company.coin_late_penalty:
-                    coin_change = -company.coin_late_penalty
-                    coin_reason = "Late (remote request approved)"
-            else:
-                if company.coin_on_time:
-                    coin_change = company.coin_on_time
-                    coin_reason = "On-time (remote request approved)"
+            # Coin logic
+            if company:
+                if status == "absent":
+                    if company.coin_absent_penalty:
+                        coin_change = -company.coin_absent_penalty
+                        coin_reason = "Absent (remote request approved, >1hr late)"
+                elif status == "late":
+                    if company.coin_late_penalty:
+                        coin_change = -company.coin_late_penalty
+                        coin_reason = "Late (remote request approved)"
+                else:
+                    if company.coin_on_time:
+                        coin_change = company.coin_on_time
+                        coin_reason = "On-time (remote request approved)"
     else:
         # No attendance record — just grant on-time coins
         if company and company.coin_on_time:

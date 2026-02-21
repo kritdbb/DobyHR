@@ -11,6 +11,7 @@ from app.models.leave import LeaveRequest, LeaveStatus
 from app.models.company import Company
 from app.models.reward import CoinLog
 from app.models.work_request import WorkRequest, WorkRequestStatus
+from app.models.holiday import Holiday
 
 router = APIRouter(prefix="/api/admin", tags=["Admin Tools"])
 
@@ -32,7 +33,11 @@ def process_absent_penalties(
     if not target_date:
         now_local = datetime.utcnow() + timedelta(hours=7)
         target_date = now_local.date() - timedelta(days=1)
-    
+
+    # Check if target date is a holiday
+    if db.query(Holiday).filter(Holiday.date == target_date).first():
+        return {"message": f"{target_date} is a public holiday — no penalties", "processed": 0}
+
     company = db.query(Company).first()
     if not company or not company.coin_absent_penalty:
         return {"message": "No absent penalty configured", "processed": 0}

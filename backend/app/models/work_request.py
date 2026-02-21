@@ -18,6 +18,7 @@ class WorkRequest(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     attendance_id = Column(Integer, ForeignKey("attendance.id"), nullable=True)
     status = Column(SAEnum(WorkRequestStatus), default=WorkRequestStatus.PENDING)
+    request_type = Column(String(30), default="work_request")  # work_request | remote_request | holiday_request
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")

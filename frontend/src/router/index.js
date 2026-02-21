@@ -122,6 +122,12 @@ const routes = [
         component: () => import('../views/admin/FortuneWheel.vue'),
         meta: { requiresAuth: true, role: 'gm' }
     },
+    {
+        path: '/holidays',
+        name: 'HolidayManagement',
+        component: () => import('../views/admin/HolidayManagement.vue'),
+        meta: { requiresAuth: true, role: 'gm' }
+    },
     // Staff (Player) Routes
     {
         path: '/staff',
@@ -276,22 +282,17 @@ router.beforeEach(async (to, from, next) => {
 
         // Root redirect
         if (to.path === '/') {
-            if (ADMIN_ROLES.includes(user.role)) {
-                next('/admin')
-            } else {
-                next('/staff/home')
-            }
+            next('/staff/home')
             return
         }
 
         next()
     } else {
-        // If logged in and trying to access login, redirect to appropriate home
+        // If logged in and trying to access login, redirect to staff home
         if ((to.path === '/login' || to.path === '/') && token) {
             const valid = await validateToken()
             if (valid) {
-                if (ADMIN_ROLES.includes(user.role)) next('/admin')
-                else next('/staff/home')
+                next('/staff/home')
                 return
             }
         }
