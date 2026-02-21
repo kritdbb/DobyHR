@@ -69,10 +69,118 @@ def _get_user_total_stats(user, db):
         base_l + (badge_row.l if badge_row else 0),
     )
 
-
 # ═══════════════════════════════════════════════════
 #  Staff-facing endpoints
 # ═══════════════════════════════════════════════════
+
+@router.get("/matchmake/status")
+def matchmake_status(db: Session = Depends(get_db), current_user=Depends(deps.get_current_user)):
+    """Check if the current user already battled today (matchmaking)."""
+    now_bkk = datetime.utcnow() + timedelta(hours=7)
+    today = now_bkk.date()
+    battled = db.query(PvpBattle).filter(
+        PvpBattle.battle_date == today,
+        PvpBattle.status == "resolved",
+        (PvpBattle.player_a_id == current_user.id) | (PvpBattle.player_b_id == current_user.id),
+    ).first()
+    return {"already_battled": battled is not None, "battle_id": battled.id if battled else None}
+
+
+@router.post("/matchmake")
+def matchmake(db: Session = Depends(get_db), current_user=Depends(deps.get_current_user)):
+    """Staff matchmaking: randomly pick an opponent, simulate battle instantly, return result."""
+    from app.scheduler import _simulate_battle
+    from app.models.reward import CoinLog
+
+    now_bkk = datetime.utcnow() + timedelta(hours=7)
+    today = now_bkk.date()
+
+    # 1. Check 1 battle/day limit
+    existing = db.query(PvpBattle).filter(
+        PvpBattle.battle_date == today,
+        PvpBattle.status == "resolved",
+        (PvpBattle.player_a_id == current_user.id) | (PvpBattle.player_b_id == current_user.id),
+    ).first()
+    if existing:
+        raise HTTPException(400, "คุณต่อสู้ไปแล้ววันนี้! กลับมาใหม่พรุ่งนี้")
+
+    # 2. Pick random opponent (exclude self)
+    candidates = db.query(User).filter(User.id != current_user.id).all()
+    if not candidates:
+        raise HTTPException(400, "ไม่มีคู่ต่อสู้")
+    opponent = random.choice(candidates)
+
+    # 3. Get stats
+    a_str, a_def, a_luk = _get_user_total_stats(current_user, db)
+    b_str, b_def, b_luk = _get_user_total_stats(opponent, db)
+
+    # 4. Simulate battle instantly
+    winner_side, battle_log = _simulate_battle(a_str, a_def, a_luk, b_str, b_def, b_luk)
+
+    if winner_side == "A":
+        winner, loser = current_user, opponent
+    else:
+        winner, loser = opponent, current_user
+
+    # 5. Rewards / Penalties
+    WINNER_GOLD = 5
+    LOSER_GOLD = 5
+
+    battle = PvpBattle(
+        battle_date=today,
+        scheduled_time=now_bkk,
+        player_a_id=current_user.id,
+        player_b_id=opponent.id,
+        a_str=a_str, a_def=a_def, a_luk=a_luk,
+        b_str=b_str, b_def=b_def, b_luk=b_luk,
+        a_coins=current_user.coins or 0,
+        a_angel_coins=current_user.angel_coins or 0,
+        b_coins=opponent.coins or 0,
+        b_angel_coins=opponent.angel_coins or 0,
+        winner_gold=WINNER_GOLD,
+        loser_gold=LOSER_GOLD,
+        winner_id=winner.id,
+        loser_id=loser.id,
+        battle_log=battle_log,
+        gold_stolen=WINNER_GOLD,
+        status="resolved",
+    )
+    db.add(battle)
+
+    # Apply rewards
+    winner.coins = (winner.coins or 0) + WINNER_GOLD
+    loser.coins = max(0, (loser.coins or 0) - LOSER_GOLD)
+
+    # Log coins
+    current_user_name = f"{current_user.name} {current_user.surname or ''}".strip()
+    opponent_name = f"{opponent.name} {opponent.surname or ''}".strip()
+    winner_name = f"{winner.name} {winner.surname or ''}".strip()
+    loser_name = f"{loser.name} {loser.surname or ''}".strip()
+    db.add(CoinLog(user_id=winner.id, amount=WINNER_GOLD, reason=f"⚔️ PvP Victory vs {loser_name}", created_by="PvP Arena"))
+    db.add(CoinLog(user_id=loser.id, amount=-LOSER_GOLD, reason=f"⚔️ PvP Defeat vs {winner_name}", created_by="PvP Arena"))
+
+    db.commit()
+    db.refresh(battle)
+
+    # 6. Town Crier webhook
+    try:
+        from app.services.notifications import send_town_crier_webhook
+        send_town_crier_webhook(
+            f"⚔️ *{current_user_name}* VS *{opponent_name}* — *{winner_name}* Wins! Take {WINNER_GOLD} Gold 🏆"
+        )
+    except Exception as e:
+        logger.error(f"Town Crier webhook error: {e}")
+
+    logger.info(f"⚔️ Matchmake: {winner_name} beats {loser_name}")
+
+    return {
+        "battle_id": battle.id,
+        "winner_id": winner.id,
+        "winner_name": winner_name,
+        "loser_name": loser_name,
+        "opponent_id": opponent.id,
+        "opponent_name": f"{opponent.name} {opponent.surname or ''}".strip(),
+    }
 
 @router.get("/today")
 def get_today_battles(db: Session = Depends(get_db), current_user=Depends(deps.get_current_user)):

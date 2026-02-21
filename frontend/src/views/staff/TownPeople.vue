@@ -6,6 +6,49 @@
       <p class="page-sub">Fellow adventurers of the realm</p>
     </div>
 
+    <!-- Matchmaking Card -->
+    <div class="matchmake-card">
+      <div class="matchmake-bg"></div>
+      <div class="matchmake-overlay">
+        <div class="matchmake-content">
+          <div class="matchmake-title">⚔️ BATTLE ARENA</div>
+          <div class="matchmake-rewards">
+            <span class="reward-tag winner-tag">🏆 Winner +5 Gold</span>
+            <span class="reward-tag loser-tag">💀 Loser -5 Gold</span>
+          </div>
+          <div class="matchmake-desc">สุ่มคู่ต่อสู้ วันละ 1 ครั้ง</div>
+          <button class="btn-matchmake" :disabled="alreadyBattled || matchmaking" @click="startMatchmaking">
+            {{ alreadyBattled ? '⚔️ ต่อสู้แล้ววันนี้' : (matchmaking ? '⏳ กำลังหาคู่ต่อสู้...' : '⚔️ Match Making') }}
+          </button>
+          <div v-if="alreadyBattled && lastBattleId" class="rematch-link">
+            <router-link :to="'/staff/arena/' + lastBattleId" class="view-last-battle">📺 ดู replay ล่าสุด</router-link>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spin Wheel Modal -->
+    <div v-if="showWheel" class="wheel-overlay" @click.self="cancelWheel">
+      <div class="wheel-container">
+        <div class="wheel-title">⚔️ สุ่มคู่ต่อสู้...</div>
+        <div class="wheel-stage">
+          <div class="wheel-pointer">▼</div>
+          <div class="wheel-ring" :style="{ transform: 'rotate(' + wheelAngle + 'deg)', transition: wheelTransition }">
+            <div v-for="(p, i) in wheelPlayers" :key="p.id" class="wheel-slot"
+              :style="slotStyle(i)" :class="{ selected: wheelDone && wheelSelectedIdx === i }">
+              <img v-if="p.image" :src="p.image" class="wheel-avatar" />
+              <div v-else class="wheel-avatar-ph">{{ (p.name || '?').charAt(0) }}</div>
+              <div class="wheel-name">{{ p.name }}</div>
+            </div>
+          </div>
+        </div>
+        <div v-if="wheelDone" class="wheel-result">
+          <div class="vs-flash">⚔️ VS {{ wheelPlayers[wheelSelectedIdx]?.name }}!</div>
+          <button class="btn-fight-now" @click="executeMatchmake">⚔️ FIGHT!</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="loading" class="loading-state">
       <div class="loading-spinner"></div>
       <p>Gathering townsfolk...</p>
@@ -213,7 +256,7 @@
 </template>
 
 <script>
-import { getTownPeople, sendAngelCoins, getUser, sendThankYouCard, getThankYouStatus, sendAnonymousPraise, getAnonymousPraiseStatus, getArtifactCatalog } from '../../services/api'
+import api, { getTownPeople, sendAngelCoins, getUser, sendThankYouCard, getThankYouStatus, sendAnonymousPraise, getAnonymousPraiseStatus, getArtifactCatalog } from '../../services/api'
 
 export default {
   name: 'TownPeople',
@@ -240,14 +283,31 @@ export default {
       praiseSending: false,
       showPraiseModal: false,
       praiseMessage: '',
+      // Matchmaking
+      alreadyBattled: false,
+      lastBattleId: null,
+      matchmaking: false,
+      showWheel: false,
+      wheelPlayers: [],
+      wheelAngle: 0,
+      wheelTransition: 'none',
+      wheelDone: false,
+      wheelSelectedIdx: -1,
     }
   },
   async mounted() {
     try {
-      const [peopleRes, catRes] = await Promise.all([getTownPeople(), getArtifactCatalog()])
+      const [peopleRes, catRes, statusRes] = await Promise.all([
+        getTownPeople(),
+        getArtifactCatalog(),
+        api.get('/api/pvp/matchmake/status').catch(() => ({ data: {} })),
+      ])
       this.people = peopleRes.data
       this.artifactCatalog = catRes.data
-      // Load my current mana
+      if (statusRes.data) {
+        this.alreadyBattled = statusRes.data.already_battled || false
+        this.lastBattleId = statusRes.data.battle_id || null
+      }
       await this.loadMyMana()
     } catch (e) {
       console.error('Failed to load town people', e)
@@ -360,6 +420,67 @@ export default {
         this.showToast(e.response?.data?.detail || 'Failed to send praise', 'error')
       } finally {
         this.praiseSending = false
+      }
+    },
+    // ─── Matchmaking ───────────────────────
+    async startMatchmaking() {
+      if (this.alreadyBattled || this.matchmaking) return
+      this.matchmaking = true
+      // Build wheel players: everyone except self
+      this.wheelPlayers = this.people.filter(p => p.id !== this.currentUserId)
+      if (this.wheelPlayers.length < 1) {
+        this.showToast('ไม่มีคู่ต่อสู้', 'error')
+        this.matchmaking = false
+        return
+      }
+      // Pick random target (backend will pick its own, this is just visual)
+      this.wheelSelectedIdx = Math.floor(Math.random() * this.wheelPlayers.length)
+      this.wheelAngle = 0
+      this.wheelTransition = 'none'
+      this.wheelDone = false
+      this.showWheel = true
+      // Start spinning after a frame
+      await this.$nextTick()
+      requestAnimationFrame(() => {
+        const count = this.wheelPlayers.length
+        const slotAngle = 360 / count
+        // Target angle: spin several full rotations + land on selected slot
+        // Pointer is at top (0°), each slot i is at (i * slotAngle)°
+        // We want the selected slot to be at the top → rotate by -(selectedIdx * slotAngle)
+        const targetOffset = -(this.wheelSelectedIdx * slotAngle)
+        const fullSpins = 360 * (5 + Math.floor(Math.random() * 3)) // 5-7 full spins
+        this.wheelTransition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)'
+        this.wheelAngle = fullSpins + targetOffset
+      })
+      // Wait for spin to finish
+      setTimeout(() => {
+        this.wheelDone = true
+        this.matchmaking = false
+      }, 4200)
+    },
+    cancelWheel() {
+      if (!this.wheelDone) return // can't cancel during spin
+      this.showWheel = false
+      this.matchmaking = false
+    },
+    slotStyle(index) {
+      const count = this.wheelPlayers.length
+      const angle = (360 / count) * index
+      const radius = Math.min(130, 100 + count * 2)
+      return {
+        transform: `rotate(${angle}deg) translateY(-${radius}px) rotate(-${angle}deg)`,
+      }
+    },
+    async executeMatchmake() {
+      try {
+        const { data } = await api.post('/api/pvp/matchmake')
+        this.showWheel = false
+        this.alreadyBattled = true
+        this.lastBattleId = data.battle_id
+        this.$router.push(`/staff/arena/${data.battle_id}`)
+      } catch (e) {
+        this.showToast(e.response?.data?.detail || 'Matchmaking failed', 'error')
+        this.showWheel = false
       }
     },
   },
@@ -1047,5 +1168,195 @@ export default {
 }
 .praise-actions {
   display: flex; gap: 8px; margin-top: 10px;
+}
+
+/* ═══════════════════════════════════════════════════
+   MATCHMAKING CARD
+   ═══════════════════════════════════════════════════ */
+.matchmake-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 2px solid rgba(212,164,76,0.3);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 20px rgba(212,164,76,0.08);
+}
+.matchmake-bg {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: url('/images/battle_arena_bg.png') center/cover no-repeat;
+  filter: brightness(0.6);
+}
+.matchmake-overlay {
+  position: relative; z-index: 1;
+  background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(17,10,30,0.85) 100%);
+  padding: 24px 20px;
+}
+.matchmake-content {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px;
+}
+.matchmake-title {
+  font-family: 'Cinzel', serif; font-size: 22px; font-weight: 900;
+  background: linear-gradient(135deg, #d4a44c, #ffd700, #d4a44c);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  letter-spacing: 3px;
+  filter: drop-shadow(0 2px 8px rgba(212,164,76,0.4));
+}
+.matchmake-rewards {
+  display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+}
+.reward-tag {
+  padding: 5px 14px; border-radius: 8px;
+  font-size: 13px; font-weight: 700;
+}
+.winner-tag {
+  background: rgba(46,204,113,0.15); border: 1px solid rgba(46,204,113,0.3);
+  color: #2ecc71;
+}
+.loser-tag {
+  background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3);
+  color: #e74c3c;
+}
+.matchmake-desc {
+  font-size: 12px; color: #b8a080; font-weight: 600;
+  font-style: italic;
+}
+.btn-matchmake {
+  padding: 14px 40px; border-radius: 12px;
+  font-family: 'Cinzel', serif; font-size: 16px; font-weight: 800;
+  border: 2px solid #d4a44c;
+  background: linear-gradient(135deg, #b8860b, #d4a44c);
+  color: #1c1208; cursor: pointer;
+  text-shadow: 0 1px 1px rgba(255,255,255,0.2);
+  box-shadow: 0 4px 20px rgba(212,164,76,0.3);
+  transition: all 0.25s; letter-spacing: 1px;
+}
+.btn-matchmake:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d4a44c, #ffd700);
+  box-shadow: 0 8px 32px rgba(212,164,76,0.4);
+  transform: translateY(-2px);
+}
+.btn-matchmake:disabled {
+  opacity: 0.5; cursor: not-allowed; transform: none;
+}
+.rematch-link { margin-top: 4px; }
+.view-last-battle {
+  color: #d4a44c; font-size: 13px; font-weight: 600;
+  text-decoration: none; opacity: 0.8;
+}
+.view-last-battle:hover { opacity: 1; text-decoration: underline; }
+
+/* ═══ Spin Wheel Modal ═══ */
+.wheel-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.9);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000; padding: 16px;
+  animation: fadeIn 0.3s ease;
+}
+.wheel-container {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px;
+}
+.wheel-title {
+  font-family: 'Cinzel', serif; font-size: 22px; font-weight: 800;
+  color: #d4a44c;
+  text-shadow: 0 2px 12px rgba(212,164,76,0.4);
+  letter-spacing: 2px;
+}
+.wheel-stage {
+  position: relative;
+  width: 320px; height: 320px;
+  display: flex; align-items: center; justify-content: center;
+}
+.wheel-pointer {
+  position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+  font-size: 28px; color: #ffd700; z-index: 10;
+  filter: drop-shadow(0 0 8px rgba(255,215,0,0.6));
+  animation: pointerBounce 0.6s ease-in-out infinite;
+}
+@keyframes pointerBounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(4px); }
+}
+.wheel-ring {
+  position: absolute;
+  width: 100%; height: 100%;
+  transform-origin: center center;
+}
+.wheel-slot {
+  position: absolute;
+  top: 50%; left: 50%;
+  margin-left: -24px; margin-top: -24px;
+  display: flex; flex-direction: column; align-items: center;
+  transition: transform 0.3s;
+  transform-origin: center center;
+}
+.wheel-slot.selected .wheel-avatar,
+.wheel-slot.selected .wheel-avatar-ph {
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 20px rgba(255,215,0,0.6), 0 0 40px rgba(255,215,0,0.3);
+  transform: scale(1.3);
+}
+.wheel-slot.selected .wheel-name {
+  color: #ffd700; font-weight: 800;
+  text-shadow: 0 0 8px rgba(255,215,0,0.5);
+}
+.wheel-avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(212,164,76,0.4);
+  transition: all 0.4s;
+}
+.wheel-avatar-ph {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: linear-gradient(135deg, #b8860b, #d4a44c);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 800; color: #1c1208;
+  border: 2px solid rgba(212,164,76,0.4);
+  transition: all 0.4s;
+}
+.wheel-name {
+  font-size: 10px; color: #e8d5b7; font-weight: 600;
+  margin-top: 4px; white-space: nowrap;
+  text-align: center; max-width: 60px;
+  overflow: hidden; text-overflow: ellipsis;
+  transition: all 0.3s;
+}
+
+/* ═══ Wheel Result ═══ */
+.wheel-result {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px;
+  animation: fadeIn 0.5s ease;
+}
+.vs-flash {
+  font-family: 'Cinzel', serif; font-size: 20px; font-weight: 900;
+  color: #ff4a6a;
+  text-shadow: 0 0 20px rgba(255,74,106,0.5);
+  letter-spacing: 2px;
+  animation: vsPulse 1s ease-in-out infinite;
+}
+@keyframes vsPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.btn-fight-now {
+  padding: 14px 40px; border-radius: 12px;
+  font-family: 'Cinzel', serif; font-size: 18px; font-weight: 900;
+  border: 2px solid #e74c3c;
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  color: #fff; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(231,76,60,0.4);
+  transition: all 0.25s; letter-spacing: 2px;
+}
+.btn-fight-now:hover {
+  background: linear-gradient(135deg, #e74c3c, #ff6b6b);
+  box-shadow: 0 8px 32px rgba(231,76,60,0.5);
+  transform: translateY(-2px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; } to { opacity: 1; }
 }
 </style>
