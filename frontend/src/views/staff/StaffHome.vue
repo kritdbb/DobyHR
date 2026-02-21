@@ -499,6 +499,20 @@
               </div>
             </div>
           </template>
+          <!-- PvP Battle event -->
+          <template v-else-if="a.type === 'pvp'">
+            <div class="award-announce-badge pvp-icon-circle">
+              <span>⚔️</span>
+            </div>
+            <div class="award-announce-body">
+              <div class="award-announce-text">
+                <strong>{{ a.user_name }}</strong> VS <strong>{{ a.opponent_name }}</strong> — <strong class="pvp-highlight">{{ a.user_name }} Wins!</strong> Take {{ a.amount }} Gold 🏆
+              </div>
+              <div class="award-announce-meta">
+                {{ formatBadgeDate(a.timestamp) }}
+              </div>
+            </div>
+          </template>
         </div>
         <button v-if="recentAwards.length > 5" class="btn-see-more" @click="showTownCrierModal = true">
           📯 See More ({{ recentAwards.length }} proclamations)
@@ -640,6 +654,20 @@
               <div class="award-announce-body">
                 <div class="award-announce-text">
                   <strong>{{ a.user_name }}</strong> ถูกพูดถึงโดยบุคคลนิรนามว่า <em class="praise-msg">"​{{ a.message }}​"</em>
+                </div>
+                <div class="award-announce-meta">
+                  {{ formatBadgeDate(a.timestamp) }}
+                </div>
+              </div>
+            </template>
+            <!-- PvP Battle event (modal) -->
+            <template v-else-if="a.type === 'pvp'">
+              <div class="award-announce-badge pvp-icon-circle">
+                <span>⚔️</span>
+              </div>
+              <div class="award-announce-body">
+                <div class="award-announce-text">
+                  <strong>{{ a.user_name }}</strong> VS <strong>{{ a.opponent_name }}</strong> — <strong class="pvp-highlight">{{ a.user_name }} Wins!</strong> Take {{ a.amount }} Gold 🏆
                 </div>
                 <div class="award-announce-meta">
                   {{ formatBadgeDate(a.timestamp) }}
@@ -1170,6 +1198,14 @@ export default {
   display: flex; align-items: center; justify-content: center; font-size: 16px;
 }
 .praise-msg { color: #85c1e9; font-style: italic; }
+
+/* PvP Battle event in Town Crier */
+.pvp-icon-circle {
+  background: linear-gradient(135deg, rgba(231,76,60,0.15), rgba(192,57,43,0.1));
+  border: 1px solid rgba(231,76,60,0.25);
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.pvp-highlight { color: #e74c3c; }
 
 /* ═══ RPG Character Sheet ═══ */
 .char-sheet {

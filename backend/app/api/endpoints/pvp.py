@@ -86,9 +86,12 @@ def matchmake_status(db: Session = Depends(get_db), current_user=Depends(deps.ge
     return {"already_battled": battled is not None, "battle_id": battled.id if battled else None}
 
 
+class MatchmakeRequest(BaseModel):
+    opponent_id: Optional[int] = None
+
 @router.post("/matchmake")
-def matchmake(db: Session = Depends(get_db), current_user=Depends(deps.get_current_user)):
-    """Staff matchmaking: randomly pick an opponent, simulate battle instantly, return result."""
+def matchmake(req: MatchmakeRequest = MatchmakeRequest(), db: Session = Depends(get_db), current_user=Depends(deps.get_current_user)):
+    """Staff matchmaking: fight a specific or random opponent instantly."""
     from app.scheduler import _simulate_battle
     from app.models.reward import CoinLog
 
@@ -104,11 +107,16 @@ def matchmake(db: Session = Depends(get_db), current_user=Depends(deps.get_curre
     if existing:
         raise HTTPException(400, "คุณต่อสู้ไปแล้ววันนี้! กลับมาใหม่พรุ่งนี้")
 
-    # 2. Pick random opponent (exclude self)
-    candidates = db.query(User).filter(User.id != current_user.id).all()
-    if not candidates:
-        raise HTTPException(400, "ไม่มีคู่ต่อสู้")
-    opponent = random.choice(candidates)
+    # 2. Pick opponent (from frontend wheel selection, or random fallback)
+    if req.opponent_id:
+        opponent = db.query(User).filter(User.id == req.opponent_id).first()
+        if not opponent or opponent.id == current_user.id:
+            raise HTTPException(400, "Invalid opponent")
+    else:
+        candidates = db.query(User).filter(User.id != current_user.id).all()
+        if not candidates:
+            raise HTTPException(400, "ไม่มีคู่ต่อสู้")
+        opponent = random.choice(candidates)
 
     # 3. Get stats
     a_str, a_def, a_luk = _get_user_total_stats(current_user, db)
@@ -161,15 +169,6 @@ def matchmake(db: Session = Depends(get_db), current_user=Depends(deps.get_curre
 
     db.commit()
     db.refresh(battle)
-
-    # 6. Town Crier webhook
-    try:
-        from app.services.notifications import send_town_crier_webhook
-        send_town_crier_webhook(
-            f"⚔️ *{current_user_name}* VS *{opponent_name}* — *{winner_name}* Wins! Take {WINNER_GOLD} Gold 🏆"
-        )
-    except Exception as e:
-        logger.error(f"Town Crier webhook error: {e}")
 
     logger.info(f"⚔️ Matchmake: {winner_name} beats {loser_name}")
 

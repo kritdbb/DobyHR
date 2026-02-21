@@ -817,6 +817,33 @@ def get_recent_awards(
                 "timestamp": ap.created_at.isoformat() if ap.created_at else None,
             })
 
+    # PvP Battle results (winner entries only, to avoid duplicates)
+    pvp_logs = (
+        db.query(CoinLog)
+        .filter(CoinLog.reason.ilike("%PvP Victory%"))
+        .order_by(CoinLog.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    for pl in pvp_logs:
+        user = db.query(User).filter(User.id == pl.user_id).first()
+        if user:
+            # Extract opponent name from "⚔️ PvP Victory vs Opponent Name"
+            opponent_name = ""
+            if " vs " in (pl.reason or ""):
+                opponent_name = pl.reason.split(" vs ", 1)[1]
+            events.append({
+                "id": f"pvp-{pl.id}",
+                "type": "pvp",
+                "user_name": f"{user.name} {user.surname or ''}".strip(),
+                "user_image": user.image,
+                "amount": pl.amount,
+                "opponent_name": opponent_name,
+                "reason": pl.reason,
+                "timestamp": pl.created_at.isoformat() if pl.created_at else None,
+                "detail": "PvP Arena",
+            })
+
     # Sort combined by timestamp desc and return top N
     events.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
     return events[:limit]

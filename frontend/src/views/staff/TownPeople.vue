@@ -473,7 +473,10 @@ export default {
     },
     async executeMatchmake() {
       try {
-        const { data } = await api.post('/api/pvp/matchmake')
+        const selectedOpponent = this.wheelPlayers[this.wheelSelectedIdx]
+        const { data } = await api.post('/api/pvp/matchmake', {
+          opponent_id: selectedOpponent?.id || null,
+        })
         this.showWheel = false
         this.alreadyBattled = true
         this.lastBattleId = data.battle_id
