@@ -81,7 +81,7 @@ def matchmake_status(db: Session = Depends(get_db), current_user=Depends(deps.ge
     battled = db.query(PvpBattle).filter(
         PvpBattle.battle_date == today,
         PvpBattle.status == "resolved",
-        (PvpBattle.player_a_id == current_user.id) | (PvpBattle.player_b_id == current_user.id),
+        PvpBattle.player_a_id == current_user.id,
     ).first()
     return {"already_battled": battled is not None, "battle_id": battled.id if battled else None}
 
@@ -102,7 +102,7 @@ def matchmake(req: MatchmakeRequest = MatchmakeRequest(), db: Session = Depends(
     existing = db.query(PvpBattle).filter(
         PvpBattle.battle_date == today,
         PvpBattle.status == "resolved",
-        (PvpBattle.player_a_id == current_user.id) | (PvpBattle.player_b_id == current_user.id),
+        PvpBattle.player_a_id == current_user.id,
     ).first()
     if existing:
         raise HTTPException(400, "คุณต่อสู้ไปแล้ววันนี้! กลับมาใหม่พรุ่งนี้")

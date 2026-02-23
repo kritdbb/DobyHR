@@ -277,7 +277,7 @@ def weekly_thank_you_badge_eval():
                 stat_luk=0,  # We manage LUK directly via base_luk
                 stat_str=0,
                 stat_def=0,
-                image="/uploads/badges/thank_you_star.png",
+                image=None,
             )
             db.add(badge)
             db.commit()
