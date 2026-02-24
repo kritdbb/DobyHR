@@ -39,6 +39,7 @@ class User(Base):
     status_text = Column(String(70), nullable=True)  # Custom status from Title Scroll
     magic_background = Column(String(500), nullable=True)  # Custom card background image path
     circle_artifact = Column(String(50), nullable=True)   # Equipped circle artifact ID
+    default_location_id = Column(Integer, nullable=True)   # Default check-in branch
 
     # Relationship to approval flow
     approval_flow = relationship(

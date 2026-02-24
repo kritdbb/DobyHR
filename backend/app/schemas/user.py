@@ -23,6 +23,7 @@ class UserBase(BaseModel):
     angel_coins: int = 0
     working_days: Optional[str] = "mon,tue,wed,thu,fri"
     status_text: Optional[str] = None
+    default_location_id: Optional[int] = None
 
 
 class UserCreate(UserBase):
@@ -46,6 +47,7 @@ class UserUpdate(BaseModel):
     role: Optional[UserRole] = None
     password: Optional[str] = None
     working_days: Optional[str] = None
+    default_location_id: Optional[int] = None
 
 
 class UserResponse(UserBase):
@@ -68,6 +70,7 @@ class UserListResponse(BaseModel):
     working_days: Optional[str] = None
     coins: int = 0
     angel_coins: int = 0
+    default_location_id: Optional[int] = None
 
     class Config:
         from_attributes = True

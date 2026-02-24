@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta, date
 import math, os, base64, uuid
+from typing import Optional
 from app.core.database import get_db
 from app.core.config import settings
 from app.models.attendance import Attendance
@@ -12,6 +13,7 @@ from app.models.reward import CoinLog
 from app.models.work_request import WorkRequest, WorkRequestStatus
 from app.models.badge import Badge, UserBadge
 from app.models.holiday import Holiday
+from app.models.location import Location
 from app.api.deps import get_current_user
 from pydantic import BaseModel
 import logging
@@ -25,6 +27,7 @@ router = APIRouter(prefix="/api/attendance", tags=["Attendance"])
 class CheckInRequest(BaseModel):
     latitude: float
     longitude: float
+    location_id: Optional[int] = None
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371 * 1000 # Meters
@@ -115,16 +118,29 @@ def check_in(
     if existing:
         raise HTTPException(status_code=400, detail="You have already checked in today.")
     
-    # 3. Get Company Location
+    # 3. Resolve check-in location (branch → user default → company fallback)
     company = db.query(Company).first()
-    if not company or not company.latitude or not company.longitude:
-        raise HTTPException(status_code=400, detail="Company location not set in settings")
+    checkin_loc = None
+    loc_id = req.location_id or current_user.default_location_id
+    if loc_id:
+        checkin_loc = db.query(Location).filter(Location.id == loc_id, Location.is_active == True).first()
+
+    if checkin_loc:
+        target_lat = checkin_loc.latitude
+        target_lon = checkin_loc.longitude
+        max_radius = checkin_loc.radius or 200
+    elif company and company.latitude and company.longitude:
+        target_lat = company.latitude
+        target_lon = company.longitude
+        max_radius = 200
+    else:
+        raise HTTPException(status_code=400, detail="No check-in location configured")
     
     # 4. Calculate Distance
-    distance = calculate_distance(req.latitude, req.longitude, company.latitude, company.longitude)
+    distance = calculate_distance(req.latitude, req.longitude, target_lat, target_lon)
     
     # 5. Check if too far → Remote Work Request
-    is_remote = distance > 200
+    is_remote = distance > max_radius
 
     # 6. Handle non-working day or holiday → Work Request
     if not is_working_day or is_holiday:

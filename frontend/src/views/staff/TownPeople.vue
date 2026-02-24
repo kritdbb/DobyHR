@@ -70,6 +70,9 @@
         <div class="person-name">{{ p.name }}</div>
         <div class="person-surname">{{ p.surname }}</div>
         <div class="person-position">{{ p.position }}</div>
+        <a v-if="p.phone" :href="'tel:' + p.phone" class="person-phone-link" @click.stop>
+          📞 {{ p.phone }}
+        </a>
         <div v-if="p.status_text" class="person-status">"{{ p.status_text }}"</div>
 
         <!-- Stats Row -->
@@ -123,6 +126,9 @@
         <div class="char-identity">
           <div class="char-name">{{ selectedPerson.name }} {{ selectedPerson.surname }}</div>
           <div class="char-title">〈 {{ selectedPerson.position }} 〉</div>
+          <a v-if="selectedPerson.phone" :href="'tel:' + selectedPerson.phone" class="char-phone-link" @click.stop>
+            📞 {{ selectedPerson.phone }}
+          </a>
           <div v-if="selectedPerson.status_text" class="char-quote">「{{ selectedPerson.status_text }}」</div>
         </div>
 
@@ -667,6 +673,32 @@ export default {
   font-size: 10px; color: #e74c3c; font-style: italic;
   font-weight: 600; margin-bottom: 6px; text-align: center;
   word-break: break-word; line-height: 1.3;
+}
+.person-phone-link {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; color: #3498db; font-weight: 600;
+  text-decoration: none; margin-bottom: 4px;
+  padding: 2px 8px; border-radius: 8px;
+  background: rgba(52,152,219,0.08);
+  transition: all 0.15s;
+}
+.person-phone-link:hover {
+  background: rgba(52,152,219,0.18);
+  color: #5dade2;
+}
+.char-phone-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 13px; color: #3498db; font-weight: 700;
+  text-decoration: none; margin-top: 4px;
+  padding: 4px 14px; border-radius: 10px;
+  background: rgba(52,152,219,0.1);
+  border: 1px solid rgba(52,152,219,0.2);
+  transition: all 0.2s;
+}
+.char-phone-link:hover {
+  background: rgba(52,152,219,0.2);
+  border-color: rgba(52,152,219,0.4);
+  color: #5dade2;
 }
 
 /* Stats */

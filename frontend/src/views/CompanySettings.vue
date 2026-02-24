@@ -39,19 +39,30 @@
         </div>
       </div>
 
-      <!-- Location -->
-      <div class="form-row">
-        <div class="form-group">
-          <label>Latitude</label>
-          <input v-model.number="form.latitude" class="form-input" type="number" step="any"
-            placeholder="e.g. 13.7563" />
+      <!-- Guild Outposts (Check-in Locations) -->
+      <div class="card-header" style="margin-top: 24px; border-top: 1px solid rgba(212,164,76,0.1); padding-top: 24px;">
+        <span class="card-title">📍 Guild Outposts</span>
+      </div>
+      <p class="section-desc">Configure branch locations for check-in. Each outpost has its own coordinates and check-in radius.</p>
+      <div v-for="(loc, idx) in locationsList" :key="loc.id || 'new-'+idx" style="margin-bottom: 12px; padding: 14px; background: rgba(26,20,15,0.3); border-radius: 10px; border: 1px solid rgba(212,164,76,0.08);">
+        <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 12px; color: #d4a44c; font-weight: 600; min-width: 24px;">{{ idx + 1 }}.</span>
+          <input v-model="loc.name" class="form-input" placeholder="Branch name (e.g. Head Office)" style="flex: 2;" />
+          <input v-model.number="loc.radius" class="form-input" type="number" min="50" placeholder="Radius (m)" style="flex: 0.7; min-width: 90px;" />
+          <span style="font-size: 11px; color: #8b7355; white-space: nowrap;">meters</span>
         </div>
-        <div class="form-group">
-          <label>Longitude</label>
-          <input v-model.number="form.longitude" class="form-input" type="number" step="any"
-            placeholder="e.g. 100.5018" />
+        <div style="display: flex; gap: 8px; padding-left: 32px;">
+          <input v-model.number="loc.latitude" class="form-input" type="number" step="any" placeholder="Latitude" style="flex: 1;" />
+          <input v-model.number="loc.longitude" class="form-input" type="number" step="any" placeholder="Longitude" style="flex: 1;" />
+          <button @click="saveLocation(loc, idx)" class="btn btn-primary" style="padding: 6px 14px; font-size: 12px; white-space: nowrap;" :disabled="!loc.name || !loc.latitude || !loc.longitude">
+            {{ loc.id ? '💾' : '➕' }}
+          </button>
+          <button v-if="loc.id" @click="removeLocation(loc, idx)" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;">✕</button>
         </div>
       </div>
+      <button @click="locationsList.push({ name: '', latitude: null, longitude: null, radius: 200 })" class="btn btn-secondary" style="margin-top: 4px; margin-bottom: 16px; font-size: 12px; padding: 5px 12px;">
+        + Add Outpost
+      </button>
 
       <!-- Coin Configuration -->
       <div class="card-header" style="margin-top: 24px; border-top: 1px solid rgba(212,164,76,0.1); padding-top: 24px;">
@@ -380,7 +391,7 @@
 </template>
 
 <script>
-import { getCompany, updateCompany, uploadCompanyLogo, getBadges } from '../services/api'
+import { getCompany, updateCompany, uploadCompanyLogo, getBadges, getLocations, createLocation, updateLocation, deleteLocation } from '../services/api'
 
 export default {
   inject: ['showToast'],
@@ -458,11 +469,13 @@ export default {
       saving: false,
       testingCamera: null,
       streamUrl: '',
+      locationsList: [],
     }
   },
   async mounted() {
     await this.loadCompany()
     await this.loadBadges()
+    await this.loadLocations()
   },
   methods: {
     toggleDay(type, code) {
@@ -643,6 +656,37 @@ export default {
     onStreamError() {
       this.showToast('Stream connection failed', 'error')
       this.stopTest()
+    },
+    async loadLocations() {
+      try {
+        const { data } = await getLocations()
+        this.locationsList = data || []
+      } catch (e) { console.error('Failed to load locations', e) }
+    },
+    async saveLocation(loc, idx) {
+      try {
+        if (loc.id) {
+          const { data } = await updateLocation(loc.id, { name: loc.name, latitude: loc.latitude, longitude: loc.longitude, radius: loc.radius })
+          this.locationsList[idx] = data
+          this.showToast('Outpost updated!')
+        } else {
+          const { data } = await createLocation({ name: loc.name, latitude: loc.latitude, longitude: loc.longitude, radius: loc.radius || 200 })
+          this.locationsList[idx] = data
+          this.showToast('Outpost created!')
+        }
+      } catch (e) {
+        this.showToast('Failed to save outpost', 'error')
+      }
+    },
+    async removeLocation(loc, idx) {
+      if (!confirm(`Delete outpost "${loc.name}"?`)) return
+      try {
+        await deleteLocation(loc.id)
+        this.locationsList.splice(idx, 1)
+        this.showToast('Outpost deleted')
+      } catch (e) {
+        this.showToast('Failed to delete outpost', 'error')
+      }
     },
   },
 }

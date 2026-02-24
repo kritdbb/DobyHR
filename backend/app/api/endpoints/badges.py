@@ -346,6 +346,7 @@ def get_town_people(
             "magic_background": u.magic_background or "",
             "circle_artifact": u.circle_artifact or "",
             "artifact_effect": art_effect,
+            "phone": u.phone or "",
         })
     return results
 

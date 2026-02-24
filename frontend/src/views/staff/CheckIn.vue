@@ -17,6 +17,14 @@
       </div>
     </div>
 
+    <!-- Branch Selector -->
+    <div v-if="!alreadyCheckedIn && locationsList.length > 0" class="branch-section">
+      <label class="branch-label">🏰 Outpost</label>
+      <select v-model="selectedLocationId" class="branch-select" @change="onBranchChange">
+        <option v-for="loc in locationsList" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
+      </select>
+    </div>
+
     <!-- Distance Display -->
     <div v-if="!alreadyCheckedIn" class="distance-section">
       <div v-if="distLoading" class="distance-badge distance-badge--loading">
@@ -76,7 +84,7 @@
 </template>
 
 <script>
-import { checkIn, getCompany, getTodayCheckInStatus } from '../../services/api'
+import { checkIn, getCompany, getTodayCheckInStatus, getLocations } from '../../services/api'
 import api from '../../services/api'
 
 export default {
@@ -98,6 +106,8 @@ export default {
       workStartTime: null,
       formattedStartTime: '',
       defGrace: null,
+      locationsList: [],
+      selectedLocationId: null,
     }
   },
   computed: {
@@ -112,6 +122,7 @@ export default {
   async mounted() {
     await this.checkTodayStatus()
     if (!this.alreadyCheckedIn) {
+      await this.loadLocations()
       await this.loadDefGrace()
       await this.checkExpired()
       await this.calcDistance()
@@ -207,14 +218,26 @@ export default {
       this.distLoading = true
       this.distError = ''
       try {
-        const { data: company } = await getCompany()
-        if (!company.latitude || !company.longitude) {
-          this.distError = 'Guild location not set'
-          this.distLoading = false
-          return
+        // Determine target coordinates
+        let targetLat, targetLon
+        const sel = this.locationsList.find(l => l.id === this.selectedLocationId)
+        if (sel) {
+          targetLat = sel.latitude
+          targetLon = sel.longitude
+          this.maxRadius = sel.radius || 200
+        } else {
+          const { data: company } = await getCompany()
+          if (!company.latitude || !company.longitude) {
+            this.distError = 'Guild location not set'
+            this.distLoading = false
+            return
+          }
+          targetLat = company.latitude
+          targetLon = company.longitude
+          this.maxRadius = 200
         }
-        this.companyLat = company.latitude
-        this.companyLon = company.longitude
+        this.companyLat = targetLat
+        this.companyLon = targetLon
 
         if (!navigator.geolocation) {
           this.distError = 'Compass not supported'
@@ -272,7 +295,7 @@ export default {
         async (position) => {
           try {
             const { latitude, longitude } = position.coords
-            const { data } = await checkIn(latitude, longitude)
+            const { data } = await checkIn(latitude, longitude, this.selectedLocationId)
             if (data.work_request_created) {
               this.statusMessage = `📋 Special Mission created! Awaiting guild approval. Distance: ${data.distance}m`
               this.statusType = 'success'
@@ -297,7 +320,28 @@ export default {
         () => { this.statusMessage = "Unable to locate adventurer"; this.statusType = 'error'; this.loading = false },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
       )
-    }
+    },
+    async loadLocations() {
+      try {
+        const [locRes, meRes] = await Promise.all([
+          getLocations(),
+          api.get('/api/users/me'),
+        ])
+        this.locationsList = (locRes.data || []).filter(l => l.is_active)
+        const me = meRes.data
+        if (me.default_location_id && this.locationsList.find(l => l.id === me.default_location_id)) {
+          this.selectedLocationId = me.default_location_id
+        } else if (this.locationsList.length > 0) {
+          this.selectedLocationId = this.locationsList[0].id
+        }
+      } catch (e) {
+        console.error('Failed to load locations', e)
+      }
+    },
+    onBranchChange() {
+      this.distance = null
+      this.calcDistance()
+    },
   }
 }
 </script>
@@ -349,6 +393,40 @@ export default {
 
 /* Distance */
 .distance-section { margin-bottom: 28px; }
+
+/* Branch selector */
+.branch-section {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+.branch-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #d4a44c;
+}
+.branch-select {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 2px solid rgba(212,164,76,0.25);
+  background: rgba(44,24,16,0.6);
+  color: #e8d5b7;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 180px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.branch-select:focus {
+  border-color: #d4a44c;
+}
+.branch-select option {
+  background: #1a1a2e;
+  color: #e8d5b7;
+}
 .distance-badge {
   display: inline-flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 14px 28px; border-radius: 10px; font-weight: 700; font-size: 14px;

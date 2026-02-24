@@ -81,6 +81,12 @@ export const uploadCompanyLogo = (file) => {
     })
 }
 
+// === Locations ===
+export const getLocations = () => api.get('/api/locations/')
+export const createLocation = (data) => api.post('/api/locations/', data)
+export const updateLocation = (id, data) => api.put(`/api/locations/${id}`, data)
+export const deleteLocation = (id) => api.delete(`/api/locations/${id}`)
+
 // === Users ===
 export const getUsers = (params) => api.get('/api/users/', { params })
 export const getUser = (id) => api.get(`/api/users/${id}`)
@@ -140,7 +146,7 @@ export const getPendingLeaveApprovals = () => api.get('/api/leaves/pending-appro
 export const processAbsentPenalties = (date) => api.post('/api/admin/process-absent-penalties', null, { params: date ? { target_date: date } : {} })
 
 // --- Attendance ---
-export const checkIn = (lat, lon) => api.post('/api/attendance/check-in', { latitude: lat, longitude: lon })
+export const checkIn = (lat, lon, locationId) => api.post('/api/attendance/check-in', { latitude: lat, longitude: lon, location_id: locationId || null })
 export const getMyAttendance = () => api.get('/api/attendance/my-history')
 export const getTodayCheckInStatus = () => api.get('/api/attendance/today-status')
 

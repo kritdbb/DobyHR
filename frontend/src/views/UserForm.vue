@@ -81,6 +81,16 @@
 
         <div class="form-row">
           <div class="form-group">
+            <label>📍 Default Outpost (สาขาประจำ)</label>
+            <select v-model="form.default_location_id" class="form-input">
+              <option :value="null">— None —</option>
+              <option v-for="loc in locationsList" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
             <label>Quest Start Time</label>
             <input v-model="form.work_start_time" class="form-input" type="time" />
           </div>
@@ -351,6 +361,7 @@ import {
   getUserAttendance, getUserLeaves, getUserRedemptions, getUserCoinLogs,
   adjustUserCoins, grantAngelCoins, getUserAngelCoinLogs,
   getUserFaceImages, uploadUserFaceImage, deleteUserFaceImage,
+  getLocations,
 } from '../services/api'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
@@ -370,6 +381,7 @@ export default {
         position: '',
         sick_leave_days: 0, business_leave_days: 0, vacation_leave_days: 0,
         start_date: '', working_days: 'mon,tue,wed,thu,fri',
+        default_location_id: null,
       },
       allDays: [
         { label: 'Mon', value: 'mon' }, { label: 'Tue', value: 'tue' },
@@ -391,6 +403,7 @@ export default {
       adjustForm: { amount: null, reason: '' },
       showManaAdjustModal: false,
       angelAdjustForm: { amount: null, reason: '' },
+      locationsList: [],
     }
   },
   computed: {
@@ -438,6 +451,7 @@ export default {
       this.loadSideData()
       this.loadFaceImages()
     }
+    await this.loadLocationsList()
   },
   methods: {
     toggleDay(day) {
@@ -466,6 +480,7 @@ export default {
           vacation_leave_days: data.vacation_leave_days || 0,
           start_date: data.start_date || '',
           working_days: data.working_days || 'mon,tue,wed,thu,fri',
+          default_location_id: data.default_location_id || null,
         }
       } catch (e) {
         this.showToast('Failed to load adventurer', 'error')
@@ -507,6 +522,12 @@ export default {
         this.showToast(e.response?.data?.detail || 'Upload failed', 'error')
       }
       event.target.value = ''
+    },
+    async loadLocationsList() {
+      try {
+        const { data } = await getLocations()
+        this.locationsList = data || []
+      } catch (e) { console.error('Failed to load locations', e) }
     },
     async deleteFaceImage(imageId) {
       if (!confirm('Remove this face image?')) return
