@@ -821,25 +821,47 @@ def get_recent_awards(
     # PvP Battle results (winner entries only, to avoid duplicates)
     pvp_logs = (
         db.query(CoinLog)
-        .filter(CoinLog.reason.ilike("%PvP Victory%"))
+        .filter(CoinLog.reason.ilike("%PvP Match:%"))
         .order_by(CoinLog.created_at.desc())
         .limit(limit)
         .all()
     )
+    # Track battles to avoid duplicates (since each battle has 2 CoinLogs, one for winner one for loser)
+    # But wait, the filter below is for all PvP Match: logs. 
+    # Actually, we should probably only show the "Match" event once.
+    # We can deduplicate by the reason string if it's identical.
+    seen_pvp_matches = set()
+
     for pl in pvp_logs:
+        if pl.reason in seen_pvp_matches:
+            continue
+        seen_pvp_matches.add(pl.reason)
+
         user = db.query(User).filter(User.id == pl.user_id).first()
         if user:
-            # Extract opponent name from "⚔️ PvP Victory vs Opponent Name"
+            # Extract names from "⚔️ PvP Match: Challenger vs Opponent | Winner: WinnerName"
+            challenger_name = ""
             opponent_name = ""
-            if " vs " in (pl.reason or ""):
-                opponent_name = pl.reason.split(" vs ", 1)[1]
+            winner_name = ""
+            reason = pl.reason or ""
+            
+            try:
+                if "PvP Match: " in reason and " vs " in reason and " | Winner: " in reason:
+                    parts = reason.split("PvP Match: ", 1)[1].split(" | Winner: ", 1)
+                    vs_part = parts[0]
+                    winner_name = parts[1]
+                    challenger_name, opponent_name = vs_part.split(" vs ", 1)
+            except Exception:
+                pass
+
             events.append({
                 "id": f"pvp-{pl.id}",
                 "type": "pvp",
-                "user_name": f"{user.name} {user.surname or ''}".strip(),
-                "user_image": user.image,
-                "amount": pl.amount,
+                "user_name": winner_name, # Standard field for winner
+                "challenger_name": challenger_name,
                 "opponent_name": opponent_name,
+                "winner_name": winner_name,
+                "amount": abs(pl.amount), # Show the gold amount (5)
                 "reason": pl.reason,
                 "timestamp": pl.created_at.isoformat() if pl.created_at else None,
                 "detail": "PvP Arena",

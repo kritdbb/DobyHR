@@ -164,8 +164,8 @@ def matchmake(req: MatchmakeRequest = MatchmakeRequest(), db: Session = Depends(
     opponent_name = f"{opponent.name} {opponent.surname or ''}".strip()
     winner_name = f"{winner.name} {winner.surname or ''}".strip()
     loser_name = f"{loser.name} {loser.surname or ''}".strip()
-    db.add(CoinLog(user_id=winner.id, amount=WINNER_GOLD, reason=f"⚔️ PvP Victory vs {loser_name}", created_by="PvP Arena"))
-    db.add(CoinLog(user_id=loser.id, amount=-LOSER_GOLD, reason=f"⚔️ PvP Defeat vs {winner_name}", created_by="PvP Arena"))
+    db.add(CoinLog(user_id=winner.id, amount=WINNER_GOLD, reason=f"⚔️ PvP Match: {current_user_name} vs {opponent_name} | Winner: {winner_name}", created_by="PvP Arena"))
+    db.add(CoinLog(user_id=loser.id, amount=-LOSER_GOLD, reason=f"⚔️ PvP Match: {current_user_name} vs {opponent_name} | Winner: {winner_name}", created_by="PvP Arena"))
 
     db.commit()
     db.refresh(battle)
