@@ -376,10 +376,11 @@ export default {
   },
   async mounted() {
     try {
-      const [peopleRes, catRes, statusRes] = await Promise.all([
+      const [peopleRes, catRes, statusRes, manaRes] = await Promise.all([
         getTownPeople(),
         getArtifactCatalog(),
         api.get('/api/pvp/matchmake/status').catch(() => ({ data: {} })),
+        this.currentUserId ? getUser(this.currentUserId).catch(() => null) : Promise.resolve(null),
       ])
       this.people = peopleRes.data
       this.artifactCatalog = catRes.data
@@ -387,7 +388,9 @@ export default {
         this.alreadyBattled = statusRes.data.already_battled || false
         this.lastBattleId = statusRes.data.battle_id || null
       }
-      await this.loadMyMana()
+      if (manaRes && manaRes.data) {
+        this.myMana = manaRes.data.angel_coins || 0
+      }
     } catch (e) {
       console.error('Failed to load town people', e)
     } finally {

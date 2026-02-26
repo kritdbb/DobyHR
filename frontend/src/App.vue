@@ -2,8 +2,8 @@
   <div id="app">
     <!-- Admin Layout (Guild Hall) -->
     <div v-if="layout === 'admin'" class="flex h-screen overflow-hidden">
-        <aside class="sidebar w-64 flex flex-col justify-between shrink-0 transition-all duration-300">
-            <div>
+        <aside class="sidebar w-64 flex flex-col justify-between shrink-0 transition-all duration-300" style="overflow: hidden;">
+            <div style="overflow-y: auto; flex: 1; min-height: 0;">
                 <div class="p-6 border-b" style="border-color: rgba(212,164,76,0.3);">
                     <h1 style="font-family: 'Cinzel', serif; font-size: 20px; font-weight: 800; color: #d4a44c; text-shadow: 0 0 20px rgba(212,164,76,0.3);">⚔️ Doby Kingdom</h1>
                     <p style="font-size: 11px; color: #b8860b; font-weight: 600; font-style: italic; margin-top: 4px;">{{ userRole === 'god' ? "God's Throne Room 👑" : "Guild Master's Hall 🏰" }}</p>
