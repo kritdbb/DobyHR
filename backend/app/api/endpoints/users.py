@@ -52,7 +52,7 @@ def read_users(
     query = db.query(User)
     if department:
         query = query.filter(User.department == department)
-    users = query.offset(skip).limit(limit).all()
+    users = query.order_by(User.department.asc(), User.name.asc()).offset(skip).limit(limit).all()
     return users
 
 
