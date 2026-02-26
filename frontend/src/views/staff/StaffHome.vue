@@ -40,19 +40,19 @@
           <span class="cs-stat-icon">⚔️</span>
           <span class="cs-stat-label str">STR</span>
           <div class="cs-stat-track"><div class="cs-stat-fill str" :style="{ width: Math.min(myStats.total_str, 100) + '%' }"></div></div>
-          <span class="cs-stat-num str">{{ myStats.total_str }}</span>
+          <span class="cs-stat-num str">{{ myStats.total_str - (myStats.buff_str || 0) }}<span v-if="myStats.buff_str" class="buff-plus">+{{ myStats.buff_str }}</span></span>
         </div>
         <div class="cs-stat-row">
           <span class="cs-stat-icon">🛡️</span>
           <span class="cs-stat-label def">DEF</span>
           <div class="cs-stat-track"><div class="cs-stat-fill def" :style="{ width: Math.min(myStats.total_def, 100) + '%' }"></div></div>
-          <span class="cs-stat-num def">{{ myStats.total_def }}</span>
+          <span class="cs-stat-num def">{{ myStats.total_def - (myStats.buff_def || 0) }}<span v-if="myStats.buff_def" class="buff-plus">+{{ myStats.buff_def }}</span></span>
         </div>
         <div class="cs-stat-row">
           <span class="cs-stat-icon">🍀</span>
           <span class="cs-stat-label luk">LUK</span>
           <div class="cs-stat-track"><div class="cs-stat-fill luk" :style="{ width: Math.min(myStats.total_luk, 100) + '%' }"></div></div>
-          <span class="cs-stat-num luk">{{ myStats.total_luk }}</span>
+          <span class="cs-stat-num luk">{{ myStats.total_luk - (myStats.buff_luk || 0) }}<span v-if="myStats.buff_luk" class="buff-plus">+{{ myStats.buff_luk }}</span></span>
         </div>
       </div>
 
@@ -198,6 +198,106 @@
         </div>
         <div class="wheel-card-arrow">→</div>
       </div>
+    </div>
+
+    <!-- 🤝 Team Challenge -->
+    <div v-if="partyQuest" class="section party-quest-section">
+      <!-- Upcoming (preview card) -->
+      <template v-if="partyQuest.quest_state === 'upcoming'">
+        <h2 class="section-title">🤝 Team Challenge: {{ partyQuest.title }}</h2>
+        <div class="pq-card pq-upcoming">
+          <div class="pq-upcoming-badge">⏳ เตรียมตัวให้พร้อม!</div>
+          <div class="pq-teams-header">
+            <div class="pq-team pq-team-a">
+              <div class="pq-team-name">{{ partyQuest.team_a_name }}</div>
+              <div class="pq-members">
+                <div v-for="m in partyQuest.team_a" :key="m.user_id" class="pq-avatar" :title="m.name">
+                  <img v-if="m.image" :src="m.image" />
+                  <span v-else>{{ m.name[0] }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="pq-vs">⚔️</div>
+            <div class="pq-team pq-team-b">
+              <div class="pq-team-name">{{ partyQuest.team_b_name }}</div>
+              <div class="pq-members">
+                <div v-for="m in partyQuest.team_b" :key="m.user_id" class="pq-avatar" :title="m.name">
+                  <img v-if="m.image" :src="m.image" />
+                  <span v-else>{{ m.name[0] }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="pq-goals">
+            <div v-for="g in partyQuest.goals" :key="g.type" class="pq-goal">
+              <div class="pq-goal-label">{{ g.label }} (target: {{ g.target.toLocaleString() }})</div>
+            </div>
+          </div>
+          <div class="pq-footer">
+            <span class="pq-date">📅 เริ่ม {{ partyQuest.start_date }} → {{ partyQuest.end_date }}</span>
+            <span class="pq-rewards">🏆 {{ partyQuest.rewards.join(' + ') }}</span>
+          </div>
+        </div>
+      </template>
+      <!-- Active -->
+      <template v-else-if="partyQuest.quest_state === 'active' && !partyQuest.winner_team">
+        <h2 class="section-title">🤝 Team Challenge: {{ partyQuest.title }}</h2>
+        <div class="pq-card">
+          <div class="pq-teams-header">
+            <div class="pq-team pq-team-a">
+              <div class="pq-team-name">{{ partyQuest.team_a_name }}</div>
+              <div class="pq-members">
+                <div v-for="m in partyQuest.team_a" :key="m.user_id" class="pq-avatar" :title="m.name">
+                  <img v-if="m.image" :src="m.image" />
+                  <span v-else>{{ m.name[0] }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="pq-vs">⚔️</div>
+            <div class="pq-team pq-team-b">
+              <div class="pq-team-name">{{ partyQuest.team_b_name }}</div>
+              <div class="pq-members">
+                <div v-for="m in partyQuest.team_b" :key="m.user_id" class="pq-avatar" :title="m.name">
+                  <img v-if="m.image" :src="m.image" />
+                  <span v-else>{{ m.name[0] }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="pq-goals">
+            <div v-for="g in partyQuest.goals" :key="g.type" class="pq-goal">
+              <div class="pq-goal-label">{{ g.label }} (target: {{ g.target.toLocaleString() }})</div>
+              <div class="pq-bars">
+                <div class="pq-bar-row">
+                  <span class="pq-bar-label team-a-color">{{ partyQuest.team_a_name }}</span>
+                  <div class="pq-bar-track">
+                    <div class="pq-bar-fill team-a-fill" :style="{ width: Math.min(100, g.a / g.target * 100) + '%' }"></div>
+                  </div>
+                  <span class="pq-bar-val">{{ g.a.toLocaleString() }}</span>
+                </div>
+                <div class="pq-bar-row">
+                  <span class="pq-bar-label team-b-color">{{ partyQuest.team_b_name }}</span>
+                  <div class="pq-bar-track">
+                    <div class="pq-bar-fill team-b-fill" :style="{ width: Math.min(100, g.b / g.target * 100) + '%' }"></div>
+                  </div>
+                  <span class="pq-bar-val">{{ g.b.toLocaleString() }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="pq-footer">
+            <span class="pq-date">📅 {{ partyQuest.start_date }} → {{ partyQuest.end_date }}</span>
+            <span class="pq-rewards">🏆 {{ partyQuest.rewards.join(' + ') }}</span>
+          </div>
+        </div>
+      </template>
+      <!-- Completed (winner) -->
+      <template v-else-if="partyQuest.winner_team">
+        <h2 class="section-title">🤝 Team Challenge: {{ partyQuest.title }}</h2>
+        <div class="pq-card pq-completed">
+          <div class="pq-winner-banner">🏆 {{ partyQuest.winner_team === 'A' ? partyQuest.team_a_name : partyQuest.team_b_name }} Wins! 🎉</div>
+        </div>
+      </template>
     </div>
 
     <!-- ⚔️ Friendly Arena -->
@@ -380,6 +480,7 @@
       </div>
     </div>
 
+
     <!-- Town Crier: Badge Awards -->
     <div class="section">
       <h2 class="section-title">📢 Town Crier</h2>
@@ -519,6 +620,14 @@
               </div>
             </div>
           </template>
+          <!-- Reaction Bar -->
+          <div class="reaction-bar">
+            <button v-for="emoji in ['❤️', '👏', '🎉']" :key="emoji"
+              class="reaction-btn" :class="{ reacted: reactions[a.id]?.[emoji]?.reacted }"
+              @click="doReaction(a.id, emoji)">
+              {{ emoji }} <span v-if="reactions[a.id]?.[emoji]?.count">{{ reactions[a.id][emoji].count }}</span>
+            </button>
+          </div>
         </div>
         <button v-if="recentAwards.length > 5" class="btn-see-more" @click="showTownCrierModal = true">
           📯 See More ({{ recentAwards.length }} proclamations)
@@ -763,6 +872,7 @@ import api, {
   getMyBadges, getRecentBadgeAwards, getMyStats,
   getFitbitStatus, syncFitbitSteps, getStepGoals,
   getArtifactCatalog, getLuckyWheelToday,
+  getActivePartyQuest, toggleReaction, getReactions,
 } from '../../services/api'
 
 export default {
@@ -788,6 +898,8 @@ export default {
       showBadgeModal: false,
       myStats: { total_str: 1, total_def: 1, total_luk: 1, base_str: 1, base_def: 1, base_luk: 1, badge_str: 0, badge_def: 0, badge_luk: 0 },
       recentAwards: [],
+      reactions: {},
+      partyQuest: null,
       showGoldModal: false,
       showTownCrierModal: false,
       fitbitConnected: false,
@@ -900,6 +1012,19 @@ export default {
         this.myBadges = badgeRes.data
         this.recentAwards = awardRes.data
         this.myStats = statsRes.data
+        // Load reactions for town crier events
+        if (this.recentAwards.length > 0) {
+          try {
+            const eventIds = this.recentAwards.map(a => a.id).join(',')
+            const reactRes = await getReactions(eventIds)
+            this.reactions = reactRes.data || {}
+          } catch (er) { this.reactions = {} }
+        }
+        // Load active party quest
+        try {
+          const pqRes = await getActivePartyQuest()
+          this.partyQuest = pqRes.data
+        } catch (ep) { this.partyQuest = null }
         // Load negative-coin users for rescue
         try {
           const negRes = await api.get('/api/users/negative-coins')
@@ -1001,6 +1126,23 @@ export default {
     formatBadgeDate(d) {
       if (!d) return ''
       return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    },
+    async doReaction(eventId, emoji) {
+      // Optimistic update
+      if (!this.reactions[eventId]) this.reactions[eventId] = {}
+      const cur = this.reactions[eventId][emoji]
+      if (cur && cur.reacted) {
+        cur.count = Math.max(0, (cur.count || 1) - 1)
+        cur.reacted = false
+      } else {
+        if (!cur) this.reactions[eventId][emoji] = { count: 1, reacted: true }
+        else { cur.count = (cur.count || 0) + 1; cur.reacted = true }
+      }
+      try {
+        await toggleReaction({ event_id: eventId, emoji })
+      } catch (e) {
+        console.error('Reaction error', e)
+      }
     },
     async syncSteps() {
       this.stepsSyncing = true
@@ -1523,6 +1665,7 @@ export default {
 .cs-stat-num.str { color: #e74c3c; }
 .cs-stat-num.def { color: #3498db; }
 .cs-stat-num.luk { color: #2ecc71; }
+.buff-plus { color: #22c55e; font-size: 13px; font-weight: 700; }
 
 /* Currency */
 .cs-currency {
@@ -1918,4 +2061,88 @@ export default {
 .wheel-result-reward {
   font-size: 13px; color: #8b7355;
 }
+
+/* ── Party Quest Section ── */
+.party-quest-section { }
+.pq-card {
+  background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(99,102,241,0.08));
+  border: 1px solid rgba(139,92,246,0.2);
+  border-radius: 16px; padding: 20px;
+}
+.pq-completed { text-align: center; }
+.pq-upcoming {
+  border-color: rgba(245,158,11,0.3);
+  background: linear-gradient(135deg, rgba(245,158,11,0.06), rgba(234,179,8,0.06));
+}
+.pq-upcoming-badge {
+  text-align: center; font-size: 1.1rem; font-weight: 700; color: #f59e0b;
+  padding: 8px; margin-bottom: 12px;
+  animation: pulse-upcoming 2s ease-in-out infinite;
+}
+@keyframes pulse-upcoming {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+.pq-winner-banner {
+  font-size: 1.4rem; font-weight: 700;
+  background: linear-gradient(135deg, #ffd700, #f59e0b);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  padding: 16px;
+}
+.pq-teams-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+}
+.pq-team { flex: 1; text-align: center; }
+.pq-team-name { font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+.pq-team-a .pq-team-name { color: #f59e0b; }
+.pq-team-b .pq-team-name { color: #3b82f6; }
+.pq-vs { font-size: 1.5rem; padding: 0 12px; color: #ef4444; font-weight: 700; }
+.pq-members { display: flex; justify-content: center; gap: 4px; flex-wrap: wrap; }
+.pq-avatar {
+  width: 32px; height: 32px; border-radius: 50%; overflow: hidden;
+  background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 600;
+}
+.pq-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pq-goals { margin-top: 12px; }
+.pq-goal { margin-bottom: 12px; }
+.pq-goal-label { font-size: 0.85rem; color: #aaa; margin-bottom: 4px; }
+.pq-bars { }
+.pq-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.pq-bar-label { font-size: 0.75rem; font-weight: 600; width: 60px; text-align: right; }
+.team-a-color { color: #f59e0b; }
+.team-b-color { color: #3b82f6; }
+.pq-bar-track {
+  flex: 1; height: 14px; border-radius: 7px; background: rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.pq-bar-fill {
+  height: 100%; border-radius: 7px; transition: width 0.5s ease;
+}
+.team-a-fill { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.team-b-fill { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.pq-bar-val { font-size: 0.8rem; font-weight: 600; width: 60px; }
+.pq-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 12px; font-size: 0.8rem; color: #888;
+}
+.pq-rewards { color: #ffd700; font-weight: 600; }
+
+/* ── Reaction Bar ── */
+.reaction-bar {
+  display: flex; gap: 6px; margin-top: 6px; padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.reaction-btn {
+  display: flex; align-items: center; gap: 3px;
+  padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03); cursor: pointer; font-size: 0.8rem;
+  color: #888; transition: all 0.15s;
+}
+.reaction-btn:hover { background: rgba(255,255,255,0.08); }
+.reaction-btn.reacted {
+  background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.3);
+  color: #c4b5fd;
+}
+.reaction-btn span { font-size: 0.75rem; }
 </style>

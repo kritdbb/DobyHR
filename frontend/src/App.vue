@@ -71,6 +71,11 @@
                         <span class="font-semibold">Battle Arena</span>
                     </router-link>
 
+                    <router-link to="/party-quest-admin" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
+                        <span class="mr-3 text-lg">🤝</span>
+                        <span class="font-semibold">Party Quest</span>
+                    </router-link>
+
                     <router-link to="/artifact-shop" class="nav-item flex items-center p-3 rounded-xl transition-all duration-200" active-class="active">
                         <span class="mr-3 text-lg">💎</span>
                         <span class="font-semibold">Artifact Shop</span>

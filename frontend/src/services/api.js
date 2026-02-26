@@ -282,4 +282,19 @@ export const adminDeleteBadgeShopItem = (id) => api.delete(`/api/badge-shop/admi
 export const getTodayBattles = () => api.get('/api/pvp/today')
 export const getBattle = (id) => api.get(`/api/pvp/battle/${id}`)
 
+// --- Party Quest ---
+export const getPartyQuests = () => api.get('/api/party-quest')
+export const createPartyQuest = (data) => api.post('/api/party-quest', data)
+export const updatePartyQuest = (id, data) => api.put(`/api/party-quest/${id}`, data)
+export const deletePartyQuest = (id) => api.delete(`/api/party-quest/${id}`)
+export const getActivePartyQuest = () => api.get('/api/party-quest/active')
+
+// --- Town Crier Reactions ---
+export const toggleReaction = (data) => api.post('/api/social/reactions', data)
+export const getReactions = (eventIds) => api.get('/api/social/reactions', { params: { event_ids: eventIds } })
+
+// --- Stat Buffs ---
+export const sendBuff = (data) => api.post('/api/social/buff', data)
+export const getActiveBuffs = (userId) => api.get('/api/social/buff/active', { params: userId ? { user_id: userId } : {} })
+
 export default api

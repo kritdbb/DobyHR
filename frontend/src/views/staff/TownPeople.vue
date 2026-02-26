@@ -55,7 +55,7 @@
     </div>
 
     <div v-else class="people-grid">
-      <div v-for="p in people" :key="p.id" class="person-card" @click="selectedPerson = p"
+      <div v-for="p in people" :key="p.id" class="person-card" @click="selectedPerson = p; showBuffForm = false; showGiftForm = false"
         :style="p.magic_background ? { backgroundImage: 'linear-gradient(rgba(17,10,30,0.65), rgba(17,10,30,0.8)), url(' + apiBase + p.magic_background + ')', backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
         <div v-if="isOnline(p.id)" class="online-dot" title="Online"></div>
         <!-- Portrait -->
@@ -78,9 +78,14 @@
 
         <!-- Stats Row -->
         <div class="person-stats">
-          <span class="ps str">⚔️ {{ p.stats.total_str }}</span>
-          <span class="ps def">🛡️ {{ p.stats.total_def }}</span>
-          <span class="ps luk">🍀 {{ p.stats.total_luk }}</span>
+          <span class="ps str">⚔️ {{ p.stats.total_str - (p.stats.buff_str || 0) }}</span>
+          <span class="ps def">🛡️ {{ p.stats.total_def - (p.stats.buff_def || 0) }}</span>
+          <span class="ps luk">🍀 {{ p.stats.total_luk - (p.stats.buff_luk || 0) }}</span>
+        </div>
+        <div v-if="p.stats.buff_str || p.stats.buff_def || p.stats.buff_luk" class="person-stats buff-stats-row">
+          <span class="ps buff-green" v-if="p.stats.buff_str">⚔️ +{{ p.stats.buff_str }}</span>
+          <span class="ps buff-green" v-if="p.stats.buff_def">🛡️ +{{ p.stats.buff_def }}</span>
+          <span class="ps buff-green" v-if="p.stats.buff_luk">🍀 +{{ p.stats.buff_luk }}</span>
         </div>
 
         <!-- Badges -->
@@ -143,7 +148,13 @@
             <div class="stat-bar-track">
               <div class="stat-bar-fill str" :style="{ width: Math.min(selectedPerson.stats.total_str, 100) + '%' }"></div>
             </div>
-            <span class="stat-num str">{{ selectedPerson.stats.total_str }}</span>
+            <span class="stat-num str">{{ selectedPerson.stats.total_str - (selectedPerson.stats.buff_str || 0) }}</span>
+          </div>
+          <div class="stat-row" v-if="selectedPerson.stats.buff_str">
+            <span class="stat-icon"></span>
+            <span class="stat-label buff-green">BUFF</span>
+            <div class="stat-bar-track"><div class="stat-bar-fill buff-fill" :style="{ width: Math.min(selectedPerson.stats.buff_str, 100) + '%' }"></div></div>
+            <span class="stat-num buff-green">+{{ selectedPerson.stats.buff_str }}</span>
           </div>
           <div class="stat-row">
             <span class="stat-icon">🛡️</span>
@@ -151,7 +162,13 @@
             <div class="stat-bar-track">
               <div class="stat-bar-fill def" :style="{ width: Math.min(selectedPerson.stats.total_def, 100) + '%' }"></div>
             </div>
-            <span class="stat-num def">{{ selectedPerson.stats.total_def }}</span>
+            <span class="stat-num def">{{ selectedPerson.stats.total_def - (selectedPerson.stats.buff_def || 0) }}</span>
+          </div>
+          <div class="stat-row" v-if="selectedPerson.stats.buff_def">
+            <span class="stat-icon"></span>
+            <span class="stat-label buff-green">BUFF</span>
+            <div class="stat-bar-track"><div class="stat-bar-fill buff-fill" :style="{ width: Math.min(selectedPerson.stats.buff_def, 100) + '%' }"></div></div>
+            <span class="stat-num buff-green">+{{ selectedPerson.stats.buff_def }}</span>
           </div>
           <div class="stat-row">
             <span class="stat-icon">🍀</span>
@@ -159,7 +176,13 @@
             <div class="stat-bar-track">
               <div class="stat-bar-fill luk" :style="{ width: Math.min(selectedPerson.stats.total_luk, 100) + '%' }"></div>
             </div>
-            <span class="stat-num luk">{{ selectedPerson.stats.total_luk }}</span>
+            <span class="stat-num luk">{{ selectedPerson.stats.total_luk - (selectedPerson.stats.buff_luk || 0) }}</span>
+          </div>
+          <div class="stat-row" v-if="selectedPerson.stats.buff_luk">
+            <span class="stat-icon"></span>
+            <span class="stat-label buff-green">BUFF</span>
+            <div class="stat-bar-track"><div class="stat-bar-fill buff-fill" :style="{ width: Math.min(selectedPerson.stats.buff_luk, 100) + '%' }"></div></div>
+            <span class="stat-num buff-green">+{{ selectedPerson.stats.buff_luk }}</span>
           </div>
         </div>
 
@@ -206,6 +229,36 @@
             <button class="gift-cancel" @click="resetGift()">Cancel</button>
             <button class="gift-confirm" :disabled="!giftAmount || giftAmount <= 0 || giftAmount > myMana || giftSending" @click="confirmGift()">
               {{ giftSending ? 'Sending...' : '✨ Confirm' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Buff Button (hide for self) -->
+        <button v-if="selectedPerson.id !== currentUserId && !showBuffForm && !showGiftForm" class="buff-btn" @click="showBuffForm = true">
+          ⚡ Buff Stats
+        </button>
+
+        <!-- Buff Form -->
+        <div v-if="showBuffForm" class="gift-form buff-form">
+          <div class="gift-form-title">⚡ Buff {{ selectedPerson.name }}</div>
+          <div class="gift-field">
+            <label>Stat Type</label>
+            <div class="buff-stat-toggle">
+              <button :class="['dt-btn', buffStatType === 'str' ? 'active str-active' : '']" @click="buffStatType = 'str'">⚔️ STR</button>
+              <button :class="['dt-btn', buffStatType === 'def' ? 'active def-active' : '']" @click="buffStatType = 'def'">🛡️ DEF</button>
+              <button :class="['dt-btn', buffStatType === 'luk' ? 'active luk-active' : '']" @click="buffStatType = 'luk'">🍀 LUK</button>
+            </div>
+          </div>
+          <div class="gift-field">
+            <label>Amount (1 Mana = 1 stat point)</label>
+            <input v-model.number="buffAmount" type="number" min="1" class="gift-input" placeholder="1" />
+            <div class="gift-balance">Your Mana: {{ myMana }}</div>
+          </div>
+          <div class="buff-note">* Buff expires at midnight today</div>
+          <div class="gift-actions">
+            <button class="gift-cancel" @click="showBuffForm = false; buffAmount = 1; buffStatType = 'str'">Cancel</button>
+            <button class="gift-confirm buff-confirm" :disabled="!buffAmount || buffAmount <= 0 || buffAmount > myMana || buffSending" @click="sendBuffAction()">
+              {{ buffSending ? 'Sending...' : '⚡ Send Buff' }}
             </button>
           </div>
         </div>
@@ -272,7 +325,7 @@
 </template>
 
 <script>
-import api, { getTownPeople, sendAngelCoins, getUser, sendThankYouCard, getThankYouStatus, sendAnonymousPraise, getAnonymousPraiseStatus, getArtifactCatalog } from '../../services/api'
+import api, { getTownPeople, sendAngelCoins, getUser, sendThankYouCard, getThankYouStatus, sendAnonymousPraise, getAnonymousPraiseStatus, getArtifactCatalog, sendBuff } from '../../services/api'
 import GiftCelebration from '../../components/GiftCelebration.vue'
 
 export default {
@@ -314,6 +367,11 @@ export default {
       fightingNow: false,
       // Gift animation
       giftAnim: { show: false, theme: 'gold', amount: 0, recipient: '' },
+      // Buff feature
+      showBuffForm: false,
+      buffStatType: 'str',
+      buffAmount: 1,
+      buffSending: false,
     }
   },
   async mounted() {
@@ -350,6 +408,51 @@ export default {
       this.giftAmount = null
       this.giftComment = ''
       this.giftDeliveryType = 'gold'
+    },
+    async sendBuffAction() {
+      this.buffSending = true
+      try {
+        const recipientId = this.selectedPerson.id
+        const statType = this.buffStatType
+        const amount = this.buffAmount
+        const recipientName = this.selectedPerson?.name || ''
+
+        const res = await sendBuff({
+          recipient_id: recipientId,
+          stat_type: statType,
+          amount: amount,
+        })
+
+        // Optimistic update: immediately update the person's stats in the list
+        const person = this.people.find(p => p.id === recipientId)
+        if (person) {
+          const buffKey = `buff_${statType}`
+          const totalKey = `total_${statType}`
+          person.stats[buffKey] = (person.stats[buffKey] || 0) + amount
+          person.stats[totalKey] = (person.stats[totalKey] || 0) + amount
+        }
+
+        // Trigger buff animation
+        this.giftAnim = {
+          show: true,
+          theme: 'buff',
+          amount: `${statType.toUpperCase()} +${amount}`,
+          recipient: recipientName,
+        }
+
+        this.showBuffForm = false
+        this.buffAmount = 1
+        this.buffStatType = 'str'
+        this.selectedPerson = null
+        await this.loadMyMana()
+
+        // Refresh people list from server
+        const { data } = await getTownPeople()
+        this.people = data
+      } catch (e) {
+        this.showToast(e.response?.data?.detail || 'Failed to send buff', 'error')
+      }
+      this.buffSending = false
     },
     async loadMyMana() {
       try {
@@ -585,11 +688,6 @@ export default {
   border: 2px solid rgba(26,26,46,0.9);
   box-shadow: 0 0 6px rgba(46,204,113,0.6);
   z-index: 5;
-  animation: onlinePulse 2s ease-in-out infinite;
-}
-@keyframes onlinePulse {
-  0%, 100% { box-shadow: 0 0 6px rgba(46,204,113,0.6); }
-  50% { box-shadow: 0 0 12px rgba(46,204,113,0.9), 0 0 4px rgba(46,204,113,0.4); }
 }
 
 /* Portrait */
@@ -1008,6 +1106,9 @@ export default {
 .stat-num.str { color: #e74c3c; }
 .stat-num.def { color: #3498db; }
 .stat-num.luk { color: #2ecc71; }
+.buff-green { color: #22c55e !important; }
+.buff-stats-row { margin-top: -2px; }
+.buff-fill { background: linear-gradient(90deg, #22c55e, #4ade80) !important; }
 
 /* ── Currency ── */
 .currency-row {
@@ -1430,4 +1531,22 @@ export default {
 @keyframes fadeIn {
   from { opacity: 0; } to { opacity: 1; }
 }
+
+/* ── Buff Feature ── */
+.buff-btn {
+  width: 100%; padding: 12px; border-radius: 12px; border: none; cursor: pointer;
+  font-size: 14px; font-weight: 600;
+  background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(139,92,246,0.15));
+  color: #fbbf24; border: 1px solid rgba(245,158,11,0.25);
+  transition: all 0.2s;
+}
+.buff-btn:hover { transform: translateY(-1px); border-color: rgba(245,158,11,0.4); }
+.buff-form { border-color: rgba(245,158,11,0.2) !important; }
+.buff-stat-toggle { display: flex; gap: 6px; }
+.buff-stat-toggle .dt-btn { flex: 1; }
+.str-active { background: rgba(239,68,68,0.2) !important; border-color: #ef4444 !important; color: #ef4444 !important; }
+.def-active { background: rgba(59,130,246,0.2) !important; border-color: #3b82f6 !important; color: #3b82f6 !important; }
+.luk-active { background: rgba(34,197,94,0.2) !important; border-color: #22c55e !important; color: #22c55e !important; }
+.buff-note { font-size: 0.75rem; color: #f59e0b; opacity: 0.7; margin-top: 6px; }
+.buff-confirm { background: linear-gradient(135deg, #f59e0b, #d97706) !important; }
 </style>

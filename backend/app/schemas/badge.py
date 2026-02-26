@@ -53,6 +53,9 @@ class UserStatsResponse(BaseModel):
     badge_str: int = 0
     badge_def: int = 0
     badge_luk: int = 0
+    buff_str: int = 0
+    buff_def: int = 0
+    buff_luk: int = 0
     total_str: int = 0
     total_def: int = 0
     total_luk: int = 0

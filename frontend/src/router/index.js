@@ -128,6 +128,12 @@ const routes = [
         component: () => import('../views/admin/HolidayManagement.vue'),
         meta: { requiresAuth: true, role: 'gm' }
     },
+    {
+        path: '/party-quest-admin',
+        name: 'PartyQuestAdmin',
+        component: () => import('../views/admin/PartyQuestAdmin.vue'),
+        meta: { requiresAuth: true, role: 'gm' }
+    },
     // Staff (Player) Routes
     {
         path: '/staff',

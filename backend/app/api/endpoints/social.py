@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 
 from app.core.database import get_db
-from app.models.social import ThankYouCard, AnonymousPraise
+from app.models.social import ThankYouCard, AnonymousPraise, TownCrierReaction, StatBuff
 from app.models.user import User
 from app.models.company import Company
 from app.models.reward import CoinLog
@@ -407,3 +407,170 @@ def _resolve_users(db: Session, user_value_pairs):
                 "value": value,
             })
     return results
+
+
+# ═══════════════════════════════════════════════════════════
+# TOWN CRIER REACTIONS
+# ═══════════════════════════════════════════════════════════
+
+ALLOWED_EMOJIS = ["❤️", "👏", "🎉"]
+
+class ReactionRequest(BaseModel):
+    event_id: str   # e.g. "badge-42"
+    emoji: str      # e.g. "❤️"
+
+@router.post("/reactions")
+def toggle_reaction(
+    req: ReactionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """Toggle a reaction on a Town Crier event. If already exists, remove it."""
+    if req.emoji not in ALLOWED_EMOJIS:
+        raise HTTPException(400, f"Emoji must be one of {ALLOWED_EMOJIS}")
+
+    existing = db.query(TownCrierReaction).filter(
+        TownCrierReaction.event_id == req.event_id,
+        TownCrierReaction.user_id == current_user.id,
+        TownCrierReaction.emoji == req.emoji,
+    ).first()
+
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return {"action": "removed"}
+    else:
+        r = TownCrierReaction(event_id=req.event_id, user_id=current_user.id, emoji=req.emoji)
+        db.add(r)
+        db.commit()
+        return {"action": "added", "id": r.id}
+
+
+@router.get("/reactions")
+def get_reactions(
+    event_ids: str = "",   # comma-separated event IDs
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """Get reactions for multiple events (batch load for Town Crier)."""
+    if not event_ids:
+        return {}
+
+    ids = [eid.strip() for eid in event_ids.split(",") if eid.strip()]
+    if not ids:
+        return {}
+
+    reactions = db.query(TownCrierReaction).filter(
+        TownCrierReaction.event_id.in_(ids)
+    ).all()
+
+    # Group by event_id → {emoji: {count, reacted}}
+    result = {}
+    for eid in ids:
+        result[eid] = {}
+
+    for r in reactions:
+        eid = r.event_id
+        if eid not in result:
+            result[eid] = {}
+        if r.emoji not in result[eid]:
+            result[eid][r.emoji] = {"count": 0, "reacted": False}
+        result[eid][r.emoji]["count"] += 1
+        if r.user_id == current_user.id:
+            result[eid][r.emoji]["reacted"] = True
+
+    return result
+
+
+# ═══════════════════════════════════════════════════════════
+# STAT BUFFS
+# ═══════════════════════════════════════════════════════════
+
+class BuffRequest(BaseModel):
+    recipient_id: int
+    stat_type: str   # "str", "def", "luk"
+    amount: int      # number of Mana to spend (= stat points)
+
+@router.post("/buff")
+def send_buff(
+    req: BuffRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """Send a temporary stat buff using Mana. 1 Mana = 1 stat point, expires at midnight."""
+    if req.stat_type not in ("str", "def", "luk"):
+        raise HTTPException(400, "stat_type must be str, def, or luk")
+    if req.amount < 1:
+        raise HTTPException(400, "amount must be at least 1")
+    if req.recipient_id == current_user.id:
+        raise HTTPException(400, "You cannot buff yourself!")
+
+    recipient = db.query(User).filter(User.id == req.recipient_id).first()
+    if not recipient:
+        raise HTTPException(404, "Recipient not found")
+
+    # Check Mana balance
+    if (current_user.angel_coins or 0) < req.amount:
+        raise HTTPException(400, "Not enough Mana!")
+
+    # Deduct Mana
+    current_user.angel_coins -= req.amount
+
+    # Create buff
+    date_key = _current_date_key()
+    buff = StatBuff(
+        sender_id=current_user.id,
+        recipient_id=req.recipient_id,
+        stat_type=req.stat_type,
+        amount=req.amount,
+        date_key=date_key,
+    )
+    db.add(buff)
+
+    # Log
+    stat_icons = {"str": "⚔️", "def": "🛡️", "luk": "🍀"}
+    icon = stat_icons.get(req.stat_type, "⚡")
+    sender_name = _user_name(current_user)
+    recipient_name = _user_name(recipient)
+
+    db.add(CoinLog(
+        user_id=current_user.id,
+        amount=-req.amount,
+        reason=f"⚡ Buff {icon} {req.stat_type.upper()}+{req.amount} → {recipient_name}",
+        created_by=sender_name,
+    ))
+
+    db.commit()
+
+    return {"message": f"⚡ {icon} {req.stat_type.upper()}+{req.amount} buff sent to {recipient_name}!"}
+
+
+@router.get("/buff/active")
+def get_active_buffs(
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """Get active buffs for a user (today only). Defaults to current user."""
+    target_id = user_id or current_user.id
+    date_key = _current_date_key()
+
+    buffs = db.query(StatBuff).filter(
+        StatBuff.recipient_id == target_id,
+        StatBuff.date_key == date_key,
+    ).all()
+
+    totals = {"str": 0, "def": 0, "luk": 0}
+    details = []
+    for b in buffs:
+        totals[b.stat_type] = totals.get(b.stat_type, 0) + b.amount
+        sender = db.query(User).filter(User.id == b.sender_id).first()
+        details.append({
+            "id": b.id,
+            "sender_name": _user_name(sender) if sender else "?",
+            "stat_type": b.stat_type,
+            "amount": b.amount,
+        })
+
+    return {"totals": totals, "details": details}
+

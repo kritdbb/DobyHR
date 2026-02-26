@@ -299,6 +299,17 @@ def get_town_people(
 
     staff = db.query(User).all()
 
+    # Bulk-load today's buffs
+    from app.models.social import StatBuff
+    from datetime import datetime, timedelta
+    now_local = datetime.utcnow() + timedelta(hours=7)
+    date_key = now_local.strftime("%Y-%m-%d")
+    all_buffs = db.query(StatBuff).filter(StatBuff.date_key == date_key).all()
+    from collections import defaultdict
+    buff_map = defaultdict(lambda: defaultdict(int))
+    for bf in all_buffs:
+        buff_map[bf.recipient_id][bf.stat_type] += bf.amount
+
     # Bulk-load ALL user badges with their badge data in ONE query (eliminates N+1)
     from sqlalchemy.orm import joinedload
     all_user_badges = (
@@ -335,6 +346,12 @@ def get_town_people(
         base_d = u.base_def if hasattr(u, 'base_def') and u.base_def else 10
         base_l = u.base_luk if hasattr(u, 'base_luk') and u.base_luk else 10
 
+        # Add buffs
+        u_buffs = buff_map.get(u.id, {})
+        b_str = u_buffs.get("str", 0)
+        b_def = u_buffs.get("def", 0)
+        b_luk = u_buffs.get("luk", 0)
+
         # Get artifact effect type
         art_effect = "pulse"
         if u.circle_artifact and u.circle_artifact in artifact_map:
@@ -351,9 +368,12 @@ def get_town_people(
             "angel_coins": u.angel_coins or 0,
             "role": u.role.value if u.role else "staff",
             "stats": {
-                "total_str": base_s + badge_str,
-                "total_def": base_d + badge_def,
-                "total_luk": base_l + badge_luk,
+                "total_str": base_s + badge_str + b_str,
+                "total_def": base_d + badge_def + b_def,
+                "total_luk": base_l + badge_luk + b_luk,
+                "buff_str": b_str,
+                "buff_def": b_def,
+                "buff_luk": b_luk,
             },
             "badges": badge_list,
             "status_text": u.status_text or "",
@@ -1059,10 +1079,28 @@ def _compute_user_stats(user: User, db: Session) -> UserStatsResponse:
     base_d = user.base_def if hasattr(user, 'base_def') and user.base_def else 10
     base_l = user.base_luk if hasattr(user, 'base_luk') and user.base_luk else 10
 
+    # Query today's active buffs
+    from app.models.social import StatBuff
+    from datetime import datetime, timedelta
+    now_local = datetime.utcnow() + timedelta(hours=7)
+    date_key = now_local.strftime("%Y-%m-%d")
+    buffs = db.query(StatBuff).filter(
+        StatBuff.recipient_id == user.id,
+        StatBuff.date_key == date_key,
+    ).all()
+    buff_str = buff_def = buff_luk = 0
+    for b in buffs:
+        if b.stat_type == "str": buff_str += b.amount
+        elif b.stat_type == "def": buff_def += b.amount
+        elif b.stat_type == "luk": buff_luk += b.amount
+
     return UserStatsResponse(
         base_str=base_s, base_def=base_d, base_luk=base_l,
         badge_str=badge_str, badge_def=badge_def, badge_luk=badge_luk,
-        total_str=base_s + badge_str, total_def=base_d + badge_def, total_luk=base_l + badge_luk,
+        buff_str=buff_str, buff_def=buff_def, buff_luk=buff_luk,
+        total_str=base_s + badge_str + buff_str,
+        total_def=base_d + badge_def + buff_def,
+        total_luk=base_l + badge_luk + buff_luk,
     )
 
 

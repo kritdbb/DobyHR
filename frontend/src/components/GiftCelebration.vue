@@ -16,10 +16,10 @@
       <!-- Central burst -->
       <div class="gift-center">
         <div class="gift-icon-burst" :class="theme">
-          {{ theme === 'gold' ? '💰' : '✨' }}
+          {{ theme === 'gold' ? '💰' : theme === 'buff' ? '⚡' : '✨' }}
         </div>
-        <div class="gift-amount" :class="theme">{{ theme === 'gold' ? '💰' : '✨' }} {{ amount }}</div>
-        <div class="gift-label" :class="theme">Gift Sent!</div>
+        <div class="gift-amount" :class="theme">{{ theme === 'gold' ? '💰' : theme === 'buff' ? '⚡' : '✨' }} {{ amount }}</div>
+        <div class="gift-label" :class="theme">{{ theme === 'buff' ? 'Buff Sent!' : 'Gift Sent!' }}</div>
         <div class="gift-recipient">→ {{ recipientName }}</div>
       </div>
 
@@ -28,7 +28,7 @@
         class="gift-floater"
         :class="theme"
         :style="floaterStyle(i)">
-        {{ theme === 'gold' ? '🪙' : '⭐' }}
+        {{ theme === 'gold' ? '🪙' : theme === 'buff' ? '⚡' : '⭐' }}
       </div>
     </div>
   </transition>
@@ -39,7 +39,7 @@ export default {
   name: 'GiftCelebration',
   props: {
     visible: { type: Boolean, default: false },
-    theme: { type: String, default: 'gold' }, // 'gold' or 'mana'
+    theme: { type: String, default: 'gold' }, // 'gold', 'mana', or 'buff'
     amount: { type: [Number, String], default: 0 },
     recipientName: { type: String, default: '' },
   },
@@ -58,7 +58,8 @@ export default {
     },
     playSound() {
       try {
-        const audio = new Audio('/sounds/coin.mp3')
+        const src = this.theme === 'buff' ? '/sounds/addbuff.mp3' : '/sounds/coin.mp3'
+        const audio = new Audio(src)
         audio.volume = 0.5
         audio.play().catch(() => {})
       } catch { /* ignore */ }
@@ -117,6 +118,9 @@ export default {
 .gift-icon-burst.mana {
   filter: drop-shadow(0 0 20px rgba(155,89,182,0.6));
 }
+.gift-icon-burst.buff {
+  filter: drop-shadow(0 0 20px rgba(34,197,94,0.6));
+}
 
 .gift-amount {
   font-family: 'Cinzel', serif;
@@ -126,6 +130,7 @@ export default {
 }
 .gift-amount.gold { color: #ffd700; }
 .gift-amount.mana { color: #c39bd3; }
+.gift-amount.buff { color: #4ade80; }
 
 .gift-label {
   font-family: 'Cinzel', serif;
@@ -135,6 +140,7 @@ export default {
 }
 .gift-label.gold { color: #d4a44c; }
 .gift-label.mana { color: #9b59b6; }
+.gift-label.buff { color: #22c55e; }
 
 .gift-recipient {
   font-size: 14px; font-weight: 700;
@@ -162,6 +168,10 @@ export default {
   background: radial-gradient(circle, #c39bd3, #7d3c98);
   box-shadow: 0 0 6px rgba(155,89,182,0.6);
 }
+.gift-particle.buff {
+  background: radial-gradient(circle, #4ade80, #16a34a);
+  box-shadow: 0 0 6px rgba(34,197,94,0.6);
+}
 
 /* ── Ring burst ── */
 .gift-ring {
@@ -174,6 +184,7 @@ export default {
 }
 .gift-ring.gold { border-color: rgba(255,215,0,0.5); }
 .gift-ring.mana { border-color: rgba(155,89,182,0.5); }
+.gift-ring.buff { border-color: rgba(34,197,94,0.5); }
 
 /* ── Floating coins/stars ── */
 .gift-floater {
@@ -185,6 +196,9 @@ export default {
 }
 .gift-floater.mana {
   filter: drop-shadow(0 0 4px rgba(155,89,182,0.4));
+}
+.gift-floater.buff {
+  filter: drop-shadow(0 0 4px rgba(34,197,94,0.4));
 }
 
 /* ── Keyframes ── */
