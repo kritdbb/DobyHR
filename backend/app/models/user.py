@@ -26,8 +26,10 @@ class User(Base):
     work_start_time = Column(Time, nullable=True)  # เวลาเริ่มงาน
     work_end_time = Column(Time, nullable=True)  # เวลาเลิกงาน
     position = Column(String(100), nullable=True)  # ตำแหน่ง
-    sick_leave_days = Column(Integer, default=0)  # จำนวนลาป่วย
-    business_leave_days = Column(Integer, default=0)  # จำนวนลากิจ
+    sick_leave_days = Column(Integer, default=0)  # จำนวนลาป่วย (legacy, days)
+    sick_leave_hours = Column(Integer, default=0)  # จำนวนชั่วโมงลาป่วย
+    business_leave_days = Column(Integer, default=0)  # จำนวนลากิจ (legacy, days)
+    business_leave_hours = Column(Integer, default=0) # จำนวนชั่วโมงลากิจ
     vacation_leave_days = Column(Integer, default=0)  # จำนวนลาพักร้อน
     start_date = Column(Date, nullable=True)  # วันที่เริ่มงาน
     coins = Column(Integer, default=0)  # Coin balance

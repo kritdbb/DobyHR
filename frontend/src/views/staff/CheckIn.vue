@@ -5,6 +5,31 @@
       <p class="checkin-sub">Report to the guild to begin your check in</p>
     </div>
 
+    <!-- Business Leave Banner -->
+    <div v-if="bizLeave && !alreadyCheckedIn" class="biz-leave-banner">
+      <div class="biz-leave-icon">💼</div>
+      <div class="biz-leave-text">
+        <div class="biz-leave-title">Business Leave Today</div>
+        <div class="biz-leave-time">{{ bizLeave.start_time }} – {{ bizLeave.end_time }}</div>
+        <div class="biz-leave-hint" v-if="bizLeaveBeforeNoon">
+          กรุณาเช็คอินก่อน {{ bizLeave.end_time }}
+        </div>
+        <div class="biz-leave-hint" v-else>
+          ลาช่วงบ่าย — เช็คอินตามเวลาปกติ
+        </div>
+      </div>
+    </div>
+
+    <!-- Sick Leave Banner -->
+    <div v-if="sickLeave && !alreadyCheckedIn" class="biz-leave-banner sick-leave-banner">
+      <div class="biz-leave-icon">🤒</div>
+      <div class="biz-leave-text">
+        <div class="biz-leave-title">Sick Leave Today</div>
+        <div class="biz-leave-time">{{ sickLeave.start_time }} – {{ sickLeave.end_time }}</div>
+        <div class="biz-leave-hint">ไม่ต้องเช็คอิน</div>
+      </div>
+    </div>
+
     <!-- DEF Grace Info -->
     <div v-if="defGrace && defGrace.totalDef > 0 && !alreadyCheckedIn" class="def-grace-card">
       <div class="def-grace-row">
@@ -55,8 +80,8 @@
       </div>
     </div>
 
-    <!-- Expired -->
-    <div v-else-if="isExpired" class="expired-section">
+    <!-- Expired (disabled on business/sick leave days) -->
+    <div v-else-if="isExpired && !bizLeave && !sickLeave" class="expired-section">
       <button class="checkin-btn checkin-btn--disabled" disabled>
         <span style="font-size: 48px;">⏳</span>
         <span class="checkin-btn-label">Check In Expired</span>
@@ -108,6 +133,8 @@ export default {
       defGrace: null,
       locationsList: [],
       selectedLocationId: null,
+      bizLeave: null,
+      sickLeave: null,
     }
   },
   computed: {
@@ -116,6 +143,11 @@ export default {
     },
     buttonLabel() {
       return this.isRemote ? 'REMOTE CHECK IN' : 'CHECK IN'
+    },
+    bizLeaveBeforeNoon() {
+      if (!this.bizLeave || !this.bizLeave.end_time) return false
+      const [h] = this.bizLeave.end_time.split(':').map(Number)
+      return h < 12 || (h === 12 && this.bizLeave.end_time.split(':')[1] === '00')
     },
   },
   inject: ['showToast'],
@@ -136,6 +168,14 @@ export default {
           this.alreadyCheckedIn = true
           this.checkedInTime = data.time
           this.checkedInStatus = data.status
+        }
+        // Business leave info from today-status
+        if (data.business_leave) {
+          this.bizLeave = data.business_leave
+        }
+        // Sick leave info from today-status
+        if (data.sick_leave) {
+          this.sickLeave = data.sick_leave
         }
       } catch (e) {
         console.error('Failed to check today status', e)
@@ -390,6 +430,37 @@ export default {
   text-align: center;
   font-weight: 500;
 }
+
+/* Business Leave Banner */
+.biz-leave-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, rgba(212,164,76,0.12), rgba(184,134,11,0.08));
+  border: 1.5px solid rgba(212,164,76,0.35);
+  border-radius: 12px;
+  padding: 14px 20px;
+  margin-bottom: 18px;
+  max-width: 380px;
+}
+.biz-leave-icon { font-size: 28px; }
+.biz-leave-title {
+  font-size: 14px; font-weight: 800; color: #d4a44c;
+  margin-bottom: 2px;
+}
+.biz-leave-time {
+  font-size: 18px; font-weight: 800; color: #e8d5b7;
+  font-family: monospace; letter-spacing: 0.5px;
+}
+.biz-leave-hint {
+  font-size: 11px; color: #8b7355; font-weight: 600;
+  margin-top: 4px;
+}
+.sick-leave-banner {
+  background: linear-gradient(135deg, rgba(231,76,60,0.12), rgba(192,57,43,0.08));
+  border-color: rgba(231,76,60,0.35);
+}
+.sick-leave-banner .biz-leave-title { color: #e74c3c; }
 
 /* Distance */
 .distance-section { margin-bottom: 28px; }

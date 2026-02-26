@@ -272,9 +272,10 @@ def auto_process_absent_penalties():
             return
 
         from app.models.attendance import Attendance
-        from app.models.leave import LeaveRequest, LeaveStatus
+        from app.models.leave import LeaveRequest, LeaveStatus, LeaveType
         from app.models.work_request import WorkRequest, WorkRequestStatus
         from app.models.holiday import Holiday
+        from datetime import time as dt_time
 
         # Skip penalty on holidays
         if db.query(Holiday).filter(Holiday.date == target_date).first():
@@ -318,12 +319,26 @@ def auto_process_absent_penalties():
             # Check if user has approved leave
             approved_leave = db.query(LeaveRequest).filter(
                 LeaveRequest.user_id == user.id,
-                LeaveRequest.status == LeaveStatus.APPROVED,
+                LeaveRequest.status.in_([LeaveStatus.APPROVED, LeaveStatus.PENDING_EVIDENCE]),
                 LeaveRequest.start_date <= target_date,
                 LeaveRequest.end_date >= target_date
             ).first()
             if approved_leave:
-                continue
+                # Sick leave: always skip penalty (no check-in required)
+                if approved_leave.leave_type == LeaveType.SICK:
+                    continue
+                # Business leave with time-range: check if it covers full day
+                if (approved_leave.leave_type == LeaveType.BUSINESS
+                    and approved_leave.leave_start_time and approved_leave.leave_end_time):
+                    work_start = user.work_start_time or dt_time(9, 0)
+                    work_end = user.work_end_time or dt_time(17, 0)
+                    if (approved_leave.leave_start_time <= work_start
+                        and approved_leave.leave_end_time >= work_end):
+                        continue
+                    # Partial-day business leave — still needs check-in
+                else:
+                    # Vacation or legacy leave — skip penalty
+                    continue
 
             # Apply penalty
             user.coins -= penalty_amount

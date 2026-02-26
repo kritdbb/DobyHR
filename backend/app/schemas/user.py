@@ -13,7 +13,9 @@ class UserBase(BaseModel):
     work_end_time: Optional[time] = None
     position: Optional[str] = None
     sick_leave_days: int = 0
+    sick_leave_hours: int = 0
     business_leave_days: int = 0
+    business_leave_hours: int = 0
     vacation_leave_days: int = 0
     start_date: Optional[date] = None
     email: Optional[str] = None
@@ -39,7 +41,9 @@ class UserUpdate(BaseModel):
     work_end_time: Optional[time] = None
     position: Optional[str] = None
     sick_leave_days: Optional[int] = None
+    sick_leave_hours: Optional[int] = None
     business_leave_days: Optional[int] = None
+    business_leave_hours: Optional[int] = None
     vacation_leave_days: Optional[int] = None
     start_date: Optional[date] = None
     email: Optional[str] = None

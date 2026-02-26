@@ -7,11 +7,12 @@ from app.core.database import get_db
 from app.api.deps import get_current_gm_or_above
 from app.models.user import User, UserRole
 from app.models.attendance import Attendance
-from app.models.leave import LeaveRequest, LeaveStatus
+from app.models.leave import LeaveRequest, LeaveStatus, LeaveType
 from app.models.company import Company
 from app.models.reward import CoinLog
 from app.models.work_request import WorkRequest, WorkRequestStatus
 from app.models.holiday import Holiday
+from datetime import time as dt_time
 
 router = APIRouter(prefix="/api/admin", tags=["Admin Tools"])
 
@@ -93,14 +94,34 @@ def process_absent_penalties(
         # 3. Check if user has an approved leave covering that date
         approved_leave = db.query(LeaveRequest).filter(
             LeaveRequest.user_id == user.id,
-            LeaveRequest.status == LeaveStatus.APPROVED,
+            LeaveRequest.status.in_([LeaveStatus.APPROVED, LeaveStatus.PENDING_EVIDENCE]),
             LeaveRequest.start_date <= target_date,
             LeaveRequest.end_date >= target_date
         ).first()
         
         if approved_leave:
-            skipped_on_leave += 1
-            continue
+            # Sick leave: always skip penalty (no check-in required)
+            if approved_leave.leave_type == LeaveType.SICK:
+                skipped_on_leave += 1
+                continue
+            # Business leave: check if it covers the full working day
+            if approved_leave.leave_type == LeaveType.BUSINESS and approved_leave.leave_start_time and approved_leave.leave_end_time:
+                work_start = user.work_start_time or dt_time(9, 0)
+                work_end = user.work_end_time or dt_time(17, 0)
+                leave_covers_full_day = (
+                    approved_leave.leave_start_time <= work_start and
+                    approved_leave.leave_end_time >= work_end
+                )
+                if not leave_covers_full_day:
+                    # Partial-day business leave — still needs check-in
+                    pass
+                else:
+                    skipped_on_leave += 1
+                    continue
+            else:
+                # Vacation or full-day legacy leave
+                skipped_on_leave += 1
+                continue
         
         # 4. Apply penalty
         user.coins -= penalty_amount

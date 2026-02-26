@@ -64,6 +64,8 @@ def auto_migrate():
             return "BOOLEAN"
         if isinstance(t, sa.Date):
             return "DATE"
+        if isinstance(t, sa.Time):
+            return "TIME"
         if isinstance(t, sa.DateTime):
             return "TIMESTAMP"
         if isinstance(t, sa.Enum):
@@ -127,6 +129,8 @@ def auto_migrate():
             "ALTER TYPE expensetype ADD VALUE IF NOT EXISTS 'CENTER'",
             "ALTER TABLE attendance ALTER COLUMN latitude DROP NOT NULL",
             "ALTER TABLE attendance ALTER COLUMN longitude DROP NOT NULL",
+            "ALTER TYPE leavestatus ADD VALUE IF NOT EXISTS 'pending_evidence'",
+            "ALTER TYPE leavestatus ADD VALUE IF NOT EXISTS 'PENDING_EVIDENCE'",
         ]
         with engine.connect() as conn:
             for sql in extra_migrations:

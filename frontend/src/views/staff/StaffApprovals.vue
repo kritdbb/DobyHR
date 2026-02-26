@@ -35,13 +35,23 @@
             <div class="card-name">{{ item.user_name }}</div>
             <div class="card-type">{{ item.leave_type }} leave</div>
           </div>
-          <span class="badge-pill">pending</span>
+          <span class="badge-pill">{{ item.evidence_image ? 'รออนุมัติอีกครั้ง' : 'pending' }}</span>
         </div>
-        <div class="card-detail">📅 {{ formatDate(item.start_date) }} – {{ formatDate(item.end_date) }}</div>
+        <div class="card-detail" v-if="item.start_time">
+          📅 {{ formatDate(item.start_date) }} {{ item.start_time }}–{{ item.end_time }}
+        </div>
+        <div class="card-detail" v-else>📅 {{ formatDate(item.start_date) }} – {{ formatDate(item.end_date) }}</div>
         <div class="card-detail" v-if="item.reason">💬 {{ item.reason }}</div>
+        <!-- Evidence image for sick leave re-approval -->
+        <div v-if="item.evidence_image" class="file-attachments">
+          <div class="attach-thumb" @click="openViewer(item.evidence_image)">
+            <img :src="apiBase + item.evidence_image" class="thumb-img" />
+            <span class="thumb-label">หลักฐาน</span>
+          </div>
+        </div>
         <div class="card-actions">
           <button @click="handleApproveLeave(item.id)" :disabled="processing" class="btn-approve">✅ Accept</button>
-          <button @click="handleRejectLeave(item.id)" :disabled="processing" class="btn-reject">❌ Deny</button>
+          <button @click="confirmRejectLeave(item)" :disabled="processing" class="btn-reject">❌ Deny</button>
         </div>
       </div>
     </div>
@@ -132,6 +142,23 @@
         <iframe v-else :src="apiBase + viewerSrc" class="viewer-pdf"></iframe>
       </div>
     </div>
+
+    <!-- Reject Sick Leave Confirmation -->
+    <div v-if="showRejectConfirm" class="viewer-overlay" @click.self="showRejectConfirm = false">
+      <div class="viewer-content" @click.stop style="background:linear-gradient(145deg,#2c1810,#1a1a2e); padding:28px; border-radius:16px; border:2px solid #d4a44c; max-width:380px; text-align:center;">
+        <div style="font-size:40px; margin-bottom:12px;">⚠️</div>
+        <h3 style="color:#d4a44c; font-size:18px; margin-bottom:12px;">ยืนยันการ Reject</h3>
+        <p style="color:#e8d5b7; font-size:14px; line-height:1.6; margin-bottom:20px;">
+          หาก <strong>Reject</strong> การลาป่วยของ <strong>{{ rejectTarget?.user_name }}</strong><br>
+          จะถือว่าพนักงาน<strong style="color:#e74c3c;">ขาดงาน</strong>ในวันนั้นทันที<br>
+          และจะถูก<strong style="color:#e74c3c;">หัก Gold ขาดงาน</strong>
+        </p>
+        <div style="display:flex; gap:10px;">
+          <button class="btn-approve" @click="showRejectConfirm = false" style="flex:1;">ยกเลิก</button>
+          <button class="btn-reject" @click="doRejectLeave" style="flex:1;">❌ ยืนยัน Reject</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -157,6 +184,8 @@ export default {
       viewerOpen: false,
       viewerSrc: '',
       apiBase: import.meta.env.VITE_API_URL || '',
+      showRejectConfirm: false,
+      rejectTarget: null,
     }
   },
   async mounted() { await this.loadData() },
@@ -183,9 +212,23 @@ export default {
     },
     async handleRejectLeave(id) {
       this.processing = true
-      try { await rejectLeave(id); this.showToast('Leave denied'); await this.loadData() }
+      try { await rejectLeave(id); this.showToast('Leave denied ❌'); await this.loadData() }
       catch (e) { this.showToast(e.response?.data?.detail || 'Failed', 'error') }
       finally { this.processing = false }
+    },
+    confirmRejectLeave(item) {
+      if (item.leave_type === 'sick') {
+        this.rejectTarget = item
+        this.showRejectConfirm = true
+      } else {
+        this.handleRejectLeave(item.id)
+      }
+    },
+    async doRejectLeave() {
+      const id = this.rejectTarget?.id
+      this.showRejectConfirm = false
+      this.rejectTarget = null
+      if (id) await this.handleRejectLeave(id)
     },
     async handleApproveRedeem(id) {
       this.processing = true

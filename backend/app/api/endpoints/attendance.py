@@ -14,6 +14,7 @@ from app.models.work_request import WorkRequest, WorkRequestStatus
 from app.models.badge import Badge, UserBadge
 from app.models.holiday import Holiday
 from app.models.location import Location
+from app.models.leave import LeaveRequest, LeaveType, LeaveStatus
 from app.api.deps import get_current_user
 from pydantic import BaseModel
 import logging
@@ -54,6 +55,21 @@ def _get_total_def(user: User, db: Session) -> int:
     return base + int(badge_def)
 
 
+def _get_today_leave(user_id: int, today: date, leave_type: LeaveType, db: Session):
+    """Return approved leave for today of given type, or None."""
+    statuses = [LeaveStatus.APPROVED]
+    # Sick leave: also count PENDING_EVIDENCE as valid (already approved once)
+    if leave_type == LeaveType.SICK:
+        statuses.append(LeaveStatus.PENDING_EVIDENCE)
+    return db.query(LeaveRequest).filter(
+        LeaveRequest.user_id == user_id,
+        LeaveRequest.leave_type == leave_type,
+        LeaveRequest.status.in_(statuses),
+        LeaveRequest.start_date <= today,
+        LeaveRequest.end_date >= today,
+    ).first()
+
+
 @router.get("/today-status")
 def get_today_status(
     db: Session = Depends(get_db),
@@ -64,6 +80,24 @@ def get_today_status(
     today_local = now_local.date()
     day_start_utc = datetime.combine(today_local, datetime.min.time()) - timedelta(hours=7)
     day_end_utc = datetime.combine(today_local, datetime.max.time()) - timedelta(hours=7)
+
+    # Check for business leave today
+    biz_leave = _get_today_leave(current_user.id, today_local, LeaveType.BUSINESS, db)
+    biz_leave_info = None
+    if biz_leave:
+        biz_leave_info = {
+            "start_time": f"{biz_leave.leave_start_time.hour:02d}:{biz_leave.leave_start_time.minute:02d}" if biz_leave.leave_start_time else None,
+            "end_time": f"{biz_leave.leave_end_time.hour:02d}:{biz_leave.leave_end_time.minute:02d}" if biz_leave.leave_end_time else None,
+        }
+
+    # Check for sick leave today
+    sick_leave = _get_today_leave(current_user.id, today_local, LeaveType.SICK, db)
+    sick_leave_info = None
+    if sick_leave:
+        sick_leave_info = {
+            "start_time": f"{sick_leave.leave_start_time.hour:02d}:{sick_leave.leave_start_time.minute:02d}" if sick_leave.leave_start_time else None,
+            "end_time": f"{sick_leave.leave_end_time.hour:02d}:{sick_leave.leave_end_time.minute:02d}" if sick_leave.leave_end_time else None,
+        }
 
     existing = db.query(Attendance).filter(
         Attendance.user_id == current_user.id,
@@ -79,8 +113,10 @@ def get_today_status(
             "time": checkin_local.strftime("%H:%M"),
             "status": existing.status,
             "timestamp": checkin_local,
+            "business_leave": biz_leave_info,
+            "sick_leave": sick_leave_info,
         }
-    return {"checked_in": False}
+    return {"checked_in": False, "business_leave": biz_leave_info, "sick_leave": sick_leave_info}
 
 
 @router.post("/check-in")
@@ -223,13 +259,28 @@ def check_in(
             "remote_request_created": True,
         }
 
-    # 7. Determine on-time / late / absent (working day, in range)
+    # 7. Check for approved business/sick leave today
+    from datetime import time as dt_time
+    biz_leave = _get_today_leave(current_user.id, today_local, LeaveType.BUSINESS, db)
+    sick_leave = _get_today_leave(current_user.id, today_local, LeaveType.SICK, db)
+    on_business_leave = biz_leave is not None
+    on_sick_leave = sick_leave is not None
+    on_any_leave = on_business_leave or on_sick_leave
+
+    # 8. Determine on-time / late / absent (working day, in range)
     check_in_time = now_local.time()
     status = "present"
     
     # Use work_start_time or default to 09:00
-    from datetime import time as dt_time
     start = current_user.work_start_time or dt_time(9, 0)
+
+    # If business leave covers the morning (ends before 12:00), shift effective start time
+    if on_business_leave and biz_leave.leave_end_time:
+        leave_end_minutes = biz_leave.leave_end_time.hour * 60 + biz_leave.leave_end_time.minute
+        if leave_end_minutes <= 12 * 60:  # leave ends before/at noon
+            # Shift effective start to leave_end_time
+            start = biz_leave.leave_end_time
+
     start_minutes = start.hour * 60 + start.minute
     checkin_minutes = check_in_time.hour * 60 + check_in_time.minute
     diff_seconds = (checkin_minutes - start_minutes) * 60
@@ -245,7 +296,7 @@ def check_in(
     elif diff_seconds > grace_seconds:  # past grace → late
         status = "late"
     
-    # 8. Record Attendance
+    # 9. Record Attendance
     attendance = Attendance(
         user_id=current_user.id,
         timestamp=datetime.utcnow(),
@@ -256,22 +307,36 @@ def check_in(
     )
     db.add(attendance)
 
-    # 9. Coin Logic
+    # 10. Coin Logic
     coin_change = 0
     coin_reason = ""
     
-    if status == "absent":
-        if company.coin_absent_penalty:
-            coin_change = -company.coin_absent_penalty
-            coin_reason = "Absent (checked in >1hr late)"
-    elif status == "late":
-        if company.coin_late_penalty:
-            coin_change = -company.coin_late_penalty
-            coin_reason = "Late Check-in"
+    if on_any_leave:
+        # Leave day: NO gold reward, but still apply late/absent penalty
+        leave_label = "sick leave" if on_sick_leave else "business leave"
+        if status == "absent":
+            if company.coin_absent_penalty:
+                coin_change = -company.coin_absent_penalty
+                coin_reason = f"Absent (checked in >1hr late, {leave_label} day)"
+        elif status == "late":
+            if company.coin_late_penalty:
+                coin_change = -company.coin_late_penalty
+                coin_reason = f"Late Check-in ({leave_label} day)"
+        # No gold for on-time on leave day
     else:
-        if company.coin_on_time:
-            coin_change = company.coin_on_time
-            coin_reason = "On-time Check-in"
+        # Normal day
+        if status == "absent":
+            if company.coin_absent_penalty:
+                coin_change = -company.coin_absent_penalty
+                coin_reason = "Absent (checked in >1hr late)"
+        elif status == "late":
+            if company.coin_late_penalty:
+                coin_change = -company.coin_late_penalty
+                coin_reason = "Late Check-in"
+        else:
+            if company.coin_on_time:
+                coin_change = company.coin_on_time
+                coin_reason = "On-time Check-in"
     
     if coin_change != 0:
         current_user.coins += coin_change
@@ -290,7 +355,9 @@ def check_in(
         "timestamp": now_local,
         "status": status,
         "coin_change": coin_change,
-        "coins": current_user.coins
+        "coins": current_user.coins,
+        "business_leave": on_business_leave,
+        "sick_leave": on_sick_leave,
     }
 
 @router.get("/my-history")

@@ -282,13 +282,20 @@
               <div class="quest-type">{{ item.leave_type }} leave</div>
             </div>
           </div>
-          <span class="quest-badge">pending</span>
+          <span class="quest-badge">{{ item.evidence_image ? 'รออนุมัติอีกครั้ง' : 'pending' }}</span>
         </div>
-        <div class="quest-detail">📅 {{ formatDate(item.start_date) }} – {{ formatDate(item.end_date) }}</div>
+        <div class="quest-detail" v-if="item.start_time">
+          📅 {{ formatDate(item.start_date) }} {{ item.start_time }}–{{ item.end_time }}
+        </div>
+        <div class="quest-detail" v-else>📅 {{ formatDate(item.start_date) }} – {{ formatDate(item.end_date) }}</div>
         <div class="quest-detail" v-if="item.reason">💬 {{ item.reason }}</div>
+        <div v-if="item.evidence_image" class="quest-evidence">
+          <img :src="apiBase + item.evidence_image" class="quest-evidence-img" @click="openEvidenceViewer(item.evidence_image)" />
+          <span class="quest-evidence-label">📷 หลักฐานลาป่วย</span>
+        </div>
         <div class="quest-actions">
           <button @click="handleApproveLeave(item.id)" class="btn-approve">✅ Accept</button>
-          <button @click="handleRejectLeave(item.id)" class="btn-reject">❌ Deny</button>
+          <button @click="confirmRejectLeave(item)" class="btn-reject">❌ Deny</button>
         </div>
       </div>
 
@@ -722,6 +729,28 @@
         <button class="badge-modal-close" @click="showWheelModal = false" style="margin-top: 14px;">Close</button>
       </div>
     </div>
+
+    <!-- Reject Sick Leave Confirmation Modal -->
+    <div v-if="showRejectConfirm" class="badge-modal-overlay" @click.self="showRejectConfirm = false">
+      <div class="badge-modal rescue-modal">
+        <div class="rescue-modal-icon">⚠️</div>
+        <h3 class="badge-modal-title">ยืนยันการ Reject</h3>
+        <p class="rescue-modal-text">
+          หาก <strong>Reject</strong> การลาป่วยของ <strong>{{ rejectTarget?.user_name }}</strong><br>
+          จะถือว่าพนักงาน<strong style="color: #e74c3c;">ขาดงาน</strong>ในวันนั้นทันที<br>
+          และจะถูก<strong style="color: #e74c3c;">หัก Gold ขาดงาน</strong>
+        </p>
+        <div class="rescue-modal-actions">
+          <button class="btn-cancel" @click="showRejectConfirm = false">ยกเลิก</button>
+          <button class="btn-reject" style="flex:1; padding:11px 0; border-radius:8px;" @click="doRejectLeave">❌ ยืนยัน Reject</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Evidence Viewer -->
+    <div v-if="showEvidenceViewer" class="badge-modal-overlay" style="z-index:10001" @click="showEvidenceViewer = false">
+      <img :src="apiBase + evidenceViewerSrc" style="max-width:90vw;max-height:90vh;border-radius:8px;" />
+    </div>
   </div>
 </template>
 
@@ -781,6 +810,13 @@ export default {
       showWheelModal: false,
       wheelSpinning: false,
       wheelDone: false,
+      // Reject confirmation
+      showRejectConfirm: false,
+      rejectTarget: null,
+      // Evidence viewer
+      showEvidenceViewer: false,
+      evidenceViewerSrc: '',
+      apiBase: import.meta.env.VITE_API_URL || '',
     }
   },
   async mounted() {
@@ -913,9 +949,27 @@ export default {
       try { await approveLeave(id); this.showToast('Quest accepted! ⚔️'); await this.loadData() }
       catch (e) { this.showToast(e.response?.data?.detail || 'Failed', 'error') }
     },
+    confirmRejectLeave(item) {
+      if (item.leave_type === 'sick') {
+        this.rejectTarget = item
+        this.showRejectConfirm = true
+      } else {
+        this.handleRejectLeave(item.id)
+      }
+    },
+    async doRejectLeave() {
+      const id = this.rejectTarget?.id
+      this.showRejectConfirm = false
+      this.rejectTarget = null
+      if (id) await this.handleRejectLeave(id)
+    },
     async handleRejectLeave(id) {
-      try { await rejectLeave(id); this.showToast('Quest denied'); await this.loadData() }
+      try { await rejectLeave(id); this.showToast('Leave denied ❌'); await this.loadData() }
       catch (e) { this.showToast(e.response?.data?.detail || 'Failed', 'error') }
+    },
+    openEvidenceViewer(src) {
+      this.evidenceViewerSrc = src
+      this.showEvidenceViewer = true
     },
     async handleApproveRedeem(id) {
       try { await approveRedemption(id); this.showToast('Trade approved! 🛒'); await this.loadData() }
@@ -1615,6 +1669,9 @@ export default {
   font-size: 10px; font-weight: 800; text-transform: uppercase;
   background: rgba(212,164,76,0.15); color: #d4a44c; border: 1px solid rgba(212,164,76,0.3);
 }
+.quest-evidence { margin: 8px 0; display: flex; align-items: center; gap: 8px; }
+.quest-evidence-img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(212,164,76,0.2); cursor: pointer; }
+.quest-evidence-label { font-size: 11px; color: #d4a44c; font-weight: 600; }
 .quest-actions { display: flex; gap: 10px; margin-top: 12px; }
 .btn-approve {
   flex: 1; padding: 10px 0; border-radius: 8px;

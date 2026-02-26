@@ -141,7 +141,15 @@ export const getAllLeaves = (params) => api.get('/api/leaves/all', { params })
 export const approveLeave = (id) => api.put(`/api/leaves/${id}/approve`)
 export const rejectLeave = (id) => api.put(`/api/leaves/${id}/reject`)
 export const getPendingLeaveApprovals = () => api.get('/api/leaves/pending-approvals')
-
+export const getTodayBusinessLeave = () => api.get('/api/leaves/today-business-leave')
+export const uploadLeaveEvidence = (leaveId, file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post(`/api/leaves/${leaveId}/upload-evidence`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    })
+}
+export const submitLeaveEvidence = (leaveId) => api.put(`/api/leaves/${leaveId}/submit-evidence`)
 // --- Admin Tools ---
 export const processAbsentPenalties = (date) => api.post('/api/admin/process-absent-penalties', null, { params: date ? { target_date: date } : {} })
 

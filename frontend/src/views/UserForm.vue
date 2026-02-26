@@ -118,12 +118,12 @@
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
           <div class="form-group">
-            <label>Sick Rest (ลาป่วย)</label>
-            <input v-model.number="form.sick_leave_days" class="form-input" type="number" min="0" placeholder="0" />
+            <label>Sick Rest (ลาป่วย - ชม.)</label>
+            <input v-model.number="form.sick_leave_hours" class="form-input" type="number" min="0" placeholder="0" />
           </div>
           <div class="form-group">
-            <label>Business Rest (ลากิจ)</label>
-            <input v-model.number="form.business_leave_days" class="form-input" type="number" min="0" placeholder="0" />
+            <label>Business Rest (ลากิจ - ชม.)</label>
+            <input v-model.number="form.business_leave_hours" class="form-input" type="number" min="0" placeholder="0" />
           </div>
           <div class="form-group">
             <label>Vacation (ลาพักร้อน)</label>
@@ -379,7 +379,7 @@ export default {
         name: '', surname: '', image: null, phone: '',
         department: '', work_start_time: '', work_end_time: '',
         position: '',
-        sick_leave_days: 0, business_leave_days: 0, vacation_leave_days: 0,
+        sick_leave_hours: 0, business_leave_hours: 0, vacation_leave_days: 0,
         start_date: '', working_days: 'mon,tue,wed,thu,fri',
         default_location_id: null,
       },
@@ -475,8 +475,8 @@ export default {
           work_start_time: data.work_start_time || '',
           work_end_time: data.work_end_time || '',
           position: data.position || '',
-          sick_leave_days: data.sick_leave_days || 0,
-          business_leave_days: data.business_leave_days || 0,
+          sick_leave_hours: data.sick_leave_hours || 0,
+          business_leave_hours: data.business_leave_hours || 0,
           vacation_leave_days: data.vacation_leave_days || 0,
           start_date: data.start_date || '',
           working_days: data.working_days || 'mon,tue,wed,thu,fri',

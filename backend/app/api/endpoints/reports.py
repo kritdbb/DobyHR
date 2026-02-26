@@ -143,14 +143,6 @@ def get_leave_summary_report(
     
     report = []
     for user in users:
-        # Calculate taken leaves (Approved)
-        # Note: In a real system, we might query LeaveRequest table with aggregation.
-        # But User model has summary columns? No, User model has 'days' which are QUOTAS usually? 
-        # Let's check User model.
-        # User model: sick_leave_days (Quota), etc.
-        # We need check ACTUAL usage.
-        
-        # Query LeaveRequests for this user
         leaves = db.query(LeaveRequest).filter(
             LeaveRequest.user_id == user.id
         ).all()
@@ -158,8 +150,16 @@ def get_leave_summary_report(
         def calculate_days(l):
             return (l.end_date - l.start_date).days + 1
 
-        sick_taken = sum(calculate_days(l) for l in leaves if l.leave_type == 'sick' and l.status == 'approved')
-        business_taken = sum(calculate_days(l) for l in leaves if l.leave_type == 'business' and l.status == 'approved')
+        def calculate_biz_hours(l):
+            """Calculate business leave usage in hours."""
+            if l.leave_start_time and l.leave_end_time:
+                start_min = l.leave_start_time.hour * 60 + l.leave_start_time.minute
+                end_min = l.leave_end_time.hour * 60 + l.leave_end_time.minute
+                return max(0, (end_min - start_min) / 60.0)
+            return ((l.end_date - l.start_date).days + 1) * 8  # Legacy: 8h per day
+
+        sick_taken = round(sum(calculate_biz_hours(l) for l in leaves if l.leave_type == 'sick' and l.status == 'approved'), 1)
+        business_taken = round(sum(calculate_biz_hours(l) for l in leaves if l.leave_type == 'business' and l.status == 'approved'), 1)
         vacation_taken = sum(calculate_days(l) for l in leaves if l.leave_type == 'vacation' and l.status == 'approved')
         total_pending = sum(1 for l in leaves if l.status == 'pending')
         
@@ -167,9 +167,9 @@ def get_leave_summary_report(
             "user_id": user.id,
             "user_name": f"{user.name} {user.surname}",
             "sick_taken": sick_taken,
-            "sick_quota": user.sick_leave_days,
+            "sick_quota": user.sick_leave_hours or user.sick_leave_days,
             "business_taken": business_taken,
-            "business_quota": user.business_leave_days,
+            "business_quota": user.business_leave_hours or user.business_leave_days,
             "vacation_taken": vacation_taken,
             "vacation_quota": user.vacation_leave_days,
             "total_pending": total_pending
