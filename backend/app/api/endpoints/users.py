@@ -227,6 +227,7 @@ def rescue_user(
         amount=-cost,
         reason=f"🙏 Revival Contribution for {recipient_name}",
         created_by="System",
+        sender_user_id=current_user.id,
     )
     db.add(sender_log)
 
@@ -236,6 +237,7 @@ def rescue_user(
         amount=0,
         reason=f"🙏 Revival Prayer from {sender_name}",
         created_by=sender_name,
+        sender_user_id=current_user.id,
     )
     db.add(prayer_log)
     db.flush()
@@ -493,7 +495,8 @@ def adjust_user_coins(
         user_id=user.id,
         amount=req.amount,
         reason=req.reason,
-        created_by=f"{current_user.name} {current_user.surname}"
+        created_by=f"{current_user.name} {current_user.surname}",
+        sender_user_id=current_user.id,
     )
     db.add(log)
     db.commit()
@@ -724,7 +727,8 @@ def send_angel_coins(
         amount=-req.amount,
         reason=f"🪽 Sent {req.amount} Mana as {delivery_label} to {recipient.name} {recipient.surname}{comment_text}",
         log_type="mana_gift",
-        created_by="System"
+        created_by="System",
+        sender_user_id=current_user.id,
     )
     db.add(sender_log)
     
@@ -734,7 +738,8 @@ def send_angel_coins(
         amount=req.amount,
         reason=f"🪽 Received {delivery_label} from {current_user.name} {current_user.surname}{comment_text}",
         log_type="mana_gift",
-        created_by=f"{current_user.name} {current_user.surname}"
+        created_by=f"{current_user.name} {current_user.surname}",
+        sender_user_id=current_user.id,
     )
     db.add(recipient_log)
     

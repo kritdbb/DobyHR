@@ -83,13 +83,13 @@ def _compute_progress(db: Session, quest: PartyQuest, team_members_a: list, team
             result["team_a"]["steps"] = 0
             result["team_b"]["steps"] = 0
 
-    # Gifts received from non-team members
+    # Gifts received from non-team members (exclude same-team gifts)
     if quest.gifts_goal:
-        from sqlalchemy import or_
+        from sqlalchemy import or_, and_
         for label, ids, own_ids in [("team_a", a_ids, a_ids), ("team_b", b_ids, b_ids)]:
             total = 0
             if ids:
-                total = db.query(func.coalesce(func.sum(CoinLog.amount), 0)).filter(
+                filters = [
                     CoinLog.user_id.in_(ids),
                     CoinLog.created_at >= start_utc,
                     CoinLog.created_at <= end_utc,
@@ -99,7 +99,16 @@ def _compute_progress(db: Session, quest: PartyQuest, team_members_a: list, team
                         CoinLog.reason.ilike("%Received Gold from%"),
                         CoinLog.reason.ilike("%Received Mana from%"),
                     ),
-                ).scalar()
+                ]
+                # Exclude gifts from same team members
+                if own_ids:
+                    filters.append(
+                        or_(
+                            CoinLog.sender_user_id.is_(None),  # old logs without sender_user_id still count
+                            ~CoinLog.sender_user_id.in_(own_ids),
+                        )
+                    )
+                total = db.query(func.coalesce(func.sum(CoinLog.amount), 0)).filter(*filters).scalar()
             result[label]["gifts"] = int(total) if total else 0
 
     # PvP battles won

@@ -52,6 +52,7 @@ class CoinLog(Base):
     reason = Column(String(255), nullable=False)
     log_type = Column(String(30), nullable=True)  # mana_gift, lucky_draw, pvp, lottery, rescue, check_in, penalty, admin, system
     created_by = Column(String(100), nullable=True) # "System" or Admin Name
+    sender_user_id = Column(Integer, nullable=True)  # User ID of the gift sender
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
