@@ -5,7 +5,7 @@ const ADMIN_ROLES = ['god', 'gm']
 const routes = [
     {
         path: '/',
-        redirect: '/login'
+        redirect: '/staff/home'
     },
     {
         path: '/oauth/callback',

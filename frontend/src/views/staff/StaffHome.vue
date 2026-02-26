@@ -983,87 +983,53 @@ export default {
       return d.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
     },
     async loadData() {
-      const userStr = localStorage.getItem('user')
-      const u = userStr ? JSON.parse(userStr) : {}
-      const userId = u.id || u.user_id
+      try {
+        const { data } = await api.get('/api/combined/home-data')
 
-      // ── Batch 1: Fire ALL independent API calls in parallel ──
-      const [lRes, rRes, wRes, coinRes, userRes, badgeRes, awardRes, statsRes, pqRes, negRes, pvpRes, wheelRes] = await Promise.all([
-        getPendingLeaveApprovals().catch(() => ({ data: [] })),
-        getPendingRedemptionApprovals().catch(() => ({ data: [] })),
-        getPendingWorkRequests().catch(() => ({ data: [] })),
-        userId ? api.get(`/api/users/${userId}/coin-logs`).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
-        userId ? api.get(`/api/users/${userId}`).catch(() => null) : Promise.resolve(null),
-        getMyBadges().catch(() => ({ data: [] })),
-        getRecentBadgeAwards(50).catch(() => ({ data: [] })),
-        getMyStats().catch(() => ({ data: this.myStats })),
-        getActivePartyQuest().catch(() => ({ data: [] })),
-        api.get('/api/users/negative-coins').catch(() => ({ data: [] })),
-        api.get('/api/pvp/today').catch(() => ({ data: [] })),
-        getLuckyWheelToday().catch(() => ({ data: null })),
-      ])
+        // User info
+        if (data.user) {
+          this.myCoins = data.user.coins || 0
+          this.myAngelCoins = data.user.angel_coins || 0
+          this.userImage = data.user.image || this.userImage
+          this.userPosition = data.user.position || this.userPosition
+          this.userName = [data.user.name, data.user.surname].filter(Boolean).join(' ') || this.userName
+          this.userStatus = data.user.status_text || ''
+          this.userArtifact = data.user.circle_artifact || ''
+          this.userBackground = data.user.magic_background || ''
+          const stored = JSON.parse(localStorage.getItem('user') || '{}')
+          stored.image = data.user.image
+          stored.name = data.user.name
+          stored.surname = data.user.surname
+          stored.position = data.user.position
+          stored.circle_artifact = data.user.circle_artifact || ''
+          stored.magic_background = data.user.magic_background || ''
+          localStorage.setItem('user', JSON.stringify(stored))
+        }
 
-      // Assign results
-      this.pendingLeaves = lRes.data
-      this.pendingRedemptions = rRes.data
-      this.pendingWorkRequests = wRes.data
+        // Approvals
+        this.pendingLeaves = data.pending_leaves || []
+        this.pendingRedemptions = data.pending_redemptions || []
+        this.pendingWorkRequests = data.pending_work_requests || []
 
-      const allLogs = coinRes.data || []
-      this.coinLogs = allLogs.slice(0, 50)
-      this.angelCoinReceipts = allLogs.filter(l => l.reason && (l.reason.includes('Received Angel Coins') || l.reason.includes('Received Gold from') || l.reason.includes('Received Mana from'))).slice(0, 5)
+        // Coin logs
+        const allLogs = data.coin_logs || []
+        this.coinLogs = allLogs.slice(0, 50)
+        this.angelCoinReceipts = allLogs.filter(l => l.reason && (l.reason.includes('Received Angel Coins') || l.reason.includes('Received Gold from') || l.reason.includes('Received Mana from'))).slice(0, 5)
 
-      if (userRes && userRes.data) {
-        this.myCoins = userRes.data.coins || 0
-        this.myAngelCoins = userRes.data.angel_coins || 0
-        this.userImage = userRes.data.image || this.userImage
-        this.userPosition = userRes.data.position || this.userPosition
-        this.userName = [userRes.data.name, userRes.data.surname].filter(Boolean).join(' ') || this.userName
-        this.userStatus = userRes.data.status_text || ''
-        const stored = JSON.parse(localStorage.getItem('user') || '{}')
-        stored.image = userRes.data.image
-        stored.name = userRes.data.name
-        stored.surname = userRes.data.surname
-        stored.position = userRes.data.position
-        stored.circle_artifact = userRes.data.circle_artifact || ''
-        stored.magic_background = userRes.data.magic_background || ''
-        localStorage.setItem('user', JSON.stringify(stored))
-        this.userArtifact = userRes.data.circle_artifact || ''
-        this.userBackground = userRes.data.magic_background || ''
+        // Badges, stats, awards
+        this.myBadges = data.my_badges || []
+        this.recentAwards = data.recent_awards || []
+        this.myStats = data.my_stats || this.myStats
+        this.reactions = data.reactions || {}
+
+        // Other
+        this.partyQuests = data.party_quests || []
+        this.negativeUsers = data.negative_users || []
+        this.arenaBattles = data.arena_battles || []
+        this.luckyWheel = data.lucky_wheel || null
+      } catch (e) {
+        console.error('Home load error:', e)
       }
-
-      this.myBadges = badgeRes.data
-      this.recentAwards = awardRes.data
-      this.myStats = statsRes.data
-      this.partyQuests = pqRes.data || []
-      this.arenaBattles = pvpRes.data || []
-      this.luckyWheel = wheelRes.data || null
-
-      // ── Batch 2: Dependent calls in parallel (need Batch 1 results) ──
-      const batch2 = []
-
-      // Reactions (needs award IDs from Batch 1)
-      if (this.recentAwards.length > 0) {
-        const eventIds = this.recentAwards.map(a => a.id).join(',')
-        batch2.push(
-          getReactions(eventIds).then(r => { this.reactions = r.data || {} }).catch(() => { this.reactions = {} })
-        )
-      }
-
-      // Rescue pools (needs negative user IDs from Batch 1) — all in parallel
-      const negUsers = negRes.data || []
-      if (negUsers.length > 0) {
-        batch2.push(
-          Promise.all(
-            negUsers.map(nu =>
-              api.get(`/api/users/rescue/pool/${nu.id}`).then(r => { nu.pool = r.data }).catch(() => { nu.pool = null })
-            )
-          ).then(() => { this.negativeUsers = negUsers })
-        )
-      } else {
-        this.negativeUsers = []
-      }
-
-      if (batch2.length > 0) await Promise.all(batch2)
     },
     async loadArtifactCatalog() {
       try {

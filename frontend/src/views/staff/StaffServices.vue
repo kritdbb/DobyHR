@@ -120,12 +120,7 @@
 </template>
 
 <script>
-import {
-  getMyLeaves,
-  getPendingLeaveApprovals,
-  getPendingRedemptionApprovals,
-  getMyRedemptions,
-} from '../../services/api'
+import api from '../../services/api'
 
 export default {
   name: 'StaffServices',
@@ -144,18 +139,8 @@ export default {
   methods: {
     async loadBadges() {
       try {
-        const [leavesRes, pendingLeavesRes, pendingRedeemRes, couponsRes] = await Promise.all([
-          getMyLeaves().catch(() => ({ data: [] })),
-          getPendingLeaveApprovals().catch(() => ({ data: [] })),
-          getPendingRedemptionApprovals().catch(() => ({ data: [] })),
-          getMyRedemptions().catch(() => ({ data: [] })),
-        ])
-
-        this.badges.leave = (leavesRes.data || []).filter(l => l.status === 'pending').length
-        this.badges.approvals = (pendingLeavesRes.data || []).length + (pendingRedeemRes.data || []).length
-        this.badges.coupons = (couponsRes.data || []).filter(
-          c => c.status === 'ready' || c.status === 'approved' || c.status === 'pending'
-        ).length
+        const { data } = await api.get('/api/combined/services-data')
+        this.badges = data.badges || { leave: 0, approvals: 0, coupons: 0 }
       } catch (e) {
         console.error('Failed to load badges', e)
       }

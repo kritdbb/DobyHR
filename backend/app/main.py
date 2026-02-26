@@ -10,7 +10,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.database import engine, Base
 from app.core.config import settings
-from app.api.endpoints import company, users, approval, auth, attendance, leaves, rewards, reports, absent_check, approval_pattern, work_requests, badges, fitbit, badge_quests, fortune_wheel, expenses, face_test, social, pvp, badge_shop, sync, holidays, locations, presence, party_quest
+from app.api.endpoints import company, users, approval, auth, attendance, leaves, rewards, reports, absent_check, approval_pattern, work_requests, badges, fitbit, badge_quests, fortune_wheel, expenses, face_test, social, pvp, badge_shop, sync, holidays, locations, presence, party_quest, combined
 from app.models import user as user_model, company as company_model, approval as approval_model, attendance as attendance_model, leave as leave_model, reward as reward_model, approval_pattern as approval_pattern_model, work_request as work_request_model, badge as badge_model, fitbit as fitbit_model, step_rewards as step_rewards_model, badge_quest as badge_quest_model, fortune_wheel as fortune_wheel_model, expense as expense_model, face_image as face_image_model, social as social_model, pvp as pvp_model, artifact as artifact_model, badge_shop as badge_shop_model, holiday as holiday_model, location as location_model, party_quest as party_quest_model
 from app.core.database import SessionLocal
 from app.core.security import get_password_hash
@@ -213,6 +213,7 @@ app.include_router(absent_check.router)
 app.include_router(approval_pattern.router)
 app.include_router(work_requests.router)
 app.include_router(badges.router)
+app.include_router(combined.router, prefix="/api/combined", tags=["combined"])
 app.include_router(fitbit.router)
 app.include_router(badge_quests.router)
 app.include_router(fortune_wheel.router)
