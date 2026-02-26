@@ -644,17 +644,21 @@ def get_recent_awards(
                 "detail": ub.awarded_by,
             })
 
-    # Mana (Angel Coin) transfers — only "Received" entries
+    # Mana (Angel Coin) transfers — only "Received" entries (amount > 0)
     # Use log_type if available, fallback to ILIKE for old data
+    # Filter amount > 0 to exclude sender's deduction logs
     from sqlalchemy import or_
     mana_logs = (
         db.query(CoinLog)
-        .filter(or_(
-            CoinLog.log_type == "mana_gift",
-            CoinLog.reason.ilike("%Received Angel Coins%"),
-            CoinLog.reason.ilike("%Received Gold from%"),
-            CoinLog.reason.ilike("%Received Mana from%"),
-        ))
+        .filter(
+            CoinLog.amount > 0,
+            or_(
+                CoinLog.log_type == "mana_gift",
+                CoinLog.reason.ilike("%Received Angel Coins%"),
+                CoinLog.reason.ilike("%Received Gold from%"),
+                CoinLog.reason.ilike("%Received Mana from%"),
+            ),
+        )
         .order_by(CoinLog.created_at.desc())
         .limit(limit)
         .all()
