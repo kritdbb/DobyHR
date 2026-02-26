@@ -9,8 +9,9 @@ from sqlalchemy import func
 from app.core.database import get_db
 from app.core.config import settings
 from app.models.badge import Badge, UserBadge
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.reward import CoinLog
+from app.models.company import Company
 from app.schemas.badge import BadgeCreate, BadgeResponse, UserBadgeResponse, AwardBadgeRequest, UserStatsResponse
 from app.api import deps
 
@@ -916,6 +917,75 @@ def get_lucky_wheel_today(
         return None
 
     return wheel_data
+
+
+@router.post("/lucky-wheel/generate")
+def trigger_lucky_wheel(
+    db: Session = Depends(get_db),
+    admin: User = Depends(deps.get_current_gm_or_above),
+):
+    """Admin: manually trigger lucky wheel generation (bypasses day-of-week check)."""
+    import json
+    from datetime import datetime, timedelta
+    from collections import defaultdict
+    from sqlalchemy.orm import joinedload
+
+    now_local = datetime.utcnow() + timedelta(hours=7)
+    today_str = now_local.strftime("%Y-%m-%d")
+
+    company = db.query(Company).first()
+    if not company:
+        raise HTTPException(404, "Company not found")
+
+    if not company.lucky_draw_amount or company.lucky_draw_amount <= 0:
+        raise HTTPException(400, "Lucky draw amount not configured in Company settings")
+
+    staff = db.query(User).filter(User.role.in_((UserRole.PLAYER, UserRole.GM))).all()
+    if not staff:
+        raise HTTPException(400, "No active staff")
+
+    # Bulk-load badge LUK
+    all_ubs = db.query(UserBadge).options(joinedload(UserBadge.badge)).all()
+    badge_luk_map = defaultdict(int)
+    for ub in all_ubs:
+        if ub.badge and ub.badge.stat_luk:
+            badge_luk_map[ub.user_id] += ub.badge.stat_luk
+
+    import random
+    segments = []
+    for user in staff:
+        base_luk = user.base_luk if hasattr(user, 'base_luk') and user.base_luk else 1
+        total_luk = max(1, base_luk + badge_luk_map.get(user.id, 0))
+        segments.append({
+            "user_id": user.id,
+            "name": f"{user.name} {user.surname or ''}".strip(),
+            "image": user.image or "",
+            "luk": total_luk,
+        })
+
+    total_luk = sum(s["luk"] for s in segments)
+    rand = random.random() * total_luk
+    winner_index = 0
+    cumulative = 0
+    for i, s in enumerate(segments):
+        cumulative += s["luk"]
+        if rand <= cumulative:
+            winner_index = i
+            break
+
+    wheel_data = {
+        "date": today_str,
+        "segments": segments,
+        "winner_index": winner_index,
+        "winner_user_id": segments[winner_index]["user_id"],
+        "winner_name": segments[winner_index]["name"],
+        "reward_amount": company.lucky_draw_amount,
+        "status": "generated",
+    }
+    company.lucky_draw_wheel = json.dumps(wheel_data, ensure_ascii=False)
+    db.commit()
+
+    return {"ok": True, "winner": segments[winner_index]["name"], "segments_count": len(segments)}
 
 
 # ── Stats ─────────────────────────────────────────────
