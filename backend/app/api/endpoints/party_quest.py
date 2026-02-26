@@ -175,23 +175,30 @@ def _check_and_resolve(db: Session, quest: PartyQuest):
 
     winning_members = team_a if winner == "A" else team_b
     team_name = quest.team_a_name if winner == "A" else quest.team_b_name
+    team_size = len(winning_members) or 1
+    import math
     for m in winning_members:
         user = db.query(User).filter(User.id == m.user_id).first()
         if not user:
             continue
 
         if quest.reward_gold:
-            user.coins = (user.coins or 0) + quest.reward_gold
-            db.add(CoinLog(user_id=user.id, amount=quest.reward_gold, reason=f"🤝 Party Quest '{quest.title}' — {team_name} Wins! Gold +{quest.reward_gold}", created_by="System"))
+            share = math.ceil(quest.reward_gold / team_size)
+            user.coins = (user.coins or 0) + share
+            db.add(CoinLog(user_id=user.id, amount=share, reason=f"🤝 Party Quest '{quest.title}' — {team_name} Wins! Gold +{share} (Team Reward {quest.reward_gold}/{team_size})", created_by="System"))
         if quest.reward_mana:
-            user.angel_coins = (user.angel_coins or 0) + quest.reward_mana
-            db.add(CoinLog(user_id=user.id, amount=quest.reward_mana, reason=f"🤝 Party Quest '{quest.title}' — {team_name} Wins! Mana +{quest.reward_mana}", created_by="System"))
+            share = math.ceil(quest.reward_mana / team_size)
+            user.angel_coins = (user.angel_coins or 0) + share
+            db.add(CoinLog(user_id=user.id, amount=share, reason=f"🤝 Party Quest '{quest.title}' — {team_name} Wins! Mana +{share} (Team Reward {quest.reward_mana}/{team_size})", created_by="System"))
         if quest.reward_str:
-            user.base_str = (user.base_str or 10) + quest.reward_str
+            share = math.ceil(quest.reward_str / team_size)
+            user.base_str = (user.base_str or 10) + share
         if quest.reward_def:
-            user.base_def = (user.base_def or 10) + quest.reward_def
+            share = math.ceil(quest.reward_def / team_size)
+            user.base_def = (user.base_def or 10) + share
         if quest.reward_luk:
-            user.base_luk = (user.base_luk or 10) + quest.reward_luk
+            share = math.ceil(quest.reward_luk / team_size)
+            user.base_luk = (user.base_luk or 10) + share
         if quest.reward_badge_id:
             existing = db.query(UserBadge).filter(UserBadge.user_id == user.id, UserBadge.badge_id == quest.reward_badge_id).first()
             if not existing:
@@ -341,81 +348,80 @@ def get_active_quest(
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    """Get active or upcoming party quest with live progress for staff home."""
+    """Get all active and upcoming party quests for staff home."""
     now_date = _now_local().date()
 
-    # First try: active quest (within date range)
-    quest = db.query(PartyQuest).filter(
+    # Active quests (within date range)
+    active_quests = db.query(PartyQuest).filter(
         PartyQuest.status == "active",
         PartyQuest.start_date <= now_date,
         PartyQuest.end_date >= now_date,
-    ).order_by(PartyQuest.created_at.desc()).first()
+    ).order_by(PartyQuest.created_at.desc()).all()
 
-    quest_state = "active"
+    # Upcoming quests (start_date in the future)
+    upcoming_quests = db.query(PartyQuest).filter(
+        PartyQuest.status == "active",
+        PartyQuest.start_date > now_date,
+    ).order_by(PartyQuest.start_date.asc()).all()
 
-    # Fallback: upcoming quest (start_date in the future)
-    if not quest:
-        quest = db.query(PartyQuest).filter(
-            PartyQuest.status == "active",
-            PartyQuest.start_date > now_date,
-        ).order_by(PartyQuest.start_date.asc()).first()
-        quest_state = "upcoming"
+    all_quests = [(q, "active") for q in active_quests] + [(q, "upcoming") for q in upcoming_quests]
 
-    if not quest:
-        return None
+    if not all_quests:
+        return []
 
-    members = db.query(PartyQuestMember).filter(PartyQuestMember.quest_id == quest.id).all()
-    team_a = [m for m in members if m.team == "A"]
-    team_b = [m for m in members if m.team == "B"]
+    def build_quest_response(quest, quest_state):
+        members = db.query(PartyQuestMember).filter(PartyQuestMember.quest_id == quest.id).all()
+        team_a = [m for m in members if m.team == "A"]
+        team_b = [m for m in members if m.team == "B"]
 
-    # Only check/resolve and compute progress for active quests
-    progress = {"team_a": {}, "team_b": {}}
-    if quest_state == "active":
-        _check_and_resolve(db, quest)
-        db.refresh(quest)
-        progress = _compute_progress(db, quest, team_a, team_b)
+        progress = {"team_a": {}, "team_b": {}}
+        if quest_state == "active":
+            _check_and_resolve(db, quest)
+            db.refresh(quest)
+            progress = _compute_progress(db, quest, team_a, team_b)
 
-    # Build member info
-    def member_info(m):
-        user = db.query(User).filter(User.id == m.user_id).first()
+        def member_info(m):
+            user = db.query(User).filter(User.id == m.user_id).first()
+            return {
+                "user_id": m.user_id,
+                "name": f"{user.name} {user.surname or ''}".strip() if user else "?",
+                "image": user.image if user else None,
+            }
+
+        goals = []
+        if quest.steps_goal:
+            goals.append({"type": "steps", "label": "🥾 Steps", "target": quest.steps_goal, "a": progress["team_a"].get("steps", 0), "b": progress["team_b"].get("steps", 0)})
+        if quest.gifts_goal:
+            goals.append({"type": "gifts", "label": "🎁 Gifts Received", "target": quest.gifts_goal, "a": progress["team_a"].get("gifts", 0), "b": progress["team_b"].get("gifts", 0)})
+        if quest.battles_goal:
+            goals.append({"type": "battles", "label": "⚔️ PvP Wins", "target": quest.battles_goal, "a": progress["team_a"].get("battles", 0), "b": progress["team_b"].get("battles", 0)})
+        if quest.thankyou_goal:
+            goals.append({"type": "thankyou", "label": "💌 Thank You Cards", "target": quest.thankyou_goal, "a": progress["team_a"].get("thankyou", 0), "b": progress["team_b"].get("thankyou", 0)})
+
+        rewards = []
+        if quest.reward_gold: rewards.append(f"💰Gold {quest.reward_gold}")
+        if quest.reward_mana: rewards.append(f"✨Mana {quest.reward_mana}")
+        if quest.reward_str: rewards.append(f"⚔️STR+{quest.reward_str}")
+        if quest.reward_def: rewards.append(f"🛡️DEF+{quest.reward_def}")
+        if quest.reward_luk: rewards.append(f"🍀LUK+{quest.reward_luk}")
+        if quest.reward_badge_id:
+            badge = db.query(Badge).filter(Badge.id == quest.reward_badge_id).first()
+            if badge: rewards.append(f"🏅 {badge.name}")
+
         return {
-            "user_id": m.user_id,
-            "name": f"{user.name} {user.surname or ''}".strip() if user else "?",
-            "image": user.image if user else None,
+            "id": quest.id,
+            "title": quest.title,
+            "status": quest.status,
+            "quest_state": quest_state,
+            "start_date": quest.start_date.isoformat(),
+            "end_date": quest.end_date.isoformat(),
+            "team_a_name": quest.team_a_name,
+            "team_b_name": quest.team_b_name,
+            "team_a": [member_info(m) for m in team_a],
+            "team_b": [member_info(m) for m in team_b],
+            "goals": goals,
+            "rewards": rewards,
+            "winner_team": quest.winner_team,
         }
 
-    goals = []
-    if quest.steps_goal:
-        goals.append({"type": "steps", "label": "🥾 Steps", "target": quest.steps_goal, "a": progress["team_a"].get("steps", 0), "b": progress["team_b"].get("steps", 0)})
-    if quest.gifts_goal:
-        goals.append({"type": "gifts", "label": "🎁 Gifts Received", "target": quest.gifts_goal, "a": progress["team_a"].get("gifts", 0), "b": progress["team_b"].get("gifts", 0)})
-    if quest.battles_goal:
-        goals.append({"type": "battles", "label": "⚔️ PvP Wins", "target": quest.battles_goal, "a": progress["team_a"].get("battles", 0), "b": progress["team_b"].get("battles", 0)})
-    if quest.thankyou_goal:
-        goals.append({"type": "thankyou", "label": "💌 Thank You Cards", "target": quest.thankyou_goal, "a": progress["team_a"].get("thankyou", 0), "b": progress["team_b"].get("thankyou", 0)})
-
-    rewards = []
-    if quest.reward_gold: rewards.append(f"💰 {quest.reward_gold}")
-    if quest.reward_mana: rewards.append(f"✨ {quest.reward_mana}")
-    if quest.reward_str: rewards.append(f"⚔️ STR+{quest.reward_str}")
-    if quest.reward_def: rewards.append(f"🛡️ DEF+{quest.reward_def}")
-    if quest.reward_luk: rewards.append(f"🍀 LUK+{quest.reward_luk}")
-    if quest.reward_badge_id:
-        badge = db.query(Badge).filter(Badge.id == quest.reward_badge_id).first()
-        if badge: rewards.append(f"🏅 {badge.name}")
-
-    return {
-        "id": quest.id,
-        "title": quest.title,
-        "status": quest.status,
-        "quest_state": quest_state,
-        "start_date": quest.start_date.isoformat(),
-        "end_date": quest.end_date.isoformat(),
-        "team_a_name": quest.team_a_name,
-        "team_b_name": quest.team_b_name,
-        "team_a": [member_info(m) for m in team_a],
-        "team_b": [member_info(m) for m in team_b],
-        "goals": goals,
-        "rewards": rewards,
-        "winner_team": quest.winner_team,
-    }
+    return [build_quest_response(q, state) for q, state in all_quests]

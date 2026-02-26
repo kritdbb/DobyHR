@@ -200,102 +200,132 @@
       </div>
     </div>
 
-    <!-- 🤝 Team Challenge -->
-    <div v-if="partyQuest" class="section party-quest-section">
+    <!-- ⚔️ TEAM CHALLENGE — Epic RPG Battle -->
+    <div v-for="pq in partyQuests" :key="pq.id" class="section party-quest-section">
       <!-- Upcoming (preview card) -->
-      <template v-if="partyQuest.quest_state === 'upcoming'">
-        <h2 class="section-title">🤝 Team Challenge: {{ partyQuest.title }}</h2>
+      <template v-if="pq.quest_state === 'upcoming'">
         <div class="pq-card pq-upcoming">
+          <div class="pq-battle-bg">
+            <div class="pq-particle" v-for="i in 20" :key="'pu'+i" :style="{ left: Math.random()*100+'%', animationDelay: Math.random()*3+'s', animationDuration: (2+Math.random()*2)+'s' }"></div>
+          </div>
+          <div class="pq-battle-title">⚔️ TEAM CHALLENGE</div>
+          <div class="pq-quest-name">{{ pq.title }}</div>
           <div class="pq-upcoming-badge">⏳ เตรียมตัวให้พร้อม!</div>
-          <div class="pq-teams-header">
+          <div class="pq-arena">
             <div class="pq-team pq-team-a">
-              <div class="pq-team-name">{{ partyQuest.team_a_name }}</div>
+              <div class="pq-team-crest team-a-glow">🔥</div>
+              <div class="pq-team-name">{{ pq.team_a_name }}</div>
               <div class="pq-members">
-                <div v-for="m in partyQuest.team_a" :key="m.user_id" class="pq-avatar" :title="m.name">
+                <div v-for="m in pq.team_a" :key="m.user_id" class="pq-avatar pq-avatar-a" :title="m.name">
                   <img v-if="m.image" :src="m.image" />
                   <span v-else>{{ m.name[0] }}</span>
                 </div>
               </div>
             </div>
-            <div class="pq-vs">⚔️</div>
+            <div class="pq-vs-emblem">
+              <div class="pq-vs-ring"></div>
+              <div class="pq-vs-text">VS</div>
+            </div>
             <div class="pq-team pq-team-b">
-              <div class="pq-team-name">{{ partyQuest.team_b_name }}</div>
+              <div class="pq-team-crest team-b-glow">❄️</div>
+              <div class="pq-team-name">{{ pq.team_b_name }}</div>
               <div class="pq-members">
-                <div v-for="m in partyQuest.team_b" :key="m.user_id" class="pq-avatar" :title="m.name">
+                <div v-for="m in pq.team_b" :key="m.user_id" class="pq-avatar pq-avatar-b" :title="m.name">
                   <img v-if="m.image" :src="m.image" />
                   <span v-else>{{ m.name[0] }}</span>
                 </div>
               </div>
             </div>
           </div>
-          <div class="pq-goals">
-            <div v-for="g in partyQuest.goals" :key="g.type" class="pq-goal">
-              <div class="pq-goal-label">{{ g.label }} (target: {{ g.target.toLocaleString() }})</div>
+          <div class="pq-quest-info">
+            <div v-for="g in pq.goals" :key="g.type" class="pq-quest-objective">
+              🎯 {{ g.label }} — Target: {{ g.target.toLocaleString() }}
             </div>
           </div>
-          <div class="pq-footer">
-            <span class="pq-date">📅 เริ่ม {{ partyQuest.start_date }} → {{ partyQuest.end_date }}</span>
-            <span class="pq-rewards">🏆 {{ partyQuest.rewards.join(' + ') }}</span>
+          <div class="pq-footer-epic">
+            <span class="pq-date-epic">📅 {{ pq.start_date }} → {{ pq.end_date }}</span>
+            <span class="pq-reward-epic">🏆 TEAM REWARD : {{ pq.rewards.join(' , ') }}</span>
           </div>
         </div>
       </template>
       <!-- Active -->
-      <template v-else-if="partyQuest.quest_state === 'active' && !partyQuest.winner_team">
-        <h2 class="section-title">🤝 Team Challenge: {{ partyQuest.title }}</h2>
-        <div class="pq-card">
-          <div class="pq-teams-header">
+      <template v-else-if="pq.quest_state === 'active' && !pq.winner_team">
+        <div class="pq-card pq-active">
+          <div class="pq-battle-bg">
+            <div class="pq-particle" v-for="i in 30" :key="'pa'+i" :style="{ left: Math.random()*100+'%', animationDelay: Math.random()*3+'s', animationDuration: (2+Math.random()*2)+'s' }"></div>
+          </div>
+          <div class="pq-battle-title">⚔️ BATTLE IN PROGRESS</div>
+          <div class="pq-quest-name">{{ pq.title }}</div>
+          <div class="pq-arena">
             <div class="pq-team pq-team-a">
-              <div class="pq-team-name">{{ partyQuest.team_a_name }}</div>
+              <div class="pq-team-crest team-a-glow">🔥</div>
+              <div class="pq-team-name">{{ pq.team_a_name }}</div>
               <div class="pq-members">
-                <div v-for="m in partyQuest.team_a" :key="m.user_id" class="pq-avatar" :title="m.name">
+                <div v-for="m in pq.team_a" :key="m.user_id" class="pq-avatar pq-avatar-a" :title="m.name">
                   <img v-if="m.image" :src="m.image" />
                   <span v-else>{{ m.name[0] }}</span>
                 </div>
               </div>
             </div>
-            <div class="pq-vs">⚔️</div>
+            <div class="pq-vs-emblem pq-vs-active">
+              <div class="pq-vs-ring"></div>
+              <div class="pq-vs-text">VS</div>
+            </div>
             <div class="pq-team pq-team-b">
-              <div class="pq-team-name">{{ partyQuest.team_b_name }}</div>
+              <div class="pq-team-crest team-b-glow">❄️</div>
+              <div class="pq-team-name">{{ pq.team_b_name }}</div>
               <div class="pq-members">
-                <div v-for="m in partyQuest.team_b" :key="m.user_id" class="pq-avatar" :title="m.name">
+                <div v-for="m in pq.team_b" :key="m.user_id" class="pq-avatar pq-avatar-b" :title="m.name">
                   <img v-if="m.image" :src="m.image" />
                   <span v-else>{{ m.name[0] }}</span>
                 </div>
               </div>
             </div>
           </div>
-          <div class="pq-goals">
-            <div v-for="g in partyQuest.goals" :key="g.type" class="pq-goal">
-              <div class="pq-goal-label">{{ g.label }} (target: {{ g.target.toLocaleString() }})</div>
-              <div class="pq-bars">
-                <div class="pq-bar-row">
-                  <span class="pq-bar-label team-a-color">{{ partyQuest.team_a_name }}</span>
-                  <div class="pq-bar-track">
-                    <div class="pq-bar-fill team-a-fill" :style="{ width: Math.min(100, g.a / g.target * 100) + '%' }"></div>
+          <div class="pq-goals-battle">
+            <div v-for="g in pq.goals" :key="g.type" class="pq-goal-battle">
+              <div class="pq-goal-header">{{ g.label }} — Target: {{ g.target.toLocaleString() }}</div>
+              <div class="pq-energy-bars">
+                <div class="pq-energy-row">
+                  <span class="pq-energy-name team-a-color">{{ pq.team_a_name }}</span>
+                  <div class="pq-energy-track">
+                    <div class="pq-energy-fill team-a-energy" :style="{ width: Math.min(100, g.a / g.target * 100) + '%' }">
+                      <span class="pq-energy-glow"></span>
+                    </div>
                   </div>
-                  <span class="pq-bar-val">{{ g.a.toLocaleString() }}</span>
+                  <span class="pq-energy-val team-a-color">{{ g.a.toLocaleString() }}</span>
                 </div>
-                <div class="pq-bar-row">
-                  <span class="pq-bar-label team-b-color">{{ partyQuest.team_b_name }}</span>
-                  <div class="pq-bar-track">
-                    <div class="pq-bar-fill team-b-fill" :style="{ width: Math.min(100, g.b / g.target * 100) + '%' }"></div>
+                <div class="pq-energy-row">
+                  <span class="pq-energy-name team-b-color">{{ pq.team_b_name }}</span>
+                  <div class="pq-energy-track">
+                    <div class="pq-energy-fill team-b-energy" :style="{ width: Math.min(100, g.b / g.target * 100) + '%' }">
+                      <span class="pq-energy-glow"></span>
+                    </div>
                   </div>
-                  <span class="pq-bar-val">{{ g.b.toLocaleString() }}</span>
+                  <span class="pq-energy-val team-b-color">{{ g.b.toLocaleString() }}</span>
                 </div>
               </div>
             </div>
           </div>
-          <div class="pq-footer">
-            <span class="pq-date">📅 {{ partyQuest.start_date }} → {{ partyQuest.end_date }}</span>
-            <span class="pq-rewards">🏆 {{ partyQuest.rewards.join(' + ') }}</span>
+          <div class="pq-footer-epic">
+            <span class="pq-date-epic">📅 {{ pq.start_date }} → {{ pq.end_date }}</span>
+            <span class="pq-reward-epic">🏆 TEAM REWARD : {{ pq.rewards.join(' , ') }}</span>
           </div>
         </div>
       </template>
       <!-- Completed (winner) -->
-      <template v-else-if="partyQuest.winner_team">
-        <h2 class="section-title">🤝 Team Challenge: {{ partyQuest.title }}</h2>
-        <div class="pq-card pq-completed">
-          <div class="pq-winner-banner">🏆 {{ partyQuest.winner_team === 'A' ? partyQuest.team_a_name : partyQuest.team_b_name }} Wins! 🎉</div>
+      <template v-else-if="pq.winner_team">
+        <div class="pq-card pq-victory">
+          <div class="pq-battle-bg pq-victory-bg">
+            <div class="pq-particle pq-gold-particle" v-for="i in 30" :key="'pv'+i" :style="{ left: Math.random()*100+'%', animationDelay: Math.random()*3+'s', animationDuration: (2+Math.random()*2)+'s' }"></div>
+          </div>
+          <div class="pq-battle-title">⚔️ BATTLE COMPLETE</div>
+          <div class="pq-quest-name">{{ pq.title }}</div>
+          <div class="pq-victory-banner">
+            <div class="pq-trophy">🏆</div>
+            <div class="pq-winner-name">{{ pq.winner_team === 'A' ? pq.team_a_name : pq.team_b_name }}</div>
+            <div class="pq-victory-text">VICTORY!</div>
+          </div>
         </div>
       </template>
     </div>
@@ -899,7 +929,7 @@ export default {
       myStats: { total_str: 1, total_def: 1, total_luk: 1, base_str: 1, base_def: 1, base_luk: 1, badge_str: 0, badge_def: 0, badge_luk: 0 },
       recentAwards: [],
       reactions: {},
-      partyQuest: null,
+      partyQuests: [],
       showGoldModal: false,
       showTownCrierModal: false,
       fitbitConnected: false,
@@ -1023,8 +1053,8 @@ export default {
         // Load active party quest
         try {
           const pqRes = await getActivePartyQuest()
-          this.partyQuest = pqRes.data
-        } catch (ep) { this.partyQuest = null }
+          this.partyQuests = pqRes.data || []
+        } catch (ep) { this.partyQuests = [] }
         // Load negative-coin users for rescue
         try {
           const negRes = await api.get('/api/users/negative-coins')
@@ -2062,71 +2092,265 @@ export default {
   font-size: 13px; color: #8b7355;
 }
 
-/* ── Party Quest Section ── */
-.party-quest-section { }
+/* ── Epic Team Challenge — RPG Battle Theme ── */
+.party-quest-section { margin-bottom: 8px; }
 .pq-card {
-  background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(99,102,241,0.08));
-  border: 1px solid rgba(139,92,246,0.2);
-  border-radius: 16px; padding: 20px;
+  position: relative; overflow: hidden;
+  border-radius: 16px; padding: 24px 20px;
+  border: 1px solid rgba(239,68,68,0.25);
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(239,68,68,0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 0%, rgba(59,130,246,0.12) 0%, transparent 50%),
+    linear-gradient(180deg, rgba(15,10,25,0.95) 0%, rgba(10,5,20,0.98) 100%);
+  box-shadow: 0 0 30px rgba(239,68,68,0.08), 0 0 30px rgba(59,130,246,0.08), inset 0 1px 0 rgba(255,255,255,0.05);
 }
-.pq-completed { text-align: center; }
 .pq-upcoming {
   border-color: rgba(245,158,11,0.3);
-  background: linear-gradient(135deg, rgba(245,158,11,0.06), rgba(234,179,8,0.06));
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(245,158,11,0.1) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(15,10,25,0.95) 0%, rgba(10,5,20,0.98) 100%);
+  box-shadow: 0 0 30px rgba(245,158,11,0.08);
+}
+.pq-active {
+  border-color: rgba(239,68,68,0.35);
+  animation: pq-border-pulse 3s ease-in-out infinite;
+}
+@keyframes pq-border-pulse {
+  0%, 100% { border-color: rgba(239,68,68,0.25); box-shadow: 0 0 20px rgba(239,68,68,0.05), 0 0 20px rgba(59,130,246,0.05); }
+  50% { border-color: rgba(239,68,68,0.5); box-shadow: 0 0 40px rgba(239,68,68,0.12), 0 0 40px rgba(59,130,246,0.12); }
+}
+
+/* Battle BG Particles */
+.pq-battle-bg {
+  position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none;
+}
+.pq-particle {
+  position: absolute; bottom: -10px;
+  width: 3px; height: 3px; border-radius: 50%;
+  background: rgba(239,68,68,0.6);
+  box-shadow: 0 0 6px rgba(239,68,68,0.4);
+  animation: pq-particle-rise var(--duration, 3s) ease-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+.pq-particle:nth-child(even) {
+  background: rgba(59,130,246,0.6);
+  box-shadow: 0 0 6px rgba(59,130,246,0.4);
+}
+.pq-gold-particle {
+  background: rgba(255,215,0,0.7) !important;
+  box-shadow: 0 0 8px rgba(255,215,0,0.5) !important;
+}
+@keyframes pq-particle-rise {
+  0% { transform: translateY(0) scale(1); opacity: 0.8; }
+  100% { transform: translateY(-300px) scale(0); opacity: 0; }
+}
+
+/* Title & Quest Name */
+.pq-battle-title {
+  position: relative; z-index: 1;
+  text-align: center; font-family: 'Cinzel', serif;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.2em;
+  color: #ef4444; text-shadow: 0 0 12px rgba(239,68,68,0.4);
+  margin-bottom: 4px; text-transform: uppercase;
+}
+.pq-quest-name {
+  position: relative; z-index: 1;
+  text-align: center; font-family: 'Cinzel', serif;
+  font-size: 1.2rem; font-weight: 800; color: #f5f5f5;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  margin-bottom: 12px;
 }
 .pq-upcoming-badge {
-  text-align: center; font-size: 1.1rem; font-weight: 700; color: #f59e0b;
-  padding: 8px; margin-bottom: 12px;
+  position: relative; z-index: 1;
+  text-align: center; font-size: 0.9rem; font-weight: 700; color: #f59e0b;
+  padding: 6px 16px; margin: 0 auto 16px;
+  background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 20px; width: fit-content;
   animation: pulse-upcoming 2s ease-in-out infinite;
 }
 @keyframes pulse-upcoming {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 1; }
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
 }
-.pq-winner-banner {
-  font-size: 1.4rem; font-weight: 700;
-  background: linear-gradient(135deg, #ffd700, #f59e0b);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  padding: 16px;
-}
-.pq-teams-header {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+
+/* Arena Layout */
+.pq-arena {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; gap: 8px;
 }
 .pq-team { flex: 1; text-align: center; }
-.pq-team-name { font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
-.pq-team-a .pq-team-name { color: #f59e0b; }
-.pq-team-b .pq-team-name { color: #3b82f6; }
-.pq-vs { font-size: 1.5rem; padding: 0 12px; color: #ef4444; font-weight: 700; }
+.pq-team-crest {
+  font-size: 2rem; margin-bottom: 4px;
+  filter: drop-shadow(0 0 8px rgba(255,255,255,0.2));
+}
+.team-a-glow { animation: pq-glow-fire 2s ease-in-out infinite; }
+.team-b-glow { animation: pq-glow-ice 2s ease-in-out infinite; }
+@keyframes pq-glow-fire {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(239,68,68,0.4)); }
+  50% { filter: drop-shadow(0 0 16px rgba(239,68,68,0.8)); transform: scale(1.1); }
+}
+@keyframes pq-glow-ice {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(59,130,246,0.4)); }
+  50% { filter: drop-shadow(0 0 16px rgba(59,130,246,0.8)); transform: scale(1.1); }
+}
+.pq-team-name {
+  font-family: 'Cinzel', serif;
+  font-weight: 700; font-size: 0.95rem; margin-bottom: 6px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+.pq-team-a .pq-team-name { color: #fb923c; }
+.pq-team-b .pq-team-name { color: #60a5fa; }
 .pq-members { display: flex; justify-content: center; gap: 4px; flex-wrap: wrap; }
 .pq-avatar {
-  width: 32px; height: 32px; border-radius: 50%; overflow: hidden;
-  background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;
-  font-size: 0.75rem; font-weight: 600;
+  width: 36px; height: 36px; border-radius: 50%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; color: #fff;
+  transition: transform 0.2s;
 }
+.pq-avatar:hover { transform: scale(1.15); }
 .pq-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.pq-goals { margin-top: 12px; }
-.pq-goal { margin-bottom: 12px; }
-.pq-goal-label { font-size: 0.85rem; color: #aaa; margin-bottom: 4px; }
-.pq-bars { }
-.pq-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.pq-bar-label { font-size: 0.75rem; font-weight: 600; width: 60px; text-align: right; }
-.team-a-color { color: #f59e0b; }
-.team-b-color { color: #3b82f6; }
-.pq-bar-track {
-  flex: 1; height: 14px; border-radius: 7px; background: rgba(255,255,255,0.06);
-  overflow: hidden;
+.pq-avatar-a {
+  border: 2px solid rgba(239,68,68,0.5);
+  background: rgba(239,68,68,0.15);
+  box-shadow: 0 0 8px rgba(239,68,68,0.2);
 }
-.pq-bar-fill {
-  height: 100%; border-radius: 7px; transition: width 0.5s ease;
+.pq-avatar-b {
+  border: 2px solid rgba(59,130,246,0.5);
+  background: rgba(59,130,246,0.15);
+  box-shadow: 0 0 8px rgba(59,130,246,0.2);
 }
-.team-a-fill { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-.team-b-fill { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
-.pq-bar-val { font-size: 0.8rem; font-weight: 600; width: 60px; }
-.pq-footer {
+
+/* VS Emblem */
+.pq-vs-emblem {
+  position: relative; width: 56px; height: 56px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.pq-vs-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid rgba(239,68,68,0.4);
+  box-shadow: 0 0 12px rgba(239,68,68,0.2), inset 0 0 12px rgba(59,130,246,0.2);
+}
+.pq-vs-active .pq-vs-ring {
+  animation: pq-vs-spin 4s linear infinite;
+  border: 2px solid transparent;
+  border-top-color: #ef4444; border-bottom-color: #3b82f6;
+}
+@keyframes pq-vs-spin { to { transform: rotate(360deg); } }
+.pq-vs-text {
+  font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 900;
+  color: #fff; text-shadow: 0 0 12px rgba(239,68,68,0.5), 0 0 24px rgba(59,130,246,0.3);
+  z-index: 1;
+}
+
+/* Quest Info (Upcoming) */
+.pq-quest-info {
+  position: relative; z-index: 1;
+  padding: 10px 14px; border-radius: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 12px;
+}
+.pq-quest-objective {
+  font-size: 0.82rem; color: #ccc; padding: 3px 0;
+  letter-spacing: 0.02em;
+}
+
+/* Goals (Active) */
+.pq-goals-battle { position: relative; z-index: 1; margin-bottom: 12px; }
+.pq-goal-battle {
+  padding: 10px 14px; border-radius: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 8px;
+}
+.pq-goal-header {
+  font-size: 0.82rem; font-weight: 600; color: #ccc;
+  margin-bottom: 8px; letter-spacing: 0.02em;
+}
+.pq-energy-bars { }
+.pq-energy-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.pq-energy-name { font-size: 0.72rem; font-weight: 700; width: 55px; text-align: right; }
+.team-a-color { color: #fb923c; }
+.team-b-color { color: #60a5fa; }
+.pq-energy-track {
+  flex: 1; height: 16px; border-radius: 8px;
+  background: rgba(255,255,255,0.06); overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+.pq-energy-fill {
+  height: 100%; border-radius: 8px; position: relative;
+  transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+.team-a-energy {
+  background: linear-gradient(90deg, #dc2626, #f97316, #fbbf24);
+  box-shadow: 0 0 10px rgba(239,68,68,0.4);
+}
+.team-b-energy {
+  background: linear-gradient(90deg, #2563eb, #3b82f6, #60a5fa);
+  box-shadow: 0 0 10px rgba(59,130,246,0.4);
+}
+.pq-energy-glow {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 20px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+  border-radius: 0 8px 8px 0;
+  animation: pq-glow-throb 1.5s ease-in-out infinite;
+}
+@keyframes pq-glow-throb {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.pq-energy-val { font-size: 0.78rem; font-weight: 700; width: 55px; }
+
+/* Footer */
+.pq-footer-epic {
+  position: relative; z-index: 1;
   display: flex; justify-content: space-between; align-items: center;
-  margin-top: 12px; font-size: 0.8rem; color: #888;
+  padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);
+  font-size: 0.78rem;
 }
-.pq-rewards { color: #ffd700; font-weight: 600; }
+.pq-date-epic { color: #888; }
+.pq-reward-epic {
+  font-weight: 700; color: #ffd700;
+  text-shadow: 0 0 8px rgba(255,215,0,0.3);
+  letter-spacing: 0.03em;
+}
+
+/* Victory */
+.pq-victory {
+  border-color: rgba(255,215,0,0.4);
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(255,215,0,0.12) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(15,10,25,0.95) 0%, rgba(10,5,20,0.98) 100%);
+  box-shadow: 0 0 40px rgba(255,215,0,0.1);
+}
+.pq-victory-banner {
+  position: relative; z-index: 1;
+  text-align: center; padding: 20px 0;
+}
+.pq-trophy {
+  font-size: 3rem;
+  animation: pq-trophy-bounce 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(255,215,0,0.5));
+}
+@keyframes pq-trophy-bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15) rotate(-5deg); }
+}
+.pq-winner-name {
+  font-family: 'Cinzel', serif; font-size: 1.6rem; font-weight: 900;
+  background: linear-gradient(135deg, #ffd700, #f59e0b, #ffd700);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  text-shadow: none; margin: 8px 0 4px;
+  animation: pq-shimmer 3s ease-in-out infinite;
+}
+@keyframes pq-shimmer {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.3); }
+}
+.pq-victory-text {
+  font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 700;
+  color: #f59e0b; letter-spacing: 0.3em;
+  text-shadow: 0 0 12px rgba(245,158,11,0.4);
+}
 
 /* ── Reaction Bar ── */
 .reaction-bar {
