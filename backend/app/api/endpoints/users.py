@@ -723,6 +723,7 @@ def send_angel_coins(
         user_id=current_user.id,
         amount=-req.amount,
         reason=f"🪽 Sent {req.amount} Mana as {delivery_label} to {recipient.name} {recipient.surname}{comment_text}",
+        log_type="mana_gift",
         created_by="System"
     )
     db.add(sender_log)
@@ -732,6 +733,7 @@ def send_angel_coins(
         user_id=recipient.id,
         amount=req.amount,
         reason=f"🪽 Received {delivery_label} from {current_user.name} {current_user.surname}{comment_text}",
+        log_type="mana_gift",
         created_by=f"{current_user.name} {current_user.surname}"
     )
     db.add(recipient_log)
