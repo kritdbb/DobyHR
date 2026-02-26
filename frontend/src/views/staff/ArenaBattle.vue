@@ -299,6 +299,10 @@ export default {
     } finally {
       this.loading = false
     }
+    // Auto-start battle if already resolved (no need to click FIGHT)
+    if (this.battle && this.battle.status === 'resolved' && this.battle.battle_log) {
+      setTimeout(() => this.playBattle(), 800)
+    }
   },
   methods: {
     calcHP(s, d, l) { return s * 2 + d * 4 + l * 2 + 50 },

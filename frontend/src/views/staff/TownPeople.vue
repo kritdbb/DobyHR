@@ -28,7 +28,7 @@
     </div>
 
     <!-- Spin Wheel Modal -->
-    <div v-if="showWheel" class="wheel-overlay" @click.self="cancelWheel">
+    <div v-if="showWheel" class="wheel-overlay">
       <div class="wheel-container">
         <div class="wheel-title">⚔️ สุ่มคู่ต่อสู้...</div>
         <div class="wheel-stage">
@@ -44,7 +44,7 @@
         </div>
         <div v-if="wheelDone" class="wheel-result">
           <div class="vs-flash">⚔️ VS {{ wheelPlayers[wheelSelectedIdx]?.name }}!</div>
-          <button class="btn-fight-now" @click="executeMatchmake">⚔️ FIGHT!</button>
+          <div class="fight-status">{{ fightingNow ? '⏳ กำลังสู้...' : '' }}</div>
         </div>
       </div>
     </div>
@@ -299,6 +299,7 @@ export default {
       wheelTransition: 'none',
       wheelDone: false,
       wheelSelectedIdx: -1,
+      fightingNow: false,
     }
   },
   async mounted() {
@@ -458,16 +459,15 @@ export default {
         this.wheelTransition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)'
         this.wheelAngle = fullSpins + targetOffset
       })
-      // Wait for spin to finish
+      // Wait for spin to finish, then auto-fight
       setTimeout(() => {
         this.wheelDone = true
         this.matchmaking = false
+        // Auto-call fight after a short pause for the VS reveal
+        setTimeout(() => {
+          this.executeMatchmake()
+        }, 1200)
       }, 4200)
-    },
-    cancelWheel() {
-      if (!this.wheelDone) return // can't cancel during spin
-      this.showWheel = false
-      this.matchmaking = false
     },
     slotStyle(index) {
       const count = this.wheelPlayers.length
@@ -478,6 +478,7 @@ export default {
       }
     },
     async executeMatchmake() {
+      this.fightingNow = true
       try {
         const selectedOpponent = this.wheelPlayers[this.wheelSelectedIdx]
         const { data } = await api.post('/api/pvp/matchmake', {
@@ -490,6 +491,8 @@ export default {
       } catch (e) {
         this.showToast(e.response?.data?.detail || 'Matchmaking failed', 'error')
         this.showWheel = false
+      } finally {
+        this.fightingNow = false
       }
     },
   },
@@ -1376,19 +1379,14 @@ export default {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
 }
-.btn-fight-now {
-  padding: 14px 40px; border-radius: 12px;
-  font-family: 'Cinzel', serif; font-size: 18px; font-weight: 900;
-  border: 2px solid #e74c3c;
-  background: linear-gradient(135deg, #c0392b, #e74c3c);
-  color: #fff; cursor: pointer;
-  box-shadow: 0 4px 20px rgba(231,76,60,0.4);
-  transition: all 0.25s; letter-spacing: 2px;
+.fight-status {
+  font-size: 16px; font-weight: 700; color: #d4a44c;
+  margin-top: 8px; letter-spacing: 1px;
+  animation: pulse-text 1s ease-in-out infinite;
 }
-.btn-fight-now:hover {
-  background: linear-gradient(135deg, #e74c3c, #ff6b6b);
-  box-shadow: 0 8px 32px rgba(231,76,60,0.5);
-  transform: translateY(-2px);
+@keyframes pulse-text {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 @keyframes fadeIn {
