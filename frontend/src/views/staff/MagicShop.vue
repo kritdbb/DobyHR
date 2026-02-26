@@ -219,9 +219,9 @@ export default {
       currentStatus: '',
       // Scroll Emporium
       scrollTypes: [
-        { type: 'scroll_of_luck', name: 'Scroll of Luck', stat: 'LUK', icon: '🍀', bg: '/icons/scroll_luck.png' },
-        { type: 'scroll_of_strength', name: 'Scroll of Strength', stat: 'STR', icon: '⚔️', bg: '/icons/scroll_strength.png' },
-        { type: 'scroll_of_defense', name: 'Scroll of Defense', stat: 'DEF', icon: '🛡️', bg: '/icons/scroll_defense.png' },
+        { type: 'scroll_of_luck', name: 'Scroll of Luck', stat: 'LUK', icon: '🍀', bg: '/icons/scroll_luck.webp' },
+        { type: 'scroll_of_strength', name: 'Scroll of Strength', stat: 'STR', icon: '⚔️', bg: '/icons/scroll_strength.webp' },
+        { type: 'scroll_of_defense', name: 'Scroll of Defense', stat: 'DEF', icon: '🛡️', bg: '/icons/scroll_defense.webp' },
       ],
       // Fortune Wheels
       fortuneWheels: [],

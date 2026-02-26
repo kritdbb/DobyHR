@@ -4,17 +4,17 @@
     
     <!-- Quota Cards -->
     <div class="quota-grid">
-      <div v-if="quota.sick" class="quota-card" style="background-image: url('/icons/leave_sick.png')">
+      <div v-if="quota.sick" class="quota-card" style="background-image: url('/icons/leave_sick.webp')">
         <div class="quota-type">sick</div>
         <div class="quota-value">{{ Math.max(0, quota.sick.total - quota.sick.used).toFixed(1) }}</div>
         <div class="quota-label">hours remaining</div>
       </div>
-      <div v-if="quota.business" class="quota-card" style="background-image: url('/icons/leave_business.png')">
+      <div v-if="quota.business" class="quota-card" style="background-image: url('/icons/leave_business.webp')">
         <div class="quota-type">business</div>
         <div class="quota-value">{{ Math.max(0, quota.business.total - quota.business.used).toFixed(1) }}</div>
         <div class="quota-label">hours remaining</div>
       </div>
-      <div v-if="quota.vacation" class="quota-card" style="background-image: url('/icons/leave_vacation.png')">
+      <div v-if="quota.vacation" class="quota-card" style="background-image: url('/icons/leave_vacation.webp')">
         <div class="quota-type">vacation</div>
         <div class="quota-value">{{ quota.vacation.total - quota.vacation.used }}</div>
         <div class="quota-label">days remaining</div>
@@ -342,7 +342,7 @@ export default {
 .chronicles-section {
   padding: 20px 16px; border-radius: 14px;
   background: linear-gradient(145deg, rgba(44,24,16,0.85), rgba(26,26,46,0.88)),
-    url('/icons/leave_chronicles.png') center / cover no-repeat;
+    url('/icons/leave_chronicles.webp') center / cover no-repeat;
   border: 2px solid rgba(212,164,76,0.2);
 }
 

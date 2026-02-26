@@ -109,13 +109,10 @@ def upload_my_image(
     current_user: User = Depends(deps.get_current_user)
 ):
     """Staff can upload their own profile image."""
-    ext = os.path.splitext(file.filename)[1]
-    filename = f"user_{current_user.id}_{uuid.uuid4().hex[:8]}{ext}"
+    from app.utils.image_compress import compress_and_save
     upload_dir = os.path.join(settings.UPLOAD_DIR, "users")
-    os.makedirs(upload_dir, exist_ok=True)
-    filepath = os.path.join(upload_dir, filename)
-    with open(filepath, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    base_name = f"user_{current_user.id}_{uuid.uuid4().hex[:8]}"
+    filename = compress_and_save(file.file, upload_dir, base_name)
     current_user.image = f"/uploads/users/{filename}"
     db.commit()
     db.refresh(current_user)
@@ -617,15 +614,10 @@ async def upload_user_image(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    from app.utils.image_compress import compress_and_save
     upload_dir = os.path.join(settings.UPLOAD_DIR, "users")
-    os.makedirs(upload_dir, exist_ok=True)
-
-    ext = os.path.splitext(file.filename)[1] if file.filename else ".png"
-    filename = f"user_{user_id}_{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join(upload_dir, filename)
-
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    base_name = f"user_{user_id}_{uuid.uuid4().hex[:8]}"
+    filename = compress_and_save(file.file, upload_dir, base_name)
 
     user.image = f"/uploads/users/{filename}"
     db.commit()

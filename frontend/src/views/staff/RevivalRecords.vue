@@ -140,7 +140,7 @@ export default {
 .hof-bg {
   position: fixed;
   inset: 0;
-  background: url('/icons/revive_record.png') center center / cover no-repeat;
+  background: url('/icons/revive_record.webp') center center / cover no-repeat;
   opacity: 0.06;
   pointer-events: none;
   z-index: 0;
@@ -246,7 +246,7 @@ export default {
   content: '';
   position: absolute;
   inset: 0;
-  background: url('/icons/revive_record.png') center center / 200px no-repeat;
+  background: url('/icons/revive_record.webp') center center / 200px no-repeat;
   opacity: 0.03;
   pointer-events: none;
 }

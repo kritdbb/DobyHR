@@ -13,6 +13,7 @@ apscheduler
 google-auth
 requests
 httpx
+Pillow
 # Face Recognition
 opencv-python-headless
 insightface

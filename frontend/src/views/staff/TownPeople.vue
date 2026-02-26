@@ -1360,7 +1360,7 @@ export default {
 }
 .matchmake-bg {
   position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  background: url('/images/battle_arena_bg.png') center/cover no-repeat;
+  background: url('/images/battle_arena_bg.webp') center/cover no-repeat;
   filter: brightness(0.6);
 }
 .matchmake-overlay {

@@ -7,7 +7,7 @@
       <!-- Row 1: Leave Request | Expense Request -->
       <router-link to="/staff/leave" class="service-card">
         <div class="icon-wrap">
-          <img src="/icons/leave_request.png" class="service-icon-img" />
+          <img src="/icons/leave_request.webp" class="service-icon-img" />
           <span v-if="badges.leave" class="notif-badge">{{ badges.leave }}</span>
         </div>
         <span class="service-label">Leave Request</span>
@@ -16,7 +16,7 @@
 
       <router-link to="/staff/expense" class="service-card">
         <div class="icon-wrap">
-          <img src="/icons/expense_request.png" class="service-icon-img" />
+          <img src="/icons/expense_request.webp" class="service-icon-img" />
         </div>
         <span class="service-label">Expense Request</span>
         <span class="service-desc">Claim expenses</span>
@@ -25,7 +25,7 @@
       <!-- Row 2: Approval Board | Coupon Inventory -->
       <router-link to="/staff/approvals" class="service-card">
         <div class="icon-wrap">
-          <img src="/icons/approval_board.png" class="service-icon-img" />
+          <img src="/icons/approval_board.webp" class="service-icon-img" />
           <span v-if="badges.approvals" class="notif-badge">{{ badges.approvals }}</span>
         </div>
         <span class="service-label">Approval Board</span>
@@ -34,7 +34,7 @@
 
       <router-link to="/staff/coupons" class="service-card">
         <div class="icon-wrap">
-          <img src="/icons/coupon_inventory.png" class="service-icon-img" />
+          <img src="/icons/coupon_inventory.webp" class="service-icon-img" />
           <span v-if="badges.coupons" class="notif-badge">{{ badges.coupons }}</span>
         </div>
         <span class="service-label">Coupon Inventory</span>
@@ -44,7 +44,7 @@
       <!-- Row 3: Item Shop | Magic Shop -->
       <router-link to="/staff/redeem" class="service-card">
         <div class="icon-wrap">
-          <img src="/icons/item_shop.png" class="service-icon-img" />
+          <img src="/icons/item_shop.webp" class="service-icon-img" />
         </div>
         <span class="service-label">Item Shop</span>
         <span class="service-desc">Gold &amp; Mana ✨</span>
@@ -52,7 +52,7 @@
 
       <router-link to="/staff/magic-shop" class="service-card">
         <div class="icon-wrap">
-          <img src="/icons/magic_shop.png" class="service-icon-img" />
+          <img src="/icons/magic_shop.webp" class="service-icon-img" />
         </div>
         <span class="service-label">Magic Shop</span>
         <span class="service-desc">Spend Gold on magic</span>
@@ -60,7 +60,7 @@
 
       <router-link to="/staff/badge-shop" class="service-card">
         <div class="icon-wrap">
-          <img src="/icons/badge_shop.png" class="service-icon-img" />
+          <img src="/icons/badge_shop.webp" class="service-icon-img" />
         </div>
         <span class="service-label">Badge Shop</span>
         <span class="service-desc">Collect badges</span>
@@ -69,7 +69,7 @@
       <!-- Row 4: Character | Step Counter -->
       <router-link to="/staff/profile" class="service-card">
         <div class="icon-wrap">
-          <img src="/icons/my_charactor.png" class="service-icon-img" />
+          <img src="/icons/my_charactor.webp" class="service-icon-img" />
         </div>
         <span class="service-label">Character</span>
         <span class="service-desc">Edit your info</span>
@@ -77,7 +77,7 @@
 
       <router-link to="/staff/fitbit" class="service-card">
         <div class="icon-wrap">
-          <img src="/icons/step_counter.png" class="service-icon-img" />
+          <img src="/icons/step_counter.webp" class="service-icon-img" />
         </div>
         <span class="service-label">Step Counter</span>
         <span class="service-desc">Track your walks</span>
@@ -86,7 +86,7 @@
       <!-- Row 5: Town People -->
       <router-link to="/staff/town-people" class="service-card">
         <div class="icon-wrap">
-          <img src="/icons/people.png" class="service-icon-img" />
+          <img src="/icons/people.webp" class="service-icon-img" />
         </div>
         <span class="service-label">Town People</span>
         <span class="service-desc">Fellow adventurers</span>
@@ -95,7 +95,7 @@
       <!-- Row 5 (right): Revival Records -->
       <router-link to="/staff/revival-records" class="service-card">
         <div class="icon-wrap">
-          <img src="/icons/revive_record.png" class="service-icon-img" />
+          <img src="/icons/revive_record.webp" class="service-icon-img" />
         </div>
         <span class="service-label">Revival Records</span>
         <span class="service-desc">Hall of Fame</span>

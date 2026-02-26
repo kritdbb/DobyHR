@@ -338,7 +338,7 @@
           <div class="arena-card-fighters">
             <div class="arena-fighter arena-fighter-a">
               <div class="arena-avatar">
-                <img v-if="b.player_a.image" :src="b.player_a.image" />
+                <img loading="lazy" v-if="b.player_a.image" :src="b.player_a.image" />
                 <span v-else>{{ (b.player_a.name||'?').charAt(0) }}</span>
               </div>
               <span class="arena-fname">{{ b.player_a.name }}</span>
@@ -346,7 +346,7 @@
             <div class="arena-vs">⚔️</div>
             <div class="arena-fighter arena-fighter-b">
               <div class="arena-avatar">
-                <img v-if="b.player_b.image" :src="b.player_b.image" />
+                <img loading="lazy" v-if="b.player_b.image" :src="b.player_b.image" />
                 <span v-else>{{ (b.player_b.name||'?').charAt(0) }}</span>
               </div>
               <span class="arena-fname">{{ b.player_b.name }}</span>
@@ -361,7 +361,7 @@
       <h2 class="section-title">🆘 Revival Pool - รวมพลังชุบชีวิต</h2>
       <div v-for="u in negativeUsers" :key="'rescue-'+u.id" class="rescue-card">
         <div class="rescue-portrait">
-          <img v-if="u.image" :src="u.image" class="rescue-img" />
+          <img loading="lazy" v-if="u.image" :src="u.image" class="rescue-img" />
           <span v-else class="rescue-fb">{{ u.name.charAt(0) }}</span>
         </div>
         <div class="rescue-body">
@@ -382,7 +382,7 @@
     <!-- Rescue Confirmation Modal -->
     <div v-if="showRescueModal" class="badge-modal-overlay" @click.self="showRescueModal = false">
       <div class="badge-modal rescue-modal">
-        <div class="rescue-modal-icon"><img src="/rescue-revive.png" class="rescue-revive-img" /></div>
+        <div class="rescue-modal-icon"><img src="/rescue-revive.webp" class="rescue-revive-img" /></div>
         <h3 class="badge-modal-title">🙏 สวดภาวนาชุบชีวิต</h3>
         <p class="rescue-modal-text">
           คุณต้องการใช้ <strong>{{ rescueTarget?.pool?.cost || 1 }} Mana</strong> ร่วมชุบชีวิต <strong>{{ rescueTarget?.name }}</strong> ไหม?<br>
@@ -523,7 +523,7 @@
           <!-- Badge event -->
           <template v-if="a.type === 'badge'">
             <div class="award-announce-badge">
-              <img v-if="a.badge_image" :src="a.badge_image" class="award-announce-img" />
+              <img loading="lazy" v-if="a.badge_image" :src="a.badge_image" class="award-announce-img" />
               <span v-else class="award-announce-fb">🏅</span>
             </div>
             <div class="award-announce-body">
@@ -596,7 +596,7 @@
           <!-- Mana Rescue event -->
           <template v-else-if="a.type === 'rescue'">
             <div class="award-announce-badge rescue-icon-circle">
-              <img src="/rescue-revive.png" class="rescue-revive-announce-img" />
+              <img src="/rescue-revive.webp" class="rescue-revive-announce-img" />
             </div>
             <div class="award-announce-body">
               <div class="award-announce-text">
@@ -652,7 +652,7 @@
           </template>
           <!-- Reaction Bar -->
           <div class="reaction-bar">
-            <button v-for="emoji in ['❤️', '👏', '🎉']" :key="emoji"
+            <button v-for="emoji in ['❤️']" :key="emoji"
               class="reaction-btn" :class="{ reacted: reactions[a.id]?.[emoji]?.reacted }"
               @click="doReaction(a.id, emoji)">
               {{ emoji }} <span v-if="reactions[a.id]?.[emoji]?.count">{{ reactions[a.id][emoji].count }}</span>
@@ -693,7 +693,7 @@
           <div v-for="a in recentAwards.slice(0, 50)" :key="a.id" class="award-announce-card">
             <template v-if="a.type === 'badge'">
               <div class="award-announce-badge">
-                <img v-if="a.badge_image" :src="a.badge_image" class="award-announce-img" />
+                <img loading="lazy" v-if="a.badge_image" :src="a.badge_image" class="award-announce-img" />
                 <span v-else class="award-announce-fb">🏅</span>
               </div>
               <div class="award-announce-body">
@@ -765,7 +765,7 @@
             <!-- Mana Rescue event (modal) -->
             <template v-else-if="a.type === 'rescue'">
               <div class="award-announce-badge rescue-icon-circle">
-                <img src="/rescue-revive.png" class="rescue-revive-announce-img" />
+                <img src="/rescue-revive.webp" class="rescue-revive-announce-img" />
               </div>
               <div class="award-announce-body">
                 <div class="award-announce-text">
@@ -830,7 +830,7 @@
         <div class="badge-list">
           <div v-for="b in myBadges" :key="b.id" class="badge-list-item">
             <div class="badge-list-icon">
-              <img v-if="b.badge_image" :src="b.badge_image" class="badge-list-img" />
+              <img loading="lazy" v-if="b.badge_image" :src="b.badge_image" class="badge-list-img" />
               <span v-else class="badge-list-fallback">🏅</span>
             </div>
             <div class="badge-list-info">
@@ -1376,7 +1376,7 @@ export default {
 .arena-card {
   box-sizing: border-box;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  background: linear-gradient(135deg, rgba(26,14,46,0.7), rgba(13,13,32,0.75)), url('/arena_bg.png') center/cover;
+  background: linear-gradient(135deg, rgba(26,14,46,0.7), rgba(13,13,32,0.75)), url('/arena_bg.webp') center/cover;
   border: 1px solid rgba(212,164,76,0.15);
   border-radius: 12px; padding: 10px 14px;
   text-decoration: none; color: inherit;
@@ -1389,7 +1389,7 @@ export default {
 }
 .arena-card--resolved {
   border-color: rgba(255,215,0,0.2);
-  background: linear-gradient(135deg, rgba(40,20,10,0.7), rgba(20,10,5,0.75)), url('/arena_bg.png') center/cover;
+  background: linear-gradient(135deg, rgba(40,20,10,0.7), rgba(20,10,5,0.75)), url('/arena_bg.webp') center/cover;
 }
 .arena-card-fighters {
   display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center;
@@ -1543,7 +1543,7 @@ export default {
   position: relative;
   text-align: center;
   background: linear-gradient(170deg, rgba(17,10,30,0.85) 0%, rgba(30,14,10,0.85) 40%, rgba(15,15,30,0.85) 100%),
-    url('/icons/user_frame.png') center / cover no-repeat;
+    url('/icons/user_frame.webp') center / cover no-repeat;
   border: 2px solid #d4a44c;
   border-radius: 4px;
   padding: 28px 20px 20px;
@@ -1912,7 +1912,7 @@ export default {
 .steps-section {
   padding: 20px; border-radius: 14px;
   background: linear-gradient(145deg, rgba(44,24,16,0.4), rgba(26,26,46,0.45)),
-    url('/icons/step_quests.png') center / cover no-repeat;
+    url('/icons/step_quests.webp') center / cover no-repeat;
   border: 2px solid rgba(212,164,76,0.25);
 }
 .steps-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }

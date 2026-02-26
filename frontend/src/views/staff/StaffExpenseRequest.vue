@@ -5,15 +5,15 @@
 
     <!-- Type Picker -->
     <div v-if="!selectedType" class="type-picker">
-      <button class="type-card" :style="{ backgroundImage: 'url(/icons/generalexpense.png)' }" @click="selectedType = 'general'">
+      <button class="type-card" :style="{ backgroundImage: 'url(/icons/generalexpense.webp)' }" @click="selectedType = 'general'">
         <span class="type-label">General Expense</span>
         <span class="type-desc">Bills, receipts &amp; invoices</span>
       </button>
-      <button class="type-card" :style="{ backgroundImage: 'url(/icons/travelexpense.png)' }" @click="selectedType = 'travel'">
+      <button class="type-card" :style="{ backgroundImage: 'url(/icons/travelexpense.webp)' }" @click="selectedType = 'travel'">
         <span class="type-label">Travel Expense</span>
         <span class="type-desc">Mileage &amp; transport costs</span>
       </button>
-      <button class="type-card" :style="{ backgroundImage: 'url(/icons/centerexpense.png)' }" @click="selectedType = 'center'">
+      <button class="type-card" :style="{ backgroundImage: 'url(/icons/centerexpense.webp)' }" @click="selectedType = 'center'">
         <span class="type-label">Center Expense</span>
         <span class="type-desc">Shared company costs</span>
       </button>
@@ -221,7 +221,7 @@
       </div>
       <div v-for="exp in myExpenses" :key="exp.id" class="history-card">
         <div class="history-icon-wrap">
-          <img :src="'/icons/' + (exp.expense_type === 'GENERAL' ? 'generalexpense' : exp.expense_type === 'CENTER' ? 'centerexpense' : 'travelexpense') + '.png'" class="history-icon-img" />
+          <img :src="'/icons/' + (exp.expense_type === 'GENERAL' ? 'generalexpense' : exp.expense_type === 'CENTER' ? 'centerexpense' : 'travelexpense') + '.webp'" class="history-icon-img" />
         </div>
         <div class="history-content">
           <div class="history-header">
