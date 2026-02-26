@@ -185,6 +185,21 @@
       </router-link>
     </div>
 
+    <!-- 🎡 Daily Lucky Wheel -->
+    <div v-if="luckyWheel" class="section wheel-section">
+      <h2 class="section-title">🎡 Daily Lucky Draw</h2>
+      <div class="wheel-card" :class="{ 'wheel-card--rewarded': luckyWheel.status === 'rewarded' }" @click="openWheelModal">
+        <div class="wheel-card-icon">🎰</div>
+        <div class="wheel-card-body">
+          <div class="wheel-card-title" v-if="luckyWheel.status === 'rewarded'">🏆 Today's Lucky Draw Result!</div>
+          <div class="wheel-card-title" v-else>Today's Spin Wheel is ready!</div>
+          <div class="wheel-card-sub" v-if="luckyWheel.status === 'rewarded'">Tap to see who won 🍀</div>
+          <div class="wheel-card-sub" v-else>Tap to spin and reveal the winner 🌟</div>
+        </div>
+        <div class="wheel-card-arrow">→</div>
+      </div>
+    </div>
+
     <!-- ⚔️ Friendly Arena -->
     <div v-if="arenaBattles.length > 0" class="section arena-section">
       <h2 class="section-title">⚔️ Friendly Arena</h2>
@@ -206,15 +221,6 @@
               </div>
               <span class="arena-fname">{{ b.player_b.name }}</span>
             </div>
-          </div>
-          <div class="arena-card-status">
-            <span v-if="b.status === 'resolved'" class="arena-see-result">🏆 See Battle Result</span>
-            <span v-else class="arena-battle-time">⏰ {{ formatBattleTime(b.scheduled_time) }}</span>
-          </div>
-          <div class="arena-card-rewards" v-if="b.winner_gold || b.winner_mana || b.loser_gold || b.loser_mana">
-            <span class="arena-reward-win">🏆Winner <template v-if="b.winner_gold">+{{ b.winner_gold }}💰</template><template v-if="b.winner_mana"> +{{ b.winner_mana }}✨</template></span>
-            <span class="arena-reward-sep">|</span>
-            <span class="arena-reward-lose">💀Loser <template v-if="b.loser_gold">-{{ b.loser_gold }}💰</template><template v-if="b.loser_mana"> -{{ b.loser_mana }}✨</template></span>
           </div>
         </router-link>
       </div>
@@ -353,10 +359,10 @@
       <h2 class="section-title">✨ Mana Received</h2>
       <div class="mana-receipts">
         <div v-for="receipt in angelCoinReceipts" :key="receipt.id" class="mana-receipt-card">
-          <div class="mana-receipt-icon">✨</div>
+          <div class="mana-receipt-icon">{{ receipt.reason && receipt.reason.includes('Received Gold') ? '💰' : '✨' }}</div>
           <div class="mana-receipt-body">
             <div class="mana-receipt-text">{{ receipt.reason }}</div>
-            <div class="mana-receipt-amount">+{{ receipt.amount }} 💰</div>
+            <div class="mana-receipt-amount">+{{ receipt.amount }} {{ receipt.reason && receipt.reason.includes('Received Gold') ? '💰' : '✨' }}</div>
             <div class="mana-receipt-date">{{ formatDateTime(receipt.created_at) }}</div>
           </div>
         </div>
@@ -396,11 +402,11 @@
           <!-- Mana event -->
           <template v-else-if="a.type === 'mana'">
             <div class="award-announce-badge mana-icon-circle">
-              <span>✨</span>
+              <span>{{ a.delivery_type === 'gold' ? '💰' : '✨' }}</span>
             </div>
             <div class="award-announce-body">
               <div class="award-announce-text">
-                <strong>{{ a.user_name }}</strong> received <strong class="mana-highlight">{{ a.amount }} Mana</strong> from {{ a.detail }}<span v-if="a.message"> — <em>"{{ a.message }}"</em></span>
+                <strong>{{ a.user_name }}</strong> received <strong class="mana-highlight">{{ a.amount }} {{ a.delivery_type === 'gold' ? 'Gold' : 'Mana' }}</strong> from {{ a.detail }}<span v-if="a.message"> — <em>"{{ a.message }}"</em></span>
               </div>
               <div class="award-announce-meta">
                 {{ formatBadgeDate(a.timestamp) }}
@@ -557,11 +563,11 @@
             </template>
             <template v-else-if="a.type === 'mana'">
               <div class="award-announce-badge mana-icon-circle">
-                <span>✨</span>
+                <span>{{ a.delivery_type === 'gold' ? '💰' : '✨' }}</span>
               </div>
               <div class="award-announce-body">
                 <div class="award-announce-text">
-                  <strong>{{ a.user_name }}</strong> received <strong class="mana-highlight">{{ a.amount }} Mana</strong> from {{ a.detail }}<span v-if="a.message"> — <em>"{{ a.message }}"</em></span>
+                  <strong>{{ a.user_name }}</strong> received <strong class="mana-highlight">{{ a.amount }} {{ a.delivery_type === 'gold' ? 'Gold' : 'Mana' }}</strong> from {{ a.detail }}<span v-if="a.message"> — <em>"{{ a.message }}"</em></span>
                 </div>
                 <div class="award-announce-meta">
                   {{ formatBadgeDate(a.timestamp) }}
@@ -696,6 +702,26 @@
         <button class="badge-modal-close" @click="showBadgeModal = false">Close</button>
       </div>
     </div>
+    <!-- Lucky Wheel Modal -->
+    <div v-if="showWheelModal" class="badge-modal-overlay" @click.self="showWheelModal = false">
+      <div class="badge-modal wheel-modal">
+        <h3 class="badge-modal-title">🎡 Daily Lucky Draw</h3>
+        <canvas ref="wheelCanvas" width="320" height="320"></canvas>
+        <button v-if="!wheelDone" class="wheel-spin-btn" @click="spinWheel" :disabled="wheelSpinning">
+          {{ wheelSpinning ? '🌀 Spinning...' : '🎰 Spin!' }}
+        </button>
+        <div v-if="wheelDone" class="wheel-result">
+          <div class="wheel-result-winner">🏆 {{ luckyWheel.winner_name }}</div>
+          <div class="wheel-result-reward" v-if="luckyWheel.status === 'rewarded'">
+            Won <strong>{{ luckyWheel.reward_amount }} Gold 💰</strong>!
+          </div>
+          <div class="wheel-result-reward" v-else>
+            Will receive <strong>{{ luckyWheel.reward_amount }} Gold 💰</strong> at 17:00 ⏰
+          </div>
+        </div>
+        <button class="badge-modal-close" @click="showWheelModal = false" style="margin-top: 14px;">Close</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -707,7 +733,7 @@ import api, {
   getPendingWorkRequests, approveWorkRequest, rejectWorkRequest,
   getMyBadges, getRecentBadgeAwards, getMyStats,
   getFitbitStatus, syncFitbitSteps, getStepGoals,
-  getArtifactCatalog,
+  getArtifactCatalog, getLuckyWheelToday,
 } from '../../services/api'
 
 export default {
@@ -750,6 +776,11 @@ export default {
       rescueTarget: null,
       rescuing: false,
       arenaBattles: [],
+      // Lucky Wheel
+      luckyWheel: null,
+      showWheelModal: false,
+      wheelSpinning: false,
+      wheelDone: false,
     }
   },
   async mounted() {
@@ -796,7 +827,7 @@ export default {
             ])
             const allLogs = coinRes.data || []
             this.coinLogs = allLogs.slice(0, 50)
-            this.angelCoinReceipts = allLogs.filter(l => l.reason && l.reason.includes('Received Angel Coins')).slice(0, 5)
+            this.angelCoinReceipts = allLogs.filter(l => l.reason && (l.reason.includes('Received Angel Coins') || l.reason.includes('Received Gold from') || l.reason.includes('Received Mana from'))).slice(0, 5)
             if (userRes && userRes.data) {
               this.myCoins = userRes.data.coins || 0
               this.myAngelCoins = userRes.data.angel_coins || 0
@@ -851,6 +882,11 @@ export default {
           const pvpRes = await api.get('/api/pvp/today')
           this.arenaBattles = pvpRes.data || []
         } catch (ep) { this.arenaBattles = [] }
+        // Load Lucky Wheel
+        try {
+          const wheelRes = await getLuckyWheelToday()
+          this.luckyWheel = wheelRes.data || null
+        } catch (ew) { this.luckyWheel = null }
       } catch (e) {
         this.myBadges = []
         this.recentAwards = []
@@ -943,6 +979,114 @@ export default {
       } finally {
         this.rescuing = false
       }
+    },
+    openWheelModal() {
+      this.showWheelModal = true
+      this.wheelDone = false
+      this.wheelSpinning = false
+      this.$nextTick(() => this.drawWheel(0))
+    },
+    drawWheel(rotation) {
+      const canvas = this.$refs.wheelCanvas
+      if (!canvas || !this.luckyWheel) return
+      const ctx = canvas.getContext('2d')
+      const w = canvas.width, h = canvas.height
+      const cx = w / 2, cy = h / 2, r = Math.min(cx, cy) - 10
+      ctx.clearRect(0, 0, w, h)
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.rotate(rotation)
+
+      const segments = this.luckyWheel.segments
+      const totalLuk = segments.reduce((sum, s) => sum + s.luk, 0)
+
+      // Palette
+      const colors = [
+        '#d4a44c', '#3a2a5e', '#5b3a8a', '#8b5e3c', '#2a6a4a',
+        '#6a3a3a', '#3a5a8a', '#7a6a3a', '#4a3a6a', '#8a4a3a',
+        '#2a5a5a', '#6a4a6a', '#5a6a3a', '#4a4a7a', '#7a3a5a',
+        '#3a7a5a', '#6a6a2a', '#5a3a7a', '#4a6a5a', '#7a5a4a',
+      ]
+
+      let angle = 0
+      for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i]
+        const sliceAngle = (seg.luk / totalLuk) * Math.PI * 2
+        // Draw segment
+        ctx.beginPath()
+        ctx.moveTo(0, 0)
+        ctx.arc(0, 0, r, angle, angle + sliceAngle)
+        ctx.closePath()
+        ctx.fillStyle = colors[i % colors.length]
+        ctx.fill()
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)'
+        ctx.lineWidth = 1
+        ctx.stroke()
+        // Label
+        ctx.save()
+        ctx.rotate(angle + sliceAngle / 2)
+        ctx.textAlign = 'right'
+        ctx.fillStyle = '#fff'
+        const fontSize = Math.max(8, Math.min(13, sliceAngle * r * 0.12))
+        ctx.font = `bold ${fontSize}px 'Inter', sans-serif`
+        const name = seg.name.length > 10 ? seg.name.slice(0, 10) + '…' : seg.name
+        ctx.fillText(name, r - 12, 4)
+        ctx.restore()
+        angle += sliceAngle
+      }
+      ctx.restore()
+
+      // Pointer triangle at top
+      ctx.beginPath()
+      ctx.moveTo(cx, 8)
+      ctx.lineTo(cx - 14, 0)
+      ctx.lineTo(cx + 14, 0)
+      ctx.closePath()
+      ctx.fillStyle = '#ff4a6a'
+      ctx.fill()
+      ctx.strokeStyle = '#fff'
+      ctx.lineWidth = 2
+      ctx.stroke()
+    },
+    spinWheel() {
+      if (this.wheelSpinning || this.wheelDone || !this.luckyWheel) return
+      this.wheelSpinning = true
+
+      const segments = this.luckyWheel.segments
+      const totalLuk = segments.reduce((sum, s) => sum + s.luk, 0)
+      const winnerIndex = this.luckyWheel.winner_index
+
+      // Calculate angle to land on winner segment center
+      let winnerStartAngle = 0
+      for (let i = 0; i < winnerIndex; i++) {
+        winnerStartAngle += (segments[i].luk / totalLuk) * Math.PI * 2
+      }
+      const winnerSlice = (segments[winnerIndex].luk / totalLuk) * Math.PI * 2
+      const winnerCenter = winnerStartAngle + winnerSlice / 2
+
+      // Top pointer is at -π/2 (12 o'clock). We need to rotate so winnerCenter aligns there.
+      // Final rotation = -winnerCenter - π/2 + fullSpins
+      const fullSpins = 6 * Math.PI * 2 // 6 full rotations
+      const targetAngle = fullSpins - winnerCenter - Math.PI / 2
+
+      const duration = 5000
+      const start = performance.now()
+
+      const animate = (now) => {
+        const elapsed = now - start
+        const progress = Math.min(1, elapsed / duration)
+        // Ease out cubic
+        const ease = 1 - Math.pow(1 - progress, 3)
+        const currentAngle = targetAngle * ease
+        this.drawWheel(currentAngle)
+        if (progress < 1) {
+          requestAnimationFrame(animate)
+        } else {
+          this.wheelSpinning = false
+          this.wheelDone = true
+        }
+      }
+      requestAnimationFrame(animate)
     },
   },
   computed: {
@@ -1662,4 +1806,59 @@ export default {
 .steps-connect-title { font-weight: 700; font-size: 14px; color: #d4a44c; }
 .steps-connect-sub { font-size: 12px; color: #8b7355; }
 .steps-connect-arrow { font-size: 18px; color: #8b7355; margin-left: auto; }
+/* ═══ Lucky Wheel Card ═══ */
+.wheel-section { }
+.wheel-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 20px; border-radius: 14px; cursor: pointer;
+  background: linear-gradient(135deg, rgba(212,164,76,0.08), rgba(90,60,200,0.06));
+  border: 1px solid rgba(212,164,76,0.15);
+  transition: all 0.25s; position: relative; overflow: hidden;
+}
+.wheel-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 30% 50%, rgba(212,164,76,0.1), transparent 70%);
+  pointer-events: none;
+}
+.wheel-card:hover { border-color: rgba(212,164,76,0.35); transform: translateY(-1px); }
+.wheel-card-icon { font-size: 36px; flex-shrink: 0; animation: wheel-wobble 3s ease-in-out infinite; }
+@keyframes wheel-wobble {
+  0%,100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+}
+.wheel-card-body { flex: 1; min-width: 0; }
+.wheel-card-title { font-weight: 700; font-size: 14px; color: #d4a44c; margin-bottom: 3px; }
+.wheel-card-sub { font-size: 12px; color: #8b7355; line-height: 1.4; }
+.wheel-card-arrow { font-size: 18px; color: #8b7355; flex-shrink: 0; }
+.wheel-card--rewarded { border-color: rgba(255,215,0,0.25); }
+.wheel-card--rewarded .wheel-card-title { color: #ffd700; }
+
+/* ═══ Lucky Wheel Modal ═══ */
+.wheel-modal {
+  max-width: 380px; width: 94vw; padding: 24px 16px;
+  text-align: center;
+}
+.wheel-modal canvas {
+  display: block; margin: 0 auto 16px; border-radius: 50%;
+  box-shadow: 0 0 30px rgba(212,164,76,0.2);
+}
+.wheel-spin-btn {
+  padding: 12px 36px; border-radius: 10px; border: none; cursor: pointer;
+  font-size: 16px; font-weight: 700; color: #1a0a2e;
+  background: linear-gradient(135deg, #ffd700, #d4a44c);
+  box-shadow: 0 4px 15px rgba(212,164,76,0.3);
+  transition: all 0.2s;
+}
+.wheel-spin-btn:hover { transform: scale(1.05); }
+.wheel-spin-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+.wheel-result {
+  margin-top: 16px; padding: 14px; border-radius: 12px;
+  background: rgba(212,164,76,0.08); border: 1px solid rgba(212,164,76,0.15);
+}
+.wheel-result-winner {
+  font-size: 18px; font-weight: 700; color: #ffd700; margin-bottom: 6px;
+}
+.wheel-result-reward {
+  font-size: 13px; color: #8b7355;
+}
 </style>

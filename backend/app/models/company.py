@@ -57,3 +57,5 @@ class Company(Base):
     face_end_time = Column(String(5), default="10:30")     # HH:MM end
     # Man of the Month Rewards (JSON config)
     motm_rewards = Column(Text, nullable=True)  # JSON: {"motm_mana": {"gold":10,"mana":5,"str":0,"def":0,"luk":0,"badge_id":null}, ...}
+    # Lucky Draw Wheel (daily generated spin wheel, JSON)
+    lucky_draw_wheel = Column(Text, nullable=True)

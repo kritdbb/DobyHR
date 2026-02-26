@@ -85,20 +85,22 @@ def auto_give_coins_and_angels():
         db.close()
 
 
-def lucky_draw():
-    """Run daily at 12:30 UTC+7: weighted random coin draw based on LUK stats."""
+def generate_lucky_wheel():
+    """Run daily at 12:00 UTC+7: generate spin wheel with LUK-based segments, pick winner, save to DB."""
+    import json
     db = SessionLocal()
     try:
         now_local = datetime.utcnow() + timedelta(hours=7)
         today_code = DAY_MAP.get(now_local.weekday(), "")
-        logger.info(f"🎰 Lucky Draw check for {today_code.upper()} ({now_local.strftime('%Y-%m-%d %H:%M')})")
+        today_str = now_local.strftime("%Y-%m-%d")
+        logger.info(f"🎡 Lucky Wheel generation for {today_code.upper()} ({now_local.strftime('%Y-%m-%d %H:%M')})")
 
         company = db.query(Company).first()
         if not company:
             return
 
         if not company.lucky_draw_day or not company.lucky_draw_amount or company.lucky_draw_amount <= 0:
-            logger.info("Lucky Draw not configured, skipping")
+            logger.info("Lucky Draw not configured, skipping wheel generation")
             return
 
         draw_days = [d.strip().lower() for d in company.lucky_draw_day.split(",")]
@@ -106,16 +108,15 @@ def lucky_draw():
             logger.info(f"Lucky Draw not scheduled for {today_code.upper()}, skipping")
             return
 
-        # Get all active staff
+        # Get all active staff (exclude GOD role)
         staff = db.query(User).filter(User.role.in_((UserRole.PLAYER, UserRole.GM))).all()
         if not staff:
-            logger.info("No active staff for lucky draw")
+            logger.info("No active staff for lucky wheel")
             return
 
-        # Build weighted pool: each user gets tickets = total_luk
-        pool = []
+        # Build segments: each user gets a segment sized by their total LUK
+        segments = []
         for user in staff:
-            # Compute total LUK = base_luk + sum of badge luk bonuses
             base_luk = user.base_luk if hasattr(user, 'base_luk') and user.base_luk else 1
             badge_luk = 0
             user_badges = db.query(UserBadge).filter(UserBadge.user_id == user.id).all()
@@ -123,34 +124,116 @@ def lucky_draw():
                 badge = db.query(Badge).filter(Badge.id == ub.badge_id).first()
                 if badge and badge.stat_luk:
                     badge_luk += badge.stat_luk
-            total_luk = base_luk + badge_luk
-            # Add `total_luk` tickets for this user
-            for _ in range(max(1, total_luk)):
-                pool.append(user)
+            total_luk = max(1, base_luk + badge_luk)
+            segments.append({
+                "user_id": user.id,
+                "name": f"{user.name} {user.surname or ''}".strip(),
+                "image": user.image or "",
+                "luk": total_luk,
+            })
 
-        if not pool:
-            logger.info("Empty lucky draw pool")
+        if not segments:
+            logger.info("Empty lucky wheel segments")
             return
 
-        # Draw one winner
-        winner = random.choice(pool)
-        winner.coins += company.lucky_draw_amount
+        # Weighted random pick: probability proportional to LUK
+        total_luk = sum(s["luk"] for s in segments)
+        rand = random.random() * total_luk
+        winner_index = 0
+        cumulative = 0
+        for i, s in enumerate(segments):
+            cumulative += s["luk"]
+            if rand <= cumulative:
+                winner_index = i
+                break
 
-        user_name = f"{winner.name} {winner.surname or ''}".strip()
-        log = CoinLog(
-            user_id=winner.id,
-            amount=company.lucky_draw_amount,
-            reason=f"🎰 Lucky Draw! Won {company.lucky_draw_amount} Gold ({today_code.upper()})",
-            created_by="System"
-        )
-        db.add(log)
+        winner_seg = segments[winner_index]
+
+        wheel_data = {
+            "date": today_str,
+            "segments": segments,
+            "winner_index": winner_index,
+            "winner_user_id": winner_seg["user_id"],
+            "winner_name": winner_seg["name"],
+            "reward_amount": company.lucky_draw_amount,
+            "status": "generated",
+        }
+
+        company.lucky_draw_wheel = json.dumps(wheel_data, ensure_ascii=False)
         db.commit()
-        logger.info(f"🎰 Lucky Draw winner: {user_name} (+{company.lucky_draw_amount} Gold)")
+        logger.info(f"🎡 Lucky Wheel generated: {len(segments)} segments, winner={winner_seg['name']} (index {winner_index})")
+
     except Exception as e:
-        logger.error(f"Lucky draw error: {e}")
+        logger.error(f"Lucky wheel generation error: {e}")
         db.rollback()
     finally:
         db.close()
+
+
+def distribute_lucky_wheel_reward():
+    """Run daily at 17:00 UTC+7: give reward to lucky wheel winner and announce."""
+    import json
+    db = SessionLocal()
+    try:
+        now_local = datetime.utcnow() + timedelta(hours=7)
+        today_code = DAY_MAP.get(now_local.weekday(), "")
+        today_str = now_local.strftime("%Y-%m-%d")
+        logger.info(f"🎡 Lucky Wheel reward distribution for {today_str}")
+
+        company = db.query(Company).first()
+        if not company or not company.lucky_draw_wheel:
+            logger.info("No wheel data, skipping reward distribution")
+            return
+
+        wheel_data = json.loads(company.lucky_draw_wheel)
+
+        # Check it's today's wheel and not already rewarded
+        if wheel_data.get("date") != today_str:
+            logger.info(f"Wheel date {wheel_data.get('date')} != today {today_str}, skipping")
+            return
+        if wheel_data.get("status") == "rewarded":
+            logger.info("Wheel already rewarded, skipping")
+            return
+
+        winner_id = wheel_data.get("winner_user_id")
+        reward_amount = wheel_data.get("reward_amount", 0)
+        winner_name = wheel_data.get("winner_name", "Unknown")
+
+        if not winner_id or reward_amount <= 0:
+            return
+
+        winner = db.query(User).filter(User.id == winner_id).first()
+        if not winner:
+            logger.warning(f"Lucky wheel winner user_id={winner_id} not found")
+            return
+
+        # Give reward
+        winner.coins += reward_amount
+        log = CoinLog(
+            user_id=winner.id,
+            amount=reward_amount,
+            reason=f"🎰 Lucky Draw! Won {reward_amount} Gold ({today_code.upper()})",
+            created_by="System"
+        )
+        db.add(log)
+
+        # Update wheel status
+        wheel_data["status"] = "rewarded"
+        company.lucky_draw_wheel = json.dumps(wheel_data, ensure_ascii=False)
+
+        db.commit()
+        logger.info(f"🎡 Lucky Wheel reward: {winner_name} (+{reward_amount} Gold)")
+
+        # Town Crier announcement
+        from app.services.notifications import send_town_crier_webhook
+        send_town_crier_webhook(f"🎡 *{winner_name}* won *{reward_amount} Gold* from today's Lucky Draw! 🍀")
+
+    except Exception as e:
+        logger.error(f"Lucky wheel reward error: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
 
 
 def evaluate_badge_quests():
@@ -783,13 +866,22 @@ def start_scheduler():
         id="auto_coin_angel_giver",
         replace_existing=True,
     )
-    # Lucky Draw at 12:30 UTC+7 (05:30 UTC)
+    # Lucky Wheel: generate at 12:00 UTC+7 (05:00 UTC)
     scheduler.add_job(
-        lucky_draw,
+        generate_lucky_wheel,
         "cron",
         hour=5,
-        minute=30,
-        id="lucky_draw",
+        minute=0,
+        id="generate_lucky_wheel",
+        replace_existing=True,
+    )
+    # Lucky Wheel: distribute reward at 17:00 UTC+7 (10:00 UTC)
+    scheduler.add_job(
+        distribute_lucky_wheel_reward,
+        "cron",
+        hour=10,
+        minute=0,
+        id="distribute_lucky_wheel_reward",
         replace_existing=True,
     )
     # Badge Quest evaluation every 2 hours

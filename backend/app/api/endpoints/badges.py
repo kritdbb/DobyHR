@@ -646,6 +646,12 @@ def get_recent_awards(
                 after_from = reason.split(" from ", 1)[1]
                 if ": " in after_from:
                     message = after_from.split(": ", 1)[1]
+            # Determine delivery type from reason text
+            delivery_type = "mana"  # default
+            if "Received Gold from" in reason:
+                delivery_type = "gold"
+            elif "Received Mana from" in reason:
+                delivery_type = "mana"
             events.append({
                 "id": f"mana-{ml.id}",
                 "type": "mana",
@@ -654,6 +660,7 @@ def get_recent_awards(
                 "amount": ml.amount,
                 "reason": ml.reason,
                 "message": message,
+                "delivery_type": delivery_type,
                 "timestamp": ml.created_at.isoformat() if ml.created_at else None,
                 "detail": ml.created_by,
             })
@@ -870,6 +877,34 @@ def get_recent_awards(
     # Sort combined by timestamp desc and return top N
     events.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
     return events[:limit]
+
+
+# ── Lucky Wheel (today) ──────────────────────────────
+
+@router.get("/lucky-wheel/today")
+def get_lucky_wheel_today(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """Return today's lucky draw wheel data (segments, winner, status)."""
+    import json
+    from datetime import datetime, timedelta
+    company = db.query(Company).first()
+    if not company or not company.lucky_draw_wheel:
+        return None
+
+    try:
+        wheel_data = json.loads(company.lucky_draw_wheel)
+    except Exception:
+        return None
+
+    now_local = datetime.utcnow() + timedelta(hours=7)
+    today_str = now_local.strftime("%Y-%m-%d")
+
+    if wheel_data.get("date") != today_str:
+        return None
+
+    return wheel_data
 
 
 # ── Stats ─────────────────────────────────────────────
