@@ -1,10 +1,13 @@
-from sqlalchemy import Column, Integer, DateTime, Float, ForeignKey, String
+from sqlalchemy import Column, Integer, DateTime, Float, ForeignKey, String, Index
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from datetime import datetime
 
 class Attendance(Base):
     __tablename__ = "attendance"
+    __table_args__ = (
+        Index("ix_attendance_user_timestamp", "user_id", "timestamp"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
@@ -17,3 +20,4 @@ class Attendance(Base):
     face_confidence = Column(Float, nullable=True)  # cosine similarity score
     
     user = relationship("User", backref="attendances")
+

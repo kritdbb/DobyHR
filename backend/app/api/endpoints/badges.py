@@ -297,26 +297,39 @@ def get_town_people(
     artifact_map = {str(a.id): a for a in artifacts}
 
     staff = db.query(User).all()
+
+    # Bulk-load ALL user badges with their badge data in ONE query (eliminates N+1)
+    from sqlalchemy.orm import joinedload
+    all_user_badges = (
+        db.query(UserBadge)
+        .options(joinedload(UserBadge.badge))
+        .all()
+    )
+    # Build a map: user_id -> list of (UserBadge, Badge)
+    from collections import defaultdict
+    user_badges_map = defaultdict(list)
+    for ub in all_user_badges:
+        if ub.badge:
+            user_badges_map[ub.user_id].append(ub)
+
     results = []
     for u in staff:
-        user_badges_rows = db.query(UserBadge).filter(UserBadge.user_id == u.id).all()
         badge_str = badge_def = badge_luk = 0
         badge_list = []
-        for ub in user_badges_rows:
-            badge = db.query(Badge).filter(Badge.id == ub.badge_id).first()
-            if badge:
-                badge_str += badge.stat_str or 0
-                badge_def += badge.stat_def or 0
-                badge_luk += badge.stat_luk or 0
-                badge_list.append({
-                    "id": badge.id,
-                    "name": badge.name,
-                    "description": badge.description or "",
-                    "image": badge.image,
-                    "bonus_str": badge.stat_str or 0,
-                    "bonus_def": badge.stat_def or 0,
-                    "bonus_luk": badge.stat_luk or 0,
-                })
+        for ub in user_badges_map.get(u.id, []):
+            b = ub.badge
+            badge_str += b.stat_str or 0
+            badge_def += b.stat_def or 0
+            badge_luk += b.stat_luk or 0
+            badge_list.append({
+                "id": b.id,
+                "name": b.name,
+                "description": b.description or "",
+                "image": b.image,
+                "bonus_str": b.stat_str or 0,
+                "bonus_def": b.stat_def or 0,
+                "bonus_luk": b.stat_luk or 0,
+            })
         base_s = u.base_str if hasattr(u, 'base_str') and u.base_str else 10
         base_d = u.base_def if hasattr(u, 'base_def') and u.base_def else 10
         base_l = u.base_luk if hasattr(u, 'base_luk') and u.base_luk else 10
@@ -348,6 +361,7 @@ def get_town_people(
             "artifact_effect": art_effect,
             "phone": u.phone or "",
         })
+    results.sort(key=lambda x: x["stats"]["total_str"] + x["stats"]["total_def"] + x["stats"]["total_luk"], reverse=True)
     return results
 
 
@@ -598,21 +612,30 @@ def get_recent_awards(
     """Unified Town Crier feed: badge awards + mana transfers."""
     events = []
 
-    # Badge awards
+    # ── Pre-load ALL users into a dict (eliminates all per-row User queries) ──
+    all_users = db.query(User).all()
+    user_map = {u.id: u for u in all_users}
+
+    def _user_name(u):
+        return f"{u.name} {u.surname or ''}".strip() if u else "Unknown"
+
+    # Badge awards (with joinedload to avoid N+1)
+    from sqlalchemy.orm import joinedload
     recent_badges = (
         db.query(UserBadge)
+        .options(joinedload(UserBadge.badge), joinedload(UserBadge.user))
         .order_by(UserBadge.awarded_at.desc())
         .limit(limit)
         .all()
     )
     for ub in recent_badges:
-        badge = db.query(Badge).filter(Badge.id == ub.badge_id).first()
-        user = db.query(User).filter(User.id == ub.user_id).first()
+        badge = ub.badge
+        user = ub.user
         if badge and user:
             events.append({
                 "id": f"badge-{ub.id}",
                 "type": "badge",
-                "user_name": f"{user.name} {user.surname or ''}".strip(),
+                "user_name": _user_name(user),
                 "user_image": user.image,
                 "badge_name": badge.name,
                 "badge_image": badge.image,
@@ -621,11 +644,12 @@ def get_recent_awards(
             })
 
     # Mana (Angel Coin) transfers — only "Received" entries
-    # Matches both old format ("Received Angel Coins from ...") and new ("Received Gold/Mana from ...")
+    # Use log_type if available, fallback to ILIKE for old data
     from sqlalchemy import or_
     mana_logs = (
         db.query(CoinLog)
         .filter(or_(
+            CoinLog.log_type == "mana_gift",
             CoinLog.reason.ilike("%Received Angel Coins%"),
             CoinLog.reason.ilike("%Received Gold from%"),
             CoinLog.reason.ilike("%Received Mana from%"),
@@ -635,19 +659,15 @@ def get_recent_awards(
         .all()
     )
     for ml in mana_logs:
-        user = db.query(User).filter(User.id == ml.user_id).first()
+        user = user_map.get(ml.user_id)
         if user:
-            # Extract comment from reason
-            # Old: "🪽 Received Angel Coins from Name Surname: comment"
-            # New: "🪽 Received Gold from Name Surname: comment"
             message = ""
             reason = ml.reason or ""
             if " from " in reason:
                 after_from = reason.split(" from ", 1)[1]
                 if ": " in after_from:
                     message = after_from.split(": ", 1)[1]
-            # Determine delivery type from reason text
-            delivery_type = "mana"  # default
+            delivery_type = "mana"
             if "Received Gold from" in reason:
                 delivery_type = "gold"
             elif "Received Mana from" in reason:
@@ -655,7 +675,7 @@ def get_recent_awards(
             events.append({
                 "id": f"mana-{ml.id}",
                 "type": "mana",
-                "user_name": f"{user.name} {user.surname or ''}".strip(),
+                "user_name": _user_name(user),
                 "user_image": user.image,
                 "amount": ml.amount,
                 "reason": ml.reason,
@@ -668,18 +688,18 @@ def get_recent_awards(
     # Lucky Draw winners
     draw_logs = (
         db.query(CoinLog)
-        .filter(CoinLog.reason.ilike("%Lucky Draw%"))
+        .filter(or_(CoinLog.log_type == "lucky_draw", CoinLog.reason.ilike("%Lucky Draw%")))
         .order_by(CoinLog.created_at.desc())
         .limit(limit)
         .all()
     )
     for dl in draw_logs:
-        user = db.query(User).filter(User.id == dl.user_id).first()
+        user = user_map.get(dl.user_id)
         if user:
             events.append({
                 "id": f"draw-{dl.id}",
                 "type": "lucky_draw",
-                "user_name": f"{user.name} {user.surname or ''}".strip(),
+                "user_name": _user_name(user),
                 "user_image": user.image,
                 "amount": dl.amount,
                 "reason": dl.reason,
@@ -690,18 +710,18 @@ def get_recent_awards(
     # Magic Lottery results
     lottery_logs = (
         db.query(CoinLog)
-        .filter(CoinLog.reason.ilike("%Magic Lottery%"))
+        .filter(or_(CoinLog.log_type == "lottery", CoinLog.reason.ilike("%Magic Lottery%")))
         .order_by(CoinLog.created_at.desc())
         .limit(limit)
         .all()
     )
     for ll in lottery_logs:
-        user = db.query(User).filter(User.id == ll.user_id).first()
+        user = user_map.get(ll.user_id)
         if user:
             events.append({
                 "id": f"lottery-{ll.id}",
                 "type": "magic_lottery",
-                "user_name": f"{user.name} {user.surname or ''}".strip(),
+                "user_name": _user_name(user),
                 "user_image": user.image,
                 "amount": ll.amount,
                 "reason": ll.reason,
@@ -718,7 +738,7 @@ def get_recent_awards(
         .all()
     )
     for sr in step_rewards:
-        user = db.query(User).filter(User.id == sr.user_id).first()
+        user = user_map.get(sr.user_id)
         if user:
             reward_parts = []
             if sr.str_granted and sr.str_granted > 0:
@@ -730,7 +750,7 @@ def get_recent_awards(
             events.append({
                 "id": f"step-{sr.id}",
                 "type": "step_reward",
-                "user_name": f"{user.name} {user.surname or ''}".strip(),
+                "user_name": _user_name(user),
                 "user_image": user.image,
                 "goal_type": goal_label,
                 "reward_label": reward_label,
@@ -740,21 +760,20 @@ def get_recent_awards(
     # Mana Rescue events — aggregated per recipient
     rescue_logs = (
         db.query(CoinLog)
-        .filter(CoinLog.reason.ilike("%Mana Rescue from%"))
+        .filter(or_(CoinLog.log_type == "rescue", CoinLog.reason.ilike("%Mana Rescue from%")))
         .order_by(CoinLog.created_at.desc())
         .limit(limit)
         .all()
     )
-    # Group by recipient (user_id), collect rescuers
     rescue_by_user = {}
     for rl in rescue_logs:
         uid = rl.user_id
         if uid not in rescue_by_user:
-            user = db.query(User).filter(User.id == uid).first()
+            user = user_map.get(uid)
             if not user:
                 continue
             rescue_by_user[uid] = {
-                "user_name": f"{user.name} {user.surname or ''}".strip(),
+                "user_name": _user_name(user),
                 "user_image": user.image,
                 "rescuers": [],
                 "total_gold": 0,
@@ -766,7 +785,6 @@ def get_recent_awards(
             rescue_by_user[uid]["latest_ts"] = rl.created_at
 
     for uid, info in rescue_by_user.items():
-        # Deduplicate rescuer names while preserving order
         seen = set()
         unique_rescuers = []
         for r in info["rescuers"]:
@@ -793,15 +811,15 @@ def get_recent_awards(
         .all()
     )
     for tc in thank_cards:
-        sender = db.query(User).filter(User.id == tc.sender_id).first()
-        recipient = db.query(User).filter(User.id == tc.recipient_id).first()
+        sender = user_map.get(tc.sender_id)
+        recipient = user_map.get(tc.recipient_id)
         if sender and recipient:
             events.append({
                 "id": f"thankyou-{tc.id}",
                 "type": "thank_you",
-                "user_name": f"{recipient.name} {recipient.surname or ''}".strip(),
+                "user_name": _user_name(recipient),
                 "user_image": recipient.image,
-                "sender_name": f"{sender.name} {sender.surname or ''}".strip(),
+                "sender_name": _user_name(sender),
                 "sender_image": sender.image,
                 "timestamp": tc.created_at.isoformat() if tc.created_at else None,
             })
@@ -814,44 +832,37 @@ def get_recent_awards(
         .all()
     )
     for ap in anon_praises:
-        recipient = db.query(User).filter(User.id == ap.recipient_id).first()
+        recipient = user_map.get(ap.recipient_id)
         if recipient:
             events.append({
                 "id": f"praise-{ap.id}",
                 "type": "anonymous_praise",
-                "user_name": f"{recipient.name} {recipient.surname or ''}".strip(),
+                "user_name": _user_name(recipient),
                 "user_image": recipient.image,
                 "message": ap.message,
                 "timestamp": ap.created_at.isoformat() if ap.created_at else None,
             })
 
-    # PvP Battle results (winner entries only, to avoid duplicates)
+    # PvP Battle results
     pvp_logs = (
         db.query(CoinLog)
-        .filter(CoinLog.reason.ilike("%PvP Match:%"))
+        .filter(or_(CoinLog.log_type == "pvp", CoinLog.reason.ilike("%PvP Match:%")))
         .order_by(CoinLog.created_at.desc())
         .limit(limit)
         .all()
     )
-    # Track battles to avoid duplicates (since each battle has 2 CoinLogs, one for winner one for loser)
-    # But wait, the filter below is for all PvP Match: logs. 
-    # Actually, we should probably only show the "Match" event once.
-    # We can deduplicate by the reason string if it's identical.
     seen_pvp_matches = set()
-
     for pl in pvp_logs:
         if pl.reason in seen_pvp_matches:
             continue
         seen_pvp_matches.add(pl.reason)
 
-        user = db.query(User).filter(User.id == pl.user_id).first()
+        user = user_map.get(pl.user_id)
         if user:
-            # Extract names from "⚔️ PvP Match: Challenger vs Opponent | Winner: WinnerName"
             challenger_name = ""
             opponent_name = ""
             winner_name = ""
             reason = pl.reason or ""
-            
             try:
                 if "PvP Match: " in reason and " vs " in reason and " | Winner: " in reason:
                     parts = reason.split("PvP Match: ", 1)[1].split(" | Winner: ", 1)
@@ -864,11 +875,11 @@ def get_recent_awards(
             events.append({
                 "id": f"pvp-{pl.id}",
                 "type": "pvp",
-                "user_name": winner_name, # Standard field for winner
+                "user_name": winner_name,
                 "challenger_name": challenger_name,
                 "opponent_name": opponent_name,
                 "winner_name": winner_name,
-                "amount": abs(pl.amount), # Show the gold amount (5)
+                "amount": abs(pl.amount),
                 "reason": pl.reason,
                 "timestamp": pl.created_at.isoformat() if pl.created_at else None,
                 "detail": "PvP Arena",

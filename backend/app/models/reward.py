@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Enum as SAEnum, Index
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from datetime import datetime
@@ -41,12 +41,18 @@ class Redemption(Base):
 
 class CoinLog(Base):
     __tablename__ = "coin_logs"
+    __table_args__ = (
+        Index("ix_coin_logs_user_created", "user_id", "created_at"),
+        Index("ix_coin_logs_log_type", "log_type"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     amount = Column(Integer, nullable=False) # Positive or Negative
     reason = Column(String(255), nullable=False)
+    log_type = Column(String(30), nullable=True)  # mana_gift, lucky_draw, pvp, lottery, rescue, check_in, penalty, admin, system
     created_by = Column(String(100), nullable=True) # "System" or Admin Name
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
+

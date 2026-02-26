@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -22,6 +22,9 @@ class Badge(Base):
 
 class UserBadge(Base):
     __tablename__ = "user_badges"
+    __table_args__ = (
+        Index("ix_user_badges_user", "user_id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -31,3 +34,4 @@ class UserBadge(Base):
 
     badge = relationship("Badge", back_populates="user_badges")
     user = relationship("User")
+

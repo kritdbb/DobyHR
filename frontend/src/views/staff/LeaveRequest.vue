@@ -138,7 +138,7 @@ export default {
 </script>
 
 <style scoped>
-.staff-page { padding: 28px 0 16px; }
+.staff-page { padding: 28px 0 120px; }
 
 .page-title {
   font-family: 'Cinzel', serif;

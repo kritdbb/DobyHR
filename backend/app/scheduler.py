@@ -115,16 +115,23 @@ def generate_lucky_wheel():
             return
 
         # Build segments: each user gets a segment sized by their total LUK
+        # Pre-load all badges in ONE query (eliminates N+1)
+        from sqlalchemy.orm import joinedload
+        from collections import defaultdict
+        all_user_badges = (
+            db.query(UserBadge)
+            .options(joinedload(UserBadge.badge))
+            .all()
+        )
+        badge_luk_map = defaultdict(int)
+        for ub in all_user_badges:
+            if ub.badge and ub.badge.stat_luk:
+                badge_luk_map[ub.user_id] += ub.badge.stat_luk
+
         segments = []
         for user in staff:
             base_luk = user.base_luk if hasattr(user, 'base_luk') and user.base_luk else 1
-            badge_luk = 0
-            user_badges = db.query(UserBadge).filter(UserBadge.user_id == user.id).all()
-            for ub in user_badges:
-                badge = db.query(Badge).filter(Badge.id == ub.badge_id).first()
-                if badge and badge.stat_luk:
-                    badge_luk += badge.stat_luk
-            total_luk = max(1, base_luk + badge_luk)
+            total_luk = max(1, base_luk + badge_luk_map.get(user.id, 0))
             segments.append({
                 "user_id": user.id,
                 "name": f"{user.name} {user.surname or ''}".strip(),

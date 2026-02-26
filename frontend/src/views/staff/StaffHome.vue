@@ -1166,7 +1166,7 @@ export default {
   background: linear-gradient(135deg, rgba(40,20,10,0.7), rgba(20,10,5,0.75)), url('/arena_bg.png') center/cover;
 }
 .arena-card-fighters {
-  display: flex; align-items: center; gap: 8px; flex: 1;
+  display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center;
 }
 .arena-fighter { display: flex; align-items: center; gap: 8px; }
 .arena-avatar {

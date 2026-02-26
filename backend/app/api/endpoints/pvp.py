@@ -20,18 +20,25 @@ router = APIRouter(prefix="/api/pvp", tags=["PVP Arena"])
 TZ7 = timezone(timedelta(hours=7))
 
 
-def _player_profile(user, db):
+def _player_profile(user, db, user_badges_map=None):
     """Build full TownPeople-style profile for a player."""
-    user_badges_rows = db.query(UserBadge).filter(UserBadge.user_id == user.id).all()
     badge_list = []
-    for ub in user_badges_rows:
-        badge = db.query(Badge).filter(Badge.id == ub.badge_id).first()
-        if badge:
-            badge_list.append({
-                "id": badge.id,
-                "name": badge.name,
-                "image": badge.image,
-            })
+    if user_badges_map is not None:
+        for ub in user_badges_map.get(user.id, []):
+            b = ub.badge
+            if b:
+                badge_list.append({"id": b.id, "name": b.name, "image": b.image})
+    else:
+        from sqlalchemy.orm import joinedload
+        user_badges_rows = (
+            db.query(UserBadge)
+            .options(joinedload(UserBadge.badge))
+            .filter(UserBadge.user_id == user.id)
+            .all()
+        )
+        for ub in user_badges_rows:
+            if ub.badge:
+                badge_list.append({"id": ub.badge.id, "name": ub.badge.name, "image": ub.badge.image})
     return {
         "id": user.id,
         "name": user.name,
@@ -189,15 +196,35 @@ def get_today_battles(db: Session = Depends(get_db), current_user=Depends(deps.g
 
     battles = db.query(PvpBattle).filter(PvpBattle.battle_date == today).all()
 
+    # Pre-load users and badges for all battles (eliminates N+1)
+    all_player_ids = set()
+    for b in battles:
+        all_player_ids.add(b.player_a_id)
+        all_player_ids.add(b.player_b_id)
+    users_list = db.query(User).filter(User.id.in_(all_player_ids)).all() if all_player_ids else []
+    user_map = {u.id: u for u in users_list}
+
+    from sqlalchemy.orm import joinedload
+    from collections import defaultdict
+    all_ubs = (
+        db.query(UserBadge)
+        .options(joinedload(UserBadge.badge))
+        .filter(UserBadge.user_id.in_(all_player_ids))
+        .all()
+    ) if all_player_ids else []
+    ub_map = defaultdict(list)
+    for ub in all_ubs:
+        if ub.badge:
+            ub_map[ub.user_id].append(ub)
+
     result = []
     for b in battles:
-        pa = db.query(User).filter(User.id == b.player_a_id).first()
-        pb = db.query(User).filter(User.id == b.player_b_id).first()
+        pa = user_map.get(b.player_a_id)
+        pb = user_map.get(b.player_b_id)
         if not pa or not pb:
             continue
 
         is_resolved = b.status == "resolved"
-        # Only show result after scheduled time (stored as naive UTC)
         if b.scheduled_time:
             is_resolved = is_resolved and now_bkk >= b.scheduled_time
 
@@ -206,8 +233,8 @@ def get_today_battles(db: Session = Depends(get_db), current_user=Depends(deps.g
             "battle_date": str(b.battle_date),
             "scheduled_time": b.scheduled_time.isoformat() if b.scheduled_time else None,
             "status": "resolved" if is_resolved else "scheduled",
-            "player_a": _player_profile(pa, db),
-            "player_b": _player_profile(pb, db),
+            "player_a": _player_profile(pa, db, ub_map),
+            "player_b": _player_profile(pb, db, ub_map),
             "winner_id": b.winner_id if is_resolved else None,
             "winner_gold": b.winner_gold or 0,
             "winner_mana": b.winner_mana or 0,
