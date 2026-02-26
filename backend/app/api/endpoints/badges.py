@@ -370,6 +370,31 @@ def get_town_people(
 
 import random as _random
 
+BASE_SCROLL_PRICE = 20
+
+def _scroll_price(user: User, item_type: str) -> int:
+    """Scroll price = max(BASE_SCROLL_PRICE, user's base stat for that scroll)."""
+    if item_type == "scroll_of_luck":
+        return max(BASE_SCROLL_PRICE, user.base_luk or 10)
+    elif item_type == "scroll_of_strength":
+        return max(BASE_SCROLL_PRICE, user.base_str or 10)
+    elif item_type == "scroll_of_defense":
+        return max(BASE_SCROLL_PRICE, user.base_def or 10)
+    return BASE_SCROLL_PRICE
+
+
+@router.get("/magic-shop/scroll-prices")
+def get_scroll_prices(
+    current_user: User = Depends(deps.get_current_user),
+):
+    """Return current scroll prices for the logged-in user based on their base stats."""
+    return {
+        "scroll_of_luck": _scroll_price(current_user, "scroll_of_luck"),
+        "scroll_of_strength": _scroll_price(current_user, "scroll_of_strength"),
+        "scroll_of_defense": _scroll_price(current_user, "scroll_of_defense"),
+    }
+
+
 @router.post("/magic-shop/buy")
 def buy_magic_item(
     item_type: str,
@@ -378,7 +403,7 @@ def buy_magic_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    """Buy a magic item from the shop. Scrolls cost 20 Gold. Artifacts cost Mana."""
+    """Buy a magic item from the shop. Scroll price = max(20, base_stat). Artifacts cost Mana."""
     valid_items = ["scroll_of_luck", "scroll_of_strength", "scroll_of_defense", "title_scroll", "circle_artifact"]
     if item_type not in valid_items:
         raise HTTPException(status_code=400, detail=f"Invalid item. Must be one of: {valid_items}")
@@ -408,14 +433,16 @@ def buy_magic_item(
         }
 
     # ── Gold-based items (scrolls, title) ──
-    if (current_user.coins or 0) < 20:
-        raise HTTPException(status_code=400, detail="Not enough Gold! (need 20)")
+    scroll_cost = _scroll_price(current_user, item_type)
+    if item_type in ("scroll_of_luck", "scroll_of_strength", "scroll_of_defense"):
+        if (current_user.coins or 0) < scroll_cost:
+            raise HTTPException(status_code=400, detail=f"Not enough Gold! (need {scroll_cost})")
 
     if item_type == "scroll_of_luck":
-        current_user.coins -= 20
+        current_user.coins -= scroll_cost
         current_user.base_luk = (current_user.base_luk or 10) + 1
         log = CoinLog(
-            user_id=current_user.id, amount=-20,
+            user_id=current_user.id, amount=-scroll_cost,
             reason=f"📜 Scroll of Luck — LUK +1 (now {current_user.base_luk})",
             created_by="Magic Shop"
         )
@@ -423,10 +450,10 @@ def buy_magic_item(
         result = {"item": "Scroll of Luck", "stat": "LUK", "new_value": current_user.base_luk, "coins": current_user.coins}
 
     elif item_type == "scroll_of_strength":
-        current_user.coins -= 20
+        current_user.coins -= scroll_cost
         current_user.base_str = (current_user.base_str or 10) + 1
         log = CoinLog(
-            user_id=current_user.id, amount=-20,
+            user_id=current_user.id, amount=-scroll_cost,
             reason=f"📜 Scroll of Strength — STR +1 (now {current_user.base_str})",
             created_by="Magic Shop"
         )
@@ -434,10 +461,10 @@ def buy_magic_item(
         result = {"item": "Scroll of Strength", "stat": "STR", "new_value": current_user.base_str, "coins": current_user.coins}
 
     elif item_type == "scroll_of_defense":
-        current_user.coins -= 20
+        current_user.coins -= scroll_cost
         current_user.base_def = (current_user.base_def or 10) + 1
         log = CoinLog(
-            user_id=current_user.id, amount=-20,
+            user_id=current_user.id, amount=-scroll_cost,
             reason=f"📜 Scroll of Defense — DEF +1 (now {current_user.base_def})",
             created_by="Magic Shop"
         )

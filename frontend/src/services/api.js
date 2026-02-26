@@ -219,6 +219,7 @@ export const getRecentBadgeAwards = (limit = 50) => api.get(`/api/badges/awards/
 export const getLuckyWheelToday = () => api.get('/api/badges/lucky-wheel/today')
 export const getTownPeople = () => api.get('/api/badges/town-people')
 export const buyMagicItem = (itemType, params = {}) => api.post(`/api/badges/magic-shop/buy?item_type=${itemType}${params.status_text ? '&status_text=' + encodeURIComponent(params.status_text) : ''}${params.artifact_id ? '&artifact_id=' + encodeURIComponent(params.artifact_id) : ''}`)
+export const getScrollPrices = () => api.get('/api/badges/magic-shop/scroll-prices')
 export const getArtifactCatalog = () => api.get('/api/badges/artifacts/catalog')
 export const adminListArtifacts = () => api.get('/api/badges/artifacts/admin/list')
 export const adminCreateArtifact = (formData) => api.post('/api/badges/artifacts/admin/create', formData, { headers: { 'Content-Type': 'multipart/form-data' } })

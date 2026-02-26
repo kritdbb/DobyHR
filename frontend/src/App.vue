@@ -126,6 +126,11 @@ export default {
   data() {
     return {
       toast: { show: false, message: '', type: 'success' },
+      onlineUserIds: [],
+      _ws: null,
+      _wsTimer: null,
+      _heartbeat: null,
+      _reconnectDelay: 1000,
     }
   },
   computed: {
@@ -142,23 +147,100 @@ export default {
         return 'staff'
     }
   },
+  mounted() {
+    this.connectPresence()
+  },
+  beforeUnmount() {
+    this.disconnectPresence()
+  },
+  watch: {
+    '$route.path'() {
+      // Reconnect if navigating after login
+      if (localStorage.getItem('token') && !this._ws) {
+        this.connectPresence()
+      }
+    },
+  },
   methods: {
     showToast(message, type = 'success') {
       this.toast = { show: true, message, type }
       setTimeout(() => { this.toast.show = false }, 3000)
     },
     logout() {
+        this.disconnectPresence()
         localStorage.removeItem('token')
         localStorage.removeItem('user')
         this.$router.push('/login')
     },
     goToStaff() {
         this.$router.push('/staff/dashboard')
-    }
+    },
+    // ── Presence WebSocket ──
+    connectPresence() {
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      this.disconnectPresence()
+
+      const apiUrl = import.meta.env.VITE_API_URL || window.location.origin
+      const wsProto = apiUrl.startsWith('https') ? 'wss' : 'ws'
+      const host = apiUrl.replace(/^https?:\/\//, '')
+      const url = `${wsProto}://${host}/ws/presence?token=${encodeURIComponent(token)}`
+
+      try {
+        const ws = new WebSocket(url)
+        this._ws = ws
+
+        ws.onopen = () => {
+          this._reconnectDelay = 1000
+          // Start heartbeat
+          this._heartbeat = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) ws.send('ping')
+          }, 30000)
+        }
+
+        ws.onmessage = (ev) => {
+          if (ev.data === 'pong') return
+          try {
+            const msg = JSON.parse(ev.data)
+            if (msg.type === 'online') {
+              this.onlineUserIds = msg.user_ids || []
+            }
+          } catch { /* ignore */ }
+        }
+
+        ws.onclose = () => {
+          this._cleanupWs()
+          // Auto-reconnect if still logged in
+          if (localStorage.getItem('token')) {
+            this._wsTimer = setTimeout(() => this.connectPresence(), this._reconnectDelay)
+            this._reconnectDelay = Math.min(this._reconnectDelay * 1.5, 15000)
+          }
+        }
+
+        ws.onerror = () => {
+          // onclose will fire after onerror
+        }
+      } catch { /* ignore */ }
+    },
+    disconnectPresence() {
+      clearTimeout(this._wsTimer)
+      this._cleanupWs()
+      if (this._ws) {
+        try { this._ws.close() } catch { /* ignore */ }
+        this._ws = null
+      }
+      this.onlineUserIds = []
+    },
+    _cleanupWs() {
+      clearInterval(this._heartbeat)
+      this._heartbeat = null
+    },
   },
   provide() {
     return {
       showToast: this.showToast,
+      onlineUserIds: () => this.onlineUserIds,
     }
   },
 }

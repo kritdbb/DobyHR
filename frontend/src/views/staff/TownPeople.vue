@@ -57,6 +57,7 @@
     <div v-else class="people-grid">
       <div v-for="p in people" :key="p.id" class="person-card" @click="selectedPerson = p"
         :style="p.magic_background ? { backgroundImage: 'linear-gradient(rgba(17,10,30,0.65), rgba(17,10,30,0.8)), url(' + apiBase + p.magic_background + ')', backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+        <div v-if="isOnline(p.id)" class="online-dot" title="Online"></div>
         <!-- Portrait -->
         <div class="person-portrait">
           <img v-if="p.circle_artifact && getArtifactImage(p.circle_artifact)" :src="getArtifactImage(p.circle_artifact)" class="person-artifact-ring-img" :class="'effect-' + getArtifactEffect(p)" />
@@ -258,15 +259,26 @@
         <div v-else class="equip-empty">— No equipment found —</div>
       </div>
     </div>
+
+    <!-- Gift Animation -->
+    <GiftCelebration
+      :visible="giftAnim.show"
+      :theme="giftAnim.theme"
+      :amount="giftAnim.amount"
+      :recipientName="giftAnim.recipient"
+      @done="giftAnim.show = false"
+    />
   </div>
 </template>
 
 <script>
 import api, { getTownPeople, sendAngelCoins, getUser, sendThankYouCard, getThankYouStatus, sendAnonymousPraise, getAnonymousPraiseStatus, getArtifactCatalog } from '../../services/api'
+import GiftCelebration from '../../components/GiftCelebration.vue'
 
 export default {
   name: 'TownPeople',
-  inject: ['showToast'],
+  components: { GiftCelebration },
+  inject: ['showToast', 'onlineUserIds'],
   data() {
     const user = JSON.parse(localStorage.getItem('user') || '{}')
     return {
@@ -300,6 +312,8 @@ export default {
       wheelDone: false,
       wheelSelectedIdx: -1,
       fightingNow: false,
+      // Gift animation
+      giftAnim: { show: false, theme: 'gold', amount: 0, recipient: '' },
     }
   },
   async mounted() {
@@ -360,16 +374,20 @@ export default {
           delivery_type: this.giftDeliveryType,
         })
         this.myMana = res.data.sender_mana
+        // Trigger celebration animation
+        this.giftAnim = {
+          show: true,
+          theme: this.giftDeliveryType === 'mana' ? 'mana' : 'gold',
+          amount: this.giftAmount,
+          recipient: this.selectedPerson?.name || '',
+        }
         this.showToast(res.data.message, 'success')
         this.resetGift()
+        // Close the modal so animation is fully visible
+        this.selectedPerson = null
         // Refresh people list
         const { data } = await getTownPeople()
         this.people = data
-        // Update selected person
-        if (this.selectedPerson) {
-          const updated = data.find(p => p.id === this.selectedPerson.id)
-          if (updated) this.selectedPerson = updated
-        }
       } catch (e) {
         this.showToast(e.response?.data?.detail || 'Failed to send', 'error')
       } finally {
@@ -386,6 +404,10 @@ export default {
     },
     getArtifactEffect(person) {
       return person.artifact_effect || 'pulse'
+    },
+    isOnline(userId) {
+      const ids = typeof this.onlineUserIds === 'function' ? this.onlineUserIds() : (this.onlineUserIds || [])
+      return ids.includes(userId)
     },
     async loadSocialStatus() {
       try {
@@ -547,11 +569,27 @@ export default {
   display: flex; flex-direction: column; align-items: center;
   transition: all 0.2s;
   cursor: pointer;
+  position: relative;
 }
 .person-card:hover {
   border-color: rgba(212,164,76,0.4);
   box-shadow: 0 6px 24px rgba(212,164,76,0.1);
   transform: translateY(-2px);
+}
+
+/* Online indicator */
+.online-dot {
+  position: absolute; top: 8px; right: 8px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #2ecc71;
+  border: 2px solid rgba(26,26,46,0.9);
+  box-shadow: 0 0 6px rgba(46,204,113,0.6);
+  z-index: 5;
+  animation: onlinePulse 2s ease-in-out infinite;
+}
+@keyframes onlinePulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(46,204,113,0.6); }
+  50% { box-shadow: 0 0 12px rgba(46,204,113,0.9), 0 0 4px rgba(46,204,113,0.4); }
 }
 
 /* Portrait */

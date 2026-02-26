@@ -22,8 +22,8 @@
           <div class="scroll-icon">{{ s.icon }}</div>
           <div class="scroll-name">{{ s.name }}</div>
           <div class="scroll-desc">+1 {{ s.stat }}</div>
-          <div class="scroll-cost">💰 20</div>
-          <button class="magic-buy" :disabled="buying || myCoins < 20" @click="confirmScroll(s)">
+          <div class="scroll-cost">💰 {{ scrollPrices[s.type] || 20 }}</div>
+          <button class="magic-buy" :disabled="buying || myCoins < (scrollPrices[s.type] || 20)" @click="confirmScroll(s)">
             {{ buying === s.type ? 'Learning...' : 'Buy' }}
           </button>
           <div v-if="lastResult && lastResult.item === s.name" class="magic-result win">
@@ -205,7 +205,7 @@
 </template>
 
 <script>
-import { buyMagicItem, getActiveFortuneWheels, spinFortuneWheel, getArtifactCatalog, uploadMagicBackground } from '../../services/api'
+import { buyMagicItem, getScrollPrices, getActiveFortuneWheels, spinFortuneWheel, getArtifactCatalog, uploadMagicBackground } from '../../services/api'
 
 export default {
   name: 'MagicShop',
@@ -252,6 +252,8 @@ export default {
       myBadges: [],
       // Confirmation popup
       confirmPopup: null,
+      // Scroll dynamic prices
+      scrollPrices: {},
     }
   },
   computed: {
@@ -292,6 +294,7 @@ export default {
   },
   mounted() {
     this.refreshCoins()
+    this.loadScrollPrices()
     this.loadFortuneWheels()
     this.loadArtifactCatalog()
   },
@@ -321,18 +324,26 @@ export default {
     },
 
     // ── Scroll Emporium ──
+    async loadScrollPrices() {
+      try {
+        const { data } = await getScrollPrices()
+        this.scrollPrices = data
+      } catch (e) { /* fallback to default 20 */ }
+    },
     confirmScroll(s) {
+      const price = this.scrollPrices[s.type] || 20
       this.confirmPopup = {
         icon: s.icon,
         title: `Buy ${s.name}?`,
         desc: `Permanently gain +1 ${s.stat}`,
-        costLabel: '💰 20 Gold',
+        costLabel: `💰 ${price} Gold`,
         okText: 'Buy',
         action: () => { this.confirmPopup = null; this.buy(s.type) },
       }
     },
     async buy(itemType) {
-      if (this.myCoins < 20) return
+      const price = this.scrollPrices[itemType] || 20
+      if (this.myCoins < price) return
       this.buying = itemType
       this.lastResult = null
       try {
@@ -342,8 +353,9 @@ export default {
         const user = JSON.parse(localStorage.getItem('user') || '{}')
         user.coins = data.coins
         localStorage.setItem('user', JSON.stringify(user))
-        // Refresh stats
+        // Refresh stats & prices
         this.refreshCoins()
+        this.loadScrollPrices()
       } catch (e) {
         alert(e.response?.data?.detail || 'Purchase failed')
       } finally { this.buying = null }

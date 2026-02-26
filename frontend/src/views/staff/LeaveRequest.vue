@@ -431,8 +431,11 @@ export default {
   border: 2px solid #d4a44c;
   width: 100%; max-width: 420px;
   border-radius: 16px 16px 0 0; padding: 28px 24px;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   box-shadow: 0 -8px 32px rgba(0,0,0,0.3);
   animation: slideUp 0.3s ease-out;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 @media (min-width: 640px) {
   .modal-card { border-radius: 16px; animation: none; }
